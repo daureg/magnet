@@ -88,6 +88,9 @@ def finish(date):
         today_log.write(latex)
     print('latexmk -pdf -pvc current')
     print('mv current.pdf {}.pdf'.format(name))
+    print('dropbox_uploader upload -p {}.pdf {}.pdf'.format(name, name))
+    print('dropbox_uploader share {}.pdf|cut -c16- >> logs'.format(name))
+    print('git add {}.md logs && git commit -m"write today log"'.format(name))
 
 if __name__ == '__main__':
     date = datetime.datetime.now()

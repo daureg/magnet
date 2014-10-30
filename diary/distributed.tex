@@ -1,0 +1,81 @@
+In the 90s, \textcite{Valiant1990} defined a new model of parallel computation
+called bulk-synchronous parallel.
+
+\begin{quotation}
+	
+Valiant observes that parallel processing has not made the expected progress in
+displacing sequential processing in computationally intensive domains. He
+attributes this failure to the lack of an appropriate bridging model for
+parallel computation, analogous to the von Neumann model for sequential
+computation. He then proposes the bulk-synchronous parallel (BSP) model as a
+candidate bridging model. The key claim concerning BSP is that it provides a
+fixed intermediate-level model through which high-level programs can be
+efficiently mapped to diverse machine architectures. The paper supports the
+claim with evidence of varying sorts: certain high-level constructs (such as
+memory hashing) and algorithms are efficiently implemented in BSP, and BSP is
+implemented in two low-level models. Most of the arguments are only sketched,
+with details left to the references. The BSP model consists of (1) components
+(each performing processing or memory functions or both), (2) a point-to-point
+routing mechanism for delivering messages between components, and (3)
+facilities for periodic synchronization of components. The efficiency of BSP as
+a bridging model is improved by parallel slackness in programs; that is, the
+number of virtual processes must be sufficiently larger than the number of
+processors. Another parameter important to BSP efficiency is the ratio $g$ of
+total local computation rate to total router delivery rate. Valiant states that
+existing machines have $g$-values higher than ideal for BSP and investment in
+communication hardware to reduce $g$ (and keep it small as machine size
+increases) will result in more programmable machines. The paper is a brief,
+well-written introduction to a research topic. Whether a bridging model is
+needed for practical progress in parallel processing, or whether BSP is a
+suitable bridging model, remains unclear. The author does not discuss evidence
+against the existence of bridging models; for instance, parallel and
+distributed processing form a continuum with vastly different properties from
+one end to the other. Finally, one might consider the analogous failure of
+nuclear fusion reactors to replace fission reactors--is something lacking in our
+understanding of fusion, or is fusion simply a more difficult engineering
+problem than was first expected?   
+
+Reviewer: Ronald J. Watro 
+\end{quotation}
+
+Closer to us, the increasing size of available data has pushed companies to
+innovate and Google introduce the Pregel model \autocite{Pregel10}.
+
+While Pregel is not publicly available, several open implementation have been
+described, with various modifications
+
+\begin{itemize}
+	\item Apache
+		Giraph\footnote{\href{http://giraph.apache.org/}{http://giraph.apache.org/}}
+	\item Mizan\footnote{Actually, I can't find its implementation} \autocite{Khayyat2013}
+	\item
+		GPS\footnote{\href{http://infolab.stanford.edu/gps/}{http://infolab.stanford.edu/gps/}}
+		\autocite{Salihoglu2013}
+\end{itemize}
+
+\Textcite{Han2014} conducted an experimental comparaison of their performance and
+usability\footnote{Along with GraphLab} on four tasks: PageRank, Single Source
+Shortest Paths, Weakly Connected Components and Minimum Spanning Tree.
+
+Outside the Pregel family (\emph{is it?}), we can cite:
+
+\begin{itemize}
+	\item
+		GraphLab\footnote{\href{http://graphlab.org/projects/source.html}{http://graphlab.org/projects}}%
+		\autocites{Low2010}{Gonzalez2012}{Low2012} and
+		GraphChi\footnote{\href{http://graphlab.org/projects/graphchi.html}{http://graphlab.org/projects/graphchi.html}}
+		\autocite{Kyrola2012}.
+	\item
+		Spark \autocite{Zaharia2010} and its GraphX
+		extension\footnote{\href{https://spark.apache.org/graphx}{https://spark.apache.org/graphx}}
+	\item MapGraph\footnote{\href{http://mapgraph.io/}{http://mapgraph.io/}}
+		\autocite{Fu2014}
+		\item Asynchronous \autocite{Wang2013}
+\end{itemize}
+
+Then talk about related problem like edges partition \autocite{Bourse2014a} or
+algorithms optimization \autocites{Salihoglu14}{Salihoglu2014b} and complexity \autocite{Klauck2013}.
+
+Also show some recent applications, for instance in \pcc{}
+\autocites{Bonchi2012}{Chierichetti2014}.
+\autocite{Quick2012}

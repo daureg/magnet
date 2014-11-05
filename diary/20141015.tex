@@ -1,0 +1,329 @@
+The idea behind clustering is, given a set of objects, to gather similar ones
+into clusters so that all objects belonging to one cluster are similar to each
+other while being dissimilar to objects from all the other clusters.
+
+One way to formalize this problem is to consider objects as the nodes of a
+graph, whose edges weight encode similarity. Namely, weights sign denote
+similarity or not, while their absolute value indicate the strengh of the
+relationship. 
+
+The objective can then be formulated in two way, either maximizing agreements
+(the number of $+$ edges inside clusters and $-$ edges across clusters) or
+minimizing disagreement (the number of $-$ edges within clusters and $+$ edges
+between clusters):
+
+\maxa{}
+\begin{equation}
+		\max_{\mathcal{S}} \sum_{(u,v)}
+		c(w_{uv}) \iverson{w_{uv}>0} \iverson{\mathcal{S}(u) = \mathcal{S}(v)} +
+		c(w_{uv}) \iverson{w_{uv}<0} \iverson{\mathcal{S}(u) \neq \mathcal{S}(v)}
+		\label{eq:maxa}
+\end{equation}
+
+\mind{}
+\begin{equation}
+		\min_{\mathcal{S}} \sum_{(u,v)}
+		c(w_{uv}) \iverson{w_{uv}<0} \iverson{\mathcal{S}(u) = \mathcal{S}(v)} +
+		c(w_{uv}) \iverson{w_{uv}>0} \iverson{\mathcal{S}(u) \neq \mathcal{S}(v)}
+		\label{eq:mind}
+\end{equation}
+
+where $\mathcal{S}$ is a clustering and $\mathcal{S}(u)$ is the cluster index
+of $u$ and $c$ is a cost function.
+
+\section{A bit of history}
+\label{sub:histo}
+
+\Textcite{Ben-Dor99} consider an similar problem in the context of gene
+expression.  They assume there exists a perfect clustering, and receive as
+input a complete similarity matrix, which is corrupted by measurement error.
+They give an $O(n^2(\log n)^c)$ algorithm that recover the planted disjoint
+cliques with high probability.
+Later, \textcite{Shamir02} study the closely related \textsc{Cluster editing}
+problem: how few edges to add and remove in the input graph to turn it into a
+vertex-disjoint union of cliques?\footnote{A recent reference on exact
+parametrized decision version of this problem is \autocite{Fomin2014}.} They
+showed the problem is \npc{}, even if
+the number of clusters $p\geq2$\footnote{The reduction is from 3-exact 3 cover,
+see \autocite[Theorems 1, 2 and Corollary 1]{Shamir02}.} is set beforehand
+and provide a $0.878$ in weighted $p=2$ case using a standard SDP relaxation.
+Independently, \textcite{Bansal2002} introduce problems \eqref{eq:maxa} and
+\eqref{eq:mind} over complete graph under the name \pcc{}. They give a (large)
+constant approximation of \mind{} and a PTAS for \maxa{}.
+
+Two surveys on the topic: \autocites{Becker05}{bonchi2014correlation}
+% The number of triangle with a single $-$ edge is a lower bound of the number of disagreements
+% \footnote{namely, they defined a distance between two graphs as the symmetric
+% difference of their edge sets.  With high probability, the clustering
+% returned by their solution but then why not returned the perturbed graph?}
+
+\section{Hardness and approximation}
+\label{sec:approx}
+
+\Textcite{Charikar2003} show a 4-approximation on \mind{} for complete graph
+using a LP relaxation. On general graph, \mind{} also admits a LP relaxation
+in connection with the multicut problem with a $O(\log n)$ approximation
+rounding a SDP.
+
+In addition to independently giving the same approximations as
+\autocite{Charikar2003}, \textcite{Demaine2006} show the equivalence
+between \pcc{} and the weighted multicut problem, which ask for the minimum
+weight set of edges whose removal in $G$ disconnect the $k$ pairs $(s_i, t_i)$
+
+\Textcite[Section 4]{Charikar2004} give a $\Omega(\frac{1}{\log n})$
+approximation of the \textsc{MaxCorr} problem, which is maximizing
+\eqref{eq:maxa} - \eqref{eq:mind} and can be formulated as a quadratic
+programming problem solved in polynomial time.
+
+\Textcite{Giotis2006} give an more simple reduction from Graph Min Bisection
+When $k$, the number of clusters is fixed, they provide PTAS on complete graph
+for \maxa{} in $nk^{O(\epsilon^{-3}\log(\frac{k}{\epsilon}))}$ and \mind{} in
+$n^{O(\frac{9^k}{\epsilon^2})}\log(n)$.
+They also provide the following summary of results on general graph for fixed
+$k$:
+\begin{center}
+	\begin{tabularx}{\linewidth}{lXX}
+		\toprule
+		$k$	 & 2 & $\geq 3$ \\
+		\midrule
+		\maxa{} & 0.878 (improved to 0.884 by \autocite{Mitra2009}) & 0.7666
+		\autocite{Swamy2004} \\
+		\mind{} & $O(\sqrt{\log n})$ as it reduces to Min 2CNF Deletion for
+		which \textcite{min2CNF05} give such an approximation &
+		this can be reduced from $k$-coloring, which for any $\epsilon > 0$ is
+		\npc{} to approximate within $n^{1-\epsilon}$
+		\autocite{InnaproxChroma07} \\
+		\bottomrule
+	\end{tabularx}
+\end{center}
+
+\begin{table}
+\begin{tabularx}{\linewidth}{llcXX}
+\toprule
+									   &                             & $k$   & \mind{}                                                                                   & \maxa{} \\ \midrule
+			 \multirow{2}{*}{Complete} & unweighted                  &       & 2.5 \autocite{Ailon2008}                                                                  & PTAS in $n2^{poly(\frac{1}{\epsilon})}$ \autocite{Giotis2006} \\
+\cmidrule(r){4-5}
+									   & weighted                    &       & 2 (triangular inequality) \autocite{Ailon2008}                                            & ? \\
+			 \midrule
+			 \multirow{3}{*}{General}  & \multirow{2}{*}{unweighted} &       & $O(\log n)$ \autocite{Bansal2002}, optimal under UCG conjecture \autocite{Makarychev2014} & $0.7666$ \autocite{Swamy2004} \\
+\cmidrule(r){4-5}
+									   &  unweighted                 & $k=2$ & $O(\sqrt{\log n})$ \autocite{min2CNF05}                                                   & $0.884$ \autocite{Mitra2009} \\
+\cmidrule(r){4-5}
+									   & weighted                    &       & ?                                                                                         & ? \\
+\bottomrule
+\end{tabularx}
+\caption{Best results on various problem.\label{tab:soa}}
+\end{table}
+
+Among related problems, \textcite{Ailon2008} also consider \pcc{}. I haven't
+finish reading it seems they have the better so far so here is a quick summary:
+On complete unweighted graph, they got a 3 approximation using
+\textsc{CC-Pivot}. On weighted complete graph, they give two versions, one
+that is greedy and a more sophisticated one that involved LP but perform
+better. 2.5 approximation with probability constraints ($w_{uv}^+ + w_{uv}^- =
+1$) and 2 approximation if we add triangular inequality ($\forall k\;
+w_{ij}^- \leq w_{ik}^- + w_{kj}^-$).
+
+Let say weights are bounded and assume w.l.o.g.\@ they lie in $[-1, +1]$.
+\Textcite[Section 7]{Bansal2002} describe a linear cost function where an edge
+of weight $x$ incurs a cost $\frac{1-x}{2}$ when it's inside a cluster and
+$\frac{1+x}{2}$ when it's between two clusters. It is consistent with edges
+of integer weight $+1$, $-1$ and $0$, the last ones incurring the same cost
+however we put them.
+
+Note that given a graph with weights bounded in absolute value by $M$, we can
+always transform them so to respect the probability constraints.
+
+Weak social balance ensure that by forbidding triangles with exactly one
+negative edge, complete signed graph are perfectly
+clusterable\autocite{davis1967clustering}. Thus triangular inequality can be
+seen as a weighted relaxation of it, which explain why it leads to better
+approximation.
+
+\section{Applications}
+\label{sec:appli}
+As stated in \autocite[Section 5]{Demaine2006}:
+\begin{itemize}
+	\item finding optimal $k$
+	\item adding constraints to existing problem
+	\item clustering without distance (or with several conflicting
+		distance), which can also be also be linked to metric learning.
+	\item Visualization of signed social graph \autocite{Luca10}
+	\item image segmentation \autocites{Bagon2011}{Kim2011}
+	\item duplicate detection, also called entity resolution \autocite{DeDup09}
+	\item coreference resolution is solved by \textcite[Section
+		2.3]{graphicalCoreference04} using a undirected graphical model on
+		which performing inference is equivalent to \pcc{}.
+		\Textcite{Elsner2009} compared various heuristics with a bound of the
+		optimal solution obtained through SDP relaxation and show that best
+		performing ones are within few percents of it, provided they are
+		followed by a local search step. The same problem is tackeld
+		by \textcite{Chatel14}, albeit with a different approach.
+\end{itemize}
+% section2, Gionis2007
+% \autocite{Bonchi2013}
+% Thanks to this generality, the technique is applicable to a multitude of
+% problems in different domains, including duplicate detection and similarity
+% joins [17, 27], biology [11], image segmentation [30] and social networks [12].
+
+
+\section{Variations and related problems}
+\label{sec:related}
+
+\paragraph{recovery under noise}
+Already considered in \autocite[Section 6]{Bansal2002}
+% summarize that part
+\enquote{classic minimum Multicut problem, for which the current
+	state-of-the-art algorithm gives a $\Theta(\log n)$ factor approximation
+	[GVY93]. This also implies that assuming the Unique Games Conjecture, we
+	cannot obtain a constant factor approximation in the worst-case [KV05].}\autocite{Makarychev2014}
+
+But maybe we can do better on average case, which motivate the study of semi
+random model, where real graphs are seen as being obtained from the controlled
+perturbation of a perfectly clusterable graph. 
+
+\autocite{Joachims2005} \enquote{Our analysis makes three contribution. First, we
+	define a model in which we derive finite-sample error bounds for
+	correlation clustering. Second, we study the asymptotic behavior of
+	correlation clustering with respect to the density of the graph and the
+	scaling of cluster sizes. And finally, we propose a statistical test for
+	evaluating the significance of a clustering.}
+
+\autocite{Mathieu2010}
+% recover clusters given complete similar/dissimilar information which have been
+% perturbed by relaxing SDP and clever rounding
+
+\enquote{They consider a generalization of this model where there is an adversary. In
+their model, for each edge, with probability $(\frac{1}{2} + \epsilon)$ we do
+not flip the initial edge label, and with probability $(\frac{1}{2} -
+\epsilon)$ the adversary decides whether to flip the edge label or not. They
+give an algorithm that finds a clustering of cost at most $1 + O(n -
+\frac{1}{6})$ times the cost of the optimal clustering, as long as $\epsilon
+\geq n - \frac{1}{3}$ .  However, these average-case models and algorithms deal
+only with the special case of complete graphs, with all edges having unit
+cost.}\autocite{Makarychev2014}.
+
+
+\paragraph{Edge sign prediction}
+% better summary
+\autocite[Section 6]{Kunegis2009} using global matrix kernel.
+
+While the works mentioned above are combinatorial algorithms over arbitrary,
+undirected graph, we can also give additional semantic to edges in directed
+graph, such as friendship/foeship, trust/distrust, activator/inhibitor,
+secure/malicious interactions or high/low status. Assuming these graphs
+display some regularity like social balance, this can be used as bias for
+learning algorithms. Some heuristics are local. For instance,
+\textcite{Leskovec2010} build a logistic regression model based on degree
+feature and frequency of triangle in which each edge is involved.
+\Textcite{LowRankCompletion14} consider longer cycle but note that global
+approach are more efficient. In particular, inspired by the fact the complete,
+balanced adjacency matrix has $k$ disjoint block, they give condition under
+which it can be recovered from the observed matrix through low rank matrix
+factorization.
+
+
+\paragraph{Online \& active setting}
+% better summary
+% \emph{Still have to write this part. Is there a link between mistake bound
+% and approximation ratio?}
+Beside batch setting, one can also consider active
+\autocites{Cesa-Bianchi2012b}{Cesa-Bianchi2012a} and online
+\autocite{Gentile2013} framework.
+
+\Textcite{mathieu:inria-00455771} give a greedy algorithm that upon vertex
+arrival creates a singleton cluster and then merge all pairs of clusters for
+which it increases the total number of agreements. For \mind{}, this is
+$O(n)$-competitive algorithm and they show such ratio is optimal by exhibiting
+an instance\footnote{two positive cliques $A$ and $B$ joined by positive edges
+except between $a\in A$ and $\{b_1,\ldots, b_k\}\in B$. Those nodes are given
+first and thus form a cluster which yield at least one disagreement every time
+one the $n-(k+1)$ remaining vertex is added.} on which any strategy ends up with $n - k$
+disagreements whereas optimal cost is $k$. On the \maxa{} side, this greedy
+strategy result in a $0.5$-competitive algorithm. If it is randomly mixed with
+a \textsc{Dense} variation, it raises up to $0.5+\eta$, still far from the
+demonstrated $0.834$ upper bound.
+
+\autocite[Section 5]{Ailon2014} present another active algorithm but it looks
+pretty involved so I haven't read it yet: \enquote{algorithms for \mind$[k]$
+with sublinear query complexity, but the running time of this solutions is
+exponential in $n$}.
+
+\paragraph{Overlapping correlation clustering \autocite{Bonchi2012}} in this setting,
+objects are allowed to belong to more than one cluster. Given a complete
+weighted graph, output a labelling function $\ell: V \rightarrow 2^{|V|}$ that
+minimize: \[C_{occ}(V, \ell) = \sum_{u,v} \left| H(\ell(u), \ell(v)) -
+		w_{uv}\right|\] where $H$ is a similarity function between sets of
+labels, such as Jaccard similarity or a binary indicator of non empty
+intersection. These problems are \nph{} and authors provide approximations
+algorithm and map-reduce experimental results.
+
+\paragraph{consensus clustering} 
+the goal is to output a clustering which best summarize the given input
+clusterings.  It's a restricted case of \pcc{} where the negative weights obey
+the triangular inequality.  \Textcite{Gionis2007} give a deterministic 3
+approximation and describe a sampling approach suited to large dataset. It was
+later improved by \textcite{Bonizzoni2008}, which show that the minimization
+version is APX-hard, even with only 3 candidates but give a PTAS with a
+$\frac{4}{3}$ approximation for the maximization problem. Experimental
+evaluations are conducted by \textcite{Bertolacci07} and \textcite{Filkov08}.
+
+\paragraph{non binary edge labelling}
+Here, \enquote{positive} edges are categorical (or colored) and the goal is to
+form clusters mostly made up of edges of one color. As a generalisation of
+\pcc{}, it's \nph{} and \textcite{Bonchi2012a} give a random approximation
+algorithm with a ratio bounded by max degree. They also present a fixed $k$
+method and experiment on real world datasets.
+
+% add bipartite (read KDD tuto)
+\paragraph{Bipartite \pcc{} \autocite{Bipartite12}}
+
+\paragraph{Hypergraphs} \Textcite{Kim2011} show a LP relaxation on hypergraph
+and \textcite{Ricatte13} describe a class of hypergraphs that can be reduced
+to signed graph.
+
+\subsection{Scalability}
+\paragraph{Distributed computation}
+\Textcite{Chierichetti2014} described a distributed approach with the
+following performance bound:
+
+\begin{tabular}{lll}
+	\toprule
+	& \# rounds  & ratio \\
+	\midrule
+	complete & $O(\log n)$ & $3 + O(\epsilon)$ \\
+	general & $O(\log n\log{\Delta^+})$ & $O(\log{n})$ \\
+	\bottomrule
+\end{tabular}
+
+% mention unpublished yahoo method
+There are other approaches \autocite[Part III]{bonchi2014correlation} one can
+look at.
+
+One can also sample the data beforehand, as in \autocite{Bertolacci07}.
+
+\paragraph{Local search}
+\Textcite{Bonchi2013} study the problem of finding cluster index consistently
+given a single node and making some queries to the adjacency matrix of a
+general unweighted graph. They first describe a modification of Ailon
+\textsc{QuickCluster} giving a $4\cdot OPT + \epsilon n^2$ approximation in
+$O(\frac{1}{\epsilon})$ time after $O(\frac{1}{\epsilon^2})$ time and queries
+preprocessing. Then there is an additive $OPT + \epsilon n^2$ additive
+approximation in $poly(\frac{1}{\epsilon})$ time after a
+$poly(\frac{1}{\epsilon})$ time and $2^{poly(\frac{1}{\epsilon})}$ queries
+preprocessing which seems more involved.  Because their approach is localized,
+it is trivially parallelized and is independent of the graph size. Therefore
+one can obtain a complete clustering in time linear with the number of node to
+predict.
+\section{Future directions}
+Ranging from theoretical to practical ones:
+
+\begin{itemize}
+	\item improve bounds, for instance by designing ad-hoc algorithm for
+		specific case: Fabio, Aris
+	\item improve scalability, for instance using distributed non negative
+		matrix factorization, an active area of research
+		\autocite{Bhojanapalli2014,Hastie2014,Udell2014}: Kiran, Master student
+	\item apply these new methods to real datasets (social network, NLP) and
+		interpret domain specific results: Sanja
+\end{itemize}

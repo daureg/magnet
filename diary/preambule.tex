@@ -14,22 +14,24 @@
 % \renewcommand{\thesubsection}{\alph{subsection}}
 % \usepackage{algorithm}
 % \usepackage{algorithmic}
-% \usepackage{amsmath}
+\usepackage{amsmath}
 % \usepackage{amsfonts}
-% \usepackage{amssymb}
+\usepackage{amssymb}
 \usepackage[autolanguage]{numprint}
 % \usepackage{balance}
+\usepackage{tabularx}
+\usepackage{tabulary}
+\usepackage{multirow}
 \usepackage{booktabs}
 % \usepackage{caption}
 % \usepackage{chngpage}
 % \usepackage{colortbl}
 \usepackage{graphicx} 
-\usepackage{hyperref}
 \usepackage{microtype}
 % \usepackage{natbib}
 % \usepackage{pgfplots}
 % \usepackage{pgfplotstable}
-% \usepackage[strict]{csquotes}
+\usepackage[strict]{csquotes}
 % \usepackage{caption}
 % \usepackage{subcaption}
 \usepackage{xcolor}
@@ -54,14 +56,36 @@
 % \usepgfplotslibrary{external}
 % \usetikzlibrary{calc,arrows}
 
-\usepackage[style=reading,sorting=nyt,backend=biber,defernumbers=true]{biblatex}
-\addbibresource{../../../magnet.bib}
+\usepackage[citestyle=authoryear-comp,bibstyle=ieee,isbn=false,maxcitenames=1,mincitenames=1,sorting=nyt,backend=biber,defernumbers=true]{biblatex}
+
+\AtEveryBibitem{
+   \clearfield{arxivId}
+   % \clearfield{booktitle}
+   \clearfield{doi}
+   \clearfield{eprint}
+   \clearfield{eventdate}
+   \clearfield{isbn}
+   \clearfield{issn}
+   % \clearfield{journaltitle}
+   \clearfield{month}
+   % \clearfield{number}
+   % \clearfield{pages}
+   \clearfield{series}
+   \clearfield{url}
+   \clearfield{urldate}
+   \clearfield{venue}
+   % \clearfield{volume}
+   \clearlist{location} % alias to field 'address'
+   \clearlist{publisher}
+   \clearname{editor}
+}
+\addbibresource{../../../biblio/magnet.bib}
 % From https://www.writelatex.com/630785fxzchp
-\usepackage[hmargin=2cm,vmargin=2.5cm]{geometry}
+% \usepackage[hmargin=2cm,vmargin=2.5cm]{geometry}
 \usepackage{fancyhdr}
 \newcommand{\userName}{Géraud Le Falher}
 \newcommand{\institution}{Inria Lille}
-\pagestyle{fancy}
+% \pagestyle{fancy}
 \rhead{\workingDate}
 \chead{\textsc{Research Diary}}
 \lhead{\textsc{\userName}}
@@ -78,4 +102,17 @@
 	    \includegraphics[width=4cm]{../../admin/inria_logo.pdf}
     \end{center}
   \end{wrapfigure}
+}
+
+\usepackage{hyperref}
+\hypersetup{%
+    % draft,    % = no hyperlinking at all (useful in b/w printouts)
+    colorlinks=true, linktocpage=true, pdfstartpage=3, pdfstartview=FitV,%
+    % uncomment the following line if you want to have black links (e.g., for printing)
+    %colorlinks=false, linktocpage=false, pdfborder={0 0 0}, pdfstartpage=3, pdfstartview=FitV,%
+    breaklinks=true, pdfpagemode=UseNone, pageanchor=true, pdfpagemode=UseOutlines,%
+    plainpages=false, bookmarksnumbered, bookmarksopen=true, bookmarksopenlevel=1,%
+    hypertexnames=true, pdfhighlight=/O,%nesting=true,%frenchlinks,%
+    urlcolor=Chocolate, linkcolor=DodgerBlue, citecolor=LimeGreen, %pagecolor=RoyalBlue,%
+    %urlcolor=Black, linkcolor=Black, citecolor=Black, %pagecolor=Black,%
 }

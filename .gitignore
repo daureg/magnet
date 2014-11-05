@@ -2,7 +2,6 @@ veverica/*.pdf
 veverica/.ipynb_checkpoints/
 
 diary/20*.pdf
-diary/20*.tex
 diary/current.*
 # Created by https://www.gitignore.io
 

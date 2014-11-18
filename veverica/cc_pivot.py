@@ -84,15 +84,21 @@ def add_edge_disagreement_size(graph, disagreement):
     return {'pen_width': edge_width}
 
 
-def draw_clustering(graph, filename=None):
-    pos = gtdraw.sfdp_layout(graph, cooling_step=0.95, epsilon=5e-2,
-                             groups=graph.vp['cluster'])
+def draw_clustering(graph, filename=None, pos=None, vmore=None):
+    pos = pos or gtdraw.sfdp_layout(graph, cooling_step=0.95, epsilon=5e-2)
     vertex_options = {'pen_width': 0}
+    if vmore:
+        vertex_options.update(vmore)
     vertex_options.update(add_cluster_name_and_color(graph))
+    name = graph.new_vertex_property('string')
+    for i, v in enumerate(graph.vertices()):
+        name[v] = str(i)
+    vertex_options['text'] = name
     d = count_disagreements(graph)
-    edge_options = {}
+    print(str(d.a.sum().ravel()[0]) + ' disagreements')
+    edge_options = {'pen_width': 3}
     edge_options.update(add_edge_sign_color(graph))
-    edge_options.update(add_edge_disagreement_size(graph, d))
+    # edge_options.update(add_edge_disagreement_size(graph, d))
 
     gtdraw.graph_draw(graph, pos=pos, vprops=vertex_options,
                       eprops=edge_options, output=filename)

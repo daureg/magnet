@@ -10,27 +10,27 @@ Ailon, N., Charikar, M., & Newman, A. (2008). Aggregating inconsistent
 information. Journal of the ACM, 55(5), 1–27. doi:10.1145/1411509.1411513"""
 
 
-def cc_pivot(g):
+def cc_pivot(graph):
     """Fill g's cluster_index according to Ailon algorithm"""
     current_cluster_index = 0
-    clustered = g.new_vertex_property('bool')
-    c.set_vertex_filter(clustered, inverted=True)
+    clustered = graph.new_vertex_property('bool')
+    graph.set_vertex_filter(clustered, inverted=True)
 
     def add_to_current_cluster(node):
-        c.vp['cluster'][node] = current_cluster_index
+        graph.vp['cluster'][node] = current_cluster_index
         clustered[node] = True
 
-    still_unclustered = list(c.vertices())
+    still_unclustered = list(graph.vertices())
     while len(still_unclustered) > 0:
         pivot = r.choice(still_unclustered)
         add_to_current_cluster(pivot)
         for e in pivot.out_edges():
-            positive_neighbor = c.ep['sign'][e]
+            positive_neighbor = graph.ep['sign'][e]
             if positive_neighbor:
                 add_to_current_cluster(e.target())
         current_cluster_index += 1
-        still_unclustered = list(c.vertices())
-    c.set_vertex_filter(None)
+        still_unclustered = list(graph.vertices())
+    graph.set_vertex_filter(None)
 
 
 def count_disagreements(g):
@@ -84,21 +84,17 @@ def add_edge_disagreement_size(graph, disagreement):
     return {'pen_width': edge_width}
 
 
-def draw_clustering(c, filename):
-    pos = gtdraw.sfdp_layout(c, cooling_step=0.95, epsilon=5e-2)
+def draw_clustering(graph, filename=None):
+    pos = gtdraw.sfdp_layout(graph, cooling_step=0.95, epsilon=5e-2)
     vertex_options = {'pen_width': 0}
-    vertex_options.update(add_cluster_name_and_color(c))
-    d = count_disagreements(c)
+    vertex_options.update(add_cluster_name_and_color(graph))
+    d = count_disagreements(graph)
     edge_options = {}
-    edge_options.update(add_edge_sign_color(c))
-    edge_options.update(add_edge_disagreement_size(c, d))
+    edge_options.update(add_edge_sign_color(graph))
+    edge_options.update(add_edge_disagreement_size(graph, d))
 
-    gtdraw.graph_draw(c, pos=pos, vprops=vertex_options, eprops=edge_options,
-                      # edge_color=edge_color,
-                      # vertex_fill_color=cluster_color, vertex_pen_width=0,
-                      # vertex_text=cluster_name,
-                      # edge_pen_width=edge_width,
-                      output=filename)
+    gtdraw.graph_draw(graph, pos=pos, vprops=vertex_options,
+                      eprops=edge_options, output=filename)
 
 if __name__ == '__main__':
     N = 10

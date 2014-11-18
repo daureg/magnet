@@ -11,7 +11,7 @@ information. Journal of the ACM, 55(5), 1–27. doi:10.1145/1411509.1411513"""
 
 
 def cc_pivot(g):
-    """Fill g's cluster_index according to Aion algorithm"""
+    """Fill g's cluster_index according to Ailon algorithm"""
     current_cluster_index = 0
     clustered = g.new_vertex_property('bool')
     c.set_vertex_filter(clustered, inverted=True)
@@ -33,8 +33,8 @@ def cc_pivot(g):
     c.set_vertex_filter(None)
 
 
-def count_disagrements(g):
-    """Return a boolean edge map of disagrement with current clustering"""
+def count_disagreements(g):
+    """Return a boolean edge map of disagreement with current clustering"""
     disagree = g.new_edge_property('bool')
     cluster = lambda v: g.vp['cluster'][v]
     positive = lambda e: g.ep['sign'][e]
@@ -47,9 +47,8 @@ def count_disagrements(g):
     return disagree
 
 
-def build_graph():
-    """Build a complete with random sign"""
-    graph = gtgeneration.complete_graph(N)
+def make_signed_graph(graph):
+    """Add sign and cluster information to a graph"""
     edge_is_positive = graph.new_edge_property("bool")
     cluster_index = graph.new_vertex_property("int")
     graph.ep['sign'] = edge_is_positive
@@ -60,36 +59,49 @@ def build_graph():
     return graph
 
 
+def add_cluster_name_and_color(graph):
+    cluster_color = graph.new_vertex_property('vector<float>')
+    cluster_name = graph.new_vertex_property('string')
+    for v in graph.vertices():
+        cluster_color[v] = list(COLORS[graph.vp['cluster'][v]])+[0.9, ]
+        cluster_name[v] = '{:01d}'.format(graph.vp['cluster'][v])
+    return {'fill_color': cluster_color,
+            'text': cluster_name}
+
+
+def add_edge_sign_color(graph):
+    ecolors = [[.8, .2, .2, .8], [.2, .8, .2, .8]]
+    edge_color = graph.new_edge_property('vector<float>')
+    for e in graph.edges():
+        edge_color[e] = ecolors[graph.ep['sign'][e]]
+    return {'color': edge_color}
+
+
+def add_edge_disagreement_size(graph, disagreement):
+    edge_width = graph.new_edge_property('float')
+    for e in graph.edges():
+        edge_width[e] = 8 if disagreement[e] else 4
+    return {'pen_width': edge_width}
+
+
 def draw_clustering(c, filename):
     pos = gtdraw.sfdp_layout(c, cooling_step=0.95, epsilon=5e-2)
-    cluster_color = c.new_vertex_property('vector<float>')
-    cluster_name = c.new_vertex_property('string')
-    for v in c.vertices():
-        cluster_color[v] = list(COLORS[c.vp['cluster'][v]])+[0.9, ]
-        cluster_name[v] = '{:01d}'.format(c.vp['cluster'][v])
-    # plain, dash = [1.0, 0.0, .0], [0.1, 0.1, 0]
-    # line_styles = [dash, plain]
-    ecolors = [[.8, .2, .2, .8], [.2, .8, .2, .8]]
-    # dash_pattern = c.new_edge_property('vector<float>')
-    edge_color = c.new_edge_property('vector<float>')
-    for e in c.edges():
-        # dash_pattern[e] = line_styles[c.ep['sign'][e]]
-        edge_color[e] = ecolors[c.ep['sign'][e]]
+    vertex_options = {'pen_width': 0}
+    vertex_options.update(add_cluster_name_and_color(c))
+    d = count_disagreements(c)
+    edge_options = {}
+    edge_options.update(add_edge_sign_color(c))
+    edge_options.update(add_edge_disagreement_size(c, d))
 
-    d = count_disagrements(c)
-    edge_width = c.new_edge_property('float')
-    for e in c.edges():
-        edge_width[e] = 8 if d[e] else 4
-    gtdraw.graph_draw(c, pos=pos, edge_color=edge_color,
-                      vertex_fill_color=cluster_color, vertex_pen_width=0,
-                      vertex_text=cluster_name,
+    gtdraw.graph_draw(c, pos=pos, vprops=vertex_options, eprops=edge_options,
+                      # edge_color=edge_color,
+                      # vertex_fill_color=cluster_color, vertex_pen_width=0,
+                      # vertex_text=cluster_name,
                       # edge_pen_width=edge_width,
-                      # edge_dash_style=dash_pattern,
-                      edge_pen_width=edge_width,
                       output=filename)
 
 if __name__ == '__main__':
     N = 10
-    c = build_graph()
+    c = make_signed_graph(gtgeneration.complete_graph(N))
     cc_pivot(c)
     draw_clustering(c, "complete_10.pdf")

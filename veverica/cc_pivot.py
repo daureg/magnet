@@ -35,6 +35,8 @@ def cc_pivot(graph):
 
 def count_disagreements(g):
     """Return a boolean edge map of disagreement with current clustering"""
+    if 'fake' in g.ep:
+        g.set_edge_filter(g.ep['fake'], inverted=True)
     disagree = g.new_edge_property('bool')
     cluster = lambda v: g.vp['cluster'][v]
     positive = lambda e: g.ep['sign'][e]
@@ -44,6 +46,7 @@ def count_disagreements(g):
                        negative(e)) or (
                            cluster(e.source()) != cluster(e.target()) and
                            positive(e))
+    g.set_edge_filter(None)
     return disagree
 
 

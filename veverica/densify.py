@@ -1,21 +1,27 @@
 #! /usr/bin/python2
 # vim: set fileencoding=utf-8
 """Take a general signed graph and complete it randomly (to some extent)."""
-import cc_pivot as cc
 import random as r
 from itertools import combinations
 
-CLOSEABLE_TRIANGLES = set()
+CLOSEABLE_TRIANGLES = None
 N = -1
 GRAPH = None
+EDGES_SIGN = {}
 
 
+def profile(f):
+    return f
+
+
+@profile
 def hash_triangle(a, b, c):
     """Give an unique id to each vertices triplet"""
     a, b, c = sorted([a, b, c])
     return N*(a*N+b)+c
 
 
+@profile
 def triangle_nodes(hash_):
     """Return the 3 vertices index making a triangle id"""
     c = hash_ % N
@@ -25,54 +31,67 @@ def triangle_nodes(hash_):
     return a, b, c
 
 
+@profile
 def triangle_edges(hash_):
     """Return the edges of a triangle"""
     u, v, w = triangle_nodes(hash_)
-    return GRAPH.edge(v, w), GRAPH.edge(u, w), GRAPH.edge(u, v)
+    return (EDGES_SIGN.get((v, w), None), EDGES_SIGN.get((u, w), None),
+            EDGES_SIGN.get((u, v), None))
+
+
+@profile
+def triangle_score(hash_):
+    """Return a number characterizing the triangle's edge type"""
+    # score each edge as : {+: 1, -: -1, absent: -10}
+    edge_score = lambda e: -10 if e is None else (e*2 - 1)
+    return sum((edge_score(e) for e in triangle_edges(hash_)))
 
 
 def triangle_is_closeable(hash_):
     """A triangle is closeable if one edge is missing and at least another
     one is positive"""
-    # score each edge as : {+: 1, -: -1, absent: -10}
-    edge_score = lambda e: -10 if e is None else (GRAPH.ep['sign'][e]*2 - 1)
-    return sum((edge_score(e) for e in triangle_edges(hash_))) in [-10, -8]
+    return triangle_score(hash_) in [-10, -8]
 
 
+@profile
 def triangle_is_closed(hash_):
     """Tell if a triangle has 3 edges"""
-    edge_score = lambda e: -10 if e is None else (GRAPH.ep['sign'][e]*2 - 1)
-    return sum((edge_score(e) for e in triangle_edges(hash_))) >= -3
+    return triangle_score(hash_) >= -3
 
 
+@profile
 def ego_triangle(v):
     """Return all triangles (as int tuples) involving `v`"""
     neighbors = (_+(v,) for _ in combinations(v.out_neighbours(), 2))
     return [hash_triangle(*map(int, nodes)) for nodes in neighbors]
 
 
+@profile
 def how_to_complete_triangle(hash_):
     """Return the endpoints and the boolean sign of the missing edge in the
     triangle `hash_`"""
     u, v, w = triangle_nodes(hash_)
-    eu, ev, ew = GRAPH.edge(v, w), GRAPH.edge(u, w), GRAPH.edge(u, v)
-    if not eu:
+    eu, ev, ew = triangle_edges(hash_)
+    if eu is None:
         a, b, first, second = v, w, ev, ew
-    if not ev:
+    if ev is None:
         a, b, first, second = u, w, eu, ew
-    if not ew:
+    if ew is None:
         a, b, first, second = u, v, eu, ev
-    s1, s2 = GRAPH.ep['sign'][first], GRAPH.ep['sign'][second]
-    return a, b, s1 and s2
+    return a, b, first and second
 
 
+@profile
 def add_signed_edge(src, dst, positive=False):
     """Add a edge between `src` and `dst`, potentially a positive one"""
     e = GRAPH.add_edge(src, dst)
     GRAPH.ep['fake'][e] = True
     GRAPH.ep['sign'][e] = positive
+    src, dst = min(src, dst), max(src, dst)
+    EDGES_SIGN[(src, dst)] = positive
 
 
+@profile
 def complete_pivot(v):
     """Close all triangles related to `v`"""
     candidates = ego_triangle(GRAPH.vertex(v))
@@ -87,6 +106,7 @@ def complete_pivot(v):
         update_triangle_status(done[0], done[1])
 
 
+@profile
 def update_triangle_status(a, b):
     """Look for all closeable triangles involving edge (`a`,`b`)"""
     Na = set(map(int, GRAPH.vertex(a).out_neighbours()))
@@ -101,29 +121,31 @@ def update_triangle_status(a, b):
             CLOSEABLE_TRIANGLES.discard(h)
 
 
+@profile
 def complete_graph():
     """Close every possible triangles and then add negative edges"""
+    global CLOSEABLE_TRIANGLES
     N = GRAPH.num_vertices()
-    for i in range(N):
-        for j in range(i+1, N):
-            for k in range(j+1, N):
-                h = hash_triangle(i, j, k)
-                if triangle_is_closeable(h):
-                    CLOSEABLE_TRIANGLES.add(h)
+    CLOSEABLE_TRIANGLES = set()
+    for i, j, k in combinations(xrange(N), 3):
+        h = hash_triangle(i, j, k)
+        if triangle_is_closeable(h):
+            CLOSEABLE_TRIANGLES.add(h)
     nb_iter = 0
     while CLOSEABLE_TRIANGLES and nb_iter < N*N*N/6:
         # TODO: choose pivot without replacement
         complete_pivot(r.randint(0, N-1))
         nb_iter += 1
-    for i in range(N):
-        for j in range(i+1, N):
-            if not GRAPH.edge(i, j):
-                add_signed_edge(i, j)
+    for i, j in combinations(xrange(N), 2):
+        if (i, j) not in EDGES_SIGN:
+            add_signed_edge(i, j)
 
 if __name__ == '__main__':
     # pylint: disable=C0103
     N = 15
+    import cc_pivot as cc
     GRAPH = cc.make_signed_graph(cc.gtgeneration.circular_graph(N))
+    EDGES_SIGN.clear()
     name = GRAPH.new_vertex_property('string')
     fake = GRAPH.new_edge_property('bool')
     GRAPH.ep['fake'] = fake
@@ -131,7 +153,11 @@ if __name__ == '__main__':
         name[v] = str(i)
     for i, e in enumerate(GRAPH.edges()):
         GRAPH.ep['sign'][e] = i != 0
+        src, dst = int(e.source()), int(e.target())
+        src, dst = min(src, dst), max(src, dst)
+        EDGES_SIGN[(src, dst)] = bool(GRAPH.ep['sign'][e])
     pos = cc.gtdraw.sfdp_layout(GRAPH, cooling_step=0.95, epsilon=5e-2)
+
     complete_graph()
     cc.cc_pivot(GRAPH)
     print(GRAPH.vp['cluster'].a)

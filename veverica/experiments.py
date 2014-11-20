@@ -24,7 +24,9 @@ def make_circle(n):
     return graph
 
 
-def make_rings(size, nb_ring):
+def make_rings(size, nb_ring, shared_sign=True):
+    # TODO add ring_size_ratio, the length ratio between the small half rings
+    # and long half rings. So 1 should yield equal size rings summing up to N.
     graph = gt.Graph(directed=False)
     graph.ep['fake'] = graph.new_edge_property('bool')
     edge_is_positive = graph.new_edge_property("bool")
@@ -34,7 +36,7 @@ def make_rings(size, nb_ring):
 
     v1, v2 = graph.add_vertex(), graph.add_vertex()
     shared = graph.add_edge(v1, v2)
-    edge_is_positive[shared] = True
+    edge_is_positive[shared] = shared_sign
 
     def add_cycle(length):
         start = graph.vertex(1)

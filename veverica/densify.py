@@ -47,6 +47,7 @@ def triangle_score(hash_):
     return sum((edge_score(e) for e in triangle_edges(hash_)))
 
 
+@profile
 def triangle_is_closeable(hash_):
     """A triangle is closeable if one edge is missing and at least another
     one is positive"""
@@ -136,9 +137,14 @@ def complete_graph(graph):
         # TODO: choose pivot without replacement
         complete_pivot(graph, r.randint(0, N-1))
         nb_iter += 1
+    random_completion(graph, -1)
+
+
+def random_completion(graph, positive_proba=0.5):
+    """Set `graph` absent edges positive with `positive_proba`ility."""
     for i, j in combinations(range(N), 2):
         if (i, j) not in EDGES_SIGN:
-            add_signed_edge(graph, i, j)
+            add_signed_edge(graph, i, j, r.random() < positive_proba)
 
 if __name__ == '__main__':
     # pylint: disable=C0103

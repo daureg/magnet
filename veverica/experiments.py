@@ -77,6 +77,17 @@ if __name__ == '__main__':
     # print(run_one_experiment(ring))
     # cc.draw_clustering(ring, filename="ring.pdf", pos=pos,
     #                    vmore={'text': name})
+    N, k = 33, 4
+    best_g = None
+    best_d = N*N
+    for _ in xrange(6):
+        g = make_rings(N, k)
+        t, c, d = run_one_experiment(g)
+        if d < best_d:
+            best_g, best_d = g.copy(), d
+    cc.draw_clustering(best_g, filename='ring_{:03d}.pdf'.format(N))
+    import sys
+    sys.exit()
     import persistent as p
     from operator import itemgetter
     Ns = np.linspace(6, 150, 6)

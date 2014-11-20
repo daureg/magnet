@@ -3,6 +3,13 @@ veverica/.ipynb_checkpoints/
 
 diary/20*.pdf
 diary/current.*
+*.my
+*.bench
+*.ipynb
+*.zip
+*.lprof
+*.prof
+*.gt
 # Created by https://www.gitignore.io
 
 ### Linux ###

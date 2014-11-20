@@ -69,6 +69,13 @@ def run_one_experiment(graph):
     return elapsed, nb_cluster, disagreements.a.sum().ravel()[0]
 
 
+def delta_fas_circle(n, p):
+    graph = make_circle(n)
+    densify.random_completion(graph, p)
+    cc.cc_pivot(graph)
+    disagreements = cc.count_disagreements(graph)
+    return disagreements.a.sum().ravel()[0], graph
+
 if __name__ == '__main__':
     # pylint: disable=C0103
     # ring = make_rings(35, 5)
@@ -79,6 +86,23 @@ if __name__ == '__main__':
     # print(run_one_experiment(ring))
     # cc.draw_clustering(ring, filename="ring.pdf", pos=pos,
     #                    vmore={'text': name})
+    import persistent as p
+    N = 8
+    res, best_g, best_d, worst_g, worst_d = [], None, N, None, 0
+    for _ in xrange(1000):
+        d, g = delta_fas_circle(8, 0.5)
+        if d < best_d:
+            best_g, best_d = g.copy(), d
+        if d > worst_d:
+            worst_g, worst_d = g.copy(), d
+        res.append(d)
+    p.save_var('test_fas.my', res)
+    best_g.save('fas_best_{:03d}.gt'.format(N))
+    worst_g.save('fas_worst_{:03d}.gt'.format(N))
+    cc.draw_clustering(best_g, filename='fas_best_{:03d}.pdf'.format(N))
+    cc.draw_clustering(worst_g, filename='fas_worst_{:03d}.pdf'.format(N))
+    import sys
+    sys.exit()
     N, k = 33, 4
     best_g = None
     best_d = N*N
@@ -88,9 +112,6 @@ if __name__ == '__main__':
         if d < best_d:
             best_g, best_d = g.copy(), d
     cc.draw_clustering(best_g, filename='ring_{:03d}.pdf'.format(N))
-    import sys
-    sys.exit()
-    import persistent as p
     from operator import itemgetter
     Ns = np.linspace(6, 150, 6)
     K = 100

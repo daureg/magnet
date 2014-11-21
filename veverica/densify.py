@@ -8,10 +8,40 @@ CLOSEABLE_TRIANGLES = None
 N = -1
 GRAPH = None
 EDGES_SIGN = {}
+triangle_is_closeable_ = {
+    (None, None, None): False, (None, None, False): False,
+    (None, None, True): False, (None, False, None): False,
+    (None, False, False): False, (None, False, True): True,
+    (None, True, None): False, (None, True, False): True,
+    (None, True, True): True, (False, None, None): False,
+    (False, None, False): False, (False, None, True): True,
+    (False, False, None): False, (False, False, False): False,
+    (False, False, True): False, (False, True, None): True,
+    (False, True, False): False, (False, True, True): False,
+    (True, None, None): False, (True, None, False): True,
+    (True, None, True): True, (True, False, None): True,
+    (True, False, False): False, (True, False, True): False,
+    (True, True, None): True, (True, True, False): False,
+    (True, True, True): False}
+triangle_is_closed_ = {
+    (None, None, None): False, (None, None, False): False,
+    (None, None, True): False, (None, False, None): False,
+    (None, False, False): False, (None, False, True): False,
+    (None, True, None): False, (None, True, False): False,
+    (None, True, True): False, (False, None, None): False,
+    (False, None, False): False, (False, None, True): False,
+    (False, False, None): False, (False, False, False): True,
+    (False, False, True): True, (False, True, None): False,
+    (False, True, False): True, (False, True, True): True,
+    (True, None, None): False, (True, None, False): False,
+    (True, None, True): False, (True, False, None): False,
+    (True, False, False): True, (True, False, True): True,
+    (True, True, None): False, (True, True, False): True,
+    (True, True, True): True}
 
 
-def profile(f):
-    return f
+# def profile(f):
+#     return f
 
 
 @profile
@@ -39,7 +69,6 @@ def triangle_edges(hash_):
             EDGES_SIGN.get((u, v), None))
 
 
-@profile
 def triangle_score(hash_):
     """Return a number characterizing the triangle's edge type"""
     # score each edge as : {+: 1, -: -1, absent: -10}
@@ -51,13 +80,13 @@ def triangle_score(hash_):
 def triangle_is_closeable(hash_):
     """A triangle is closeable if one edge is missing and at least another
     one is positive"""
-    return triangle_score(hash_) in [-10, -8]
+    return triangle_is_closeable_[triangle_edges(hash_)]
 
 
 @profile
 def triangle_is_closed(hash_):
     """Tell if a triangle has 3 edges"""
-    return triangle_score(hash_) >= -3
+    return triangle_is_closed_[triangle_edges(hash_)]
 
 
 @profile

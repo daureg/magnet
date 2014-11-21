@@ -7,6 +7,7 @@ import densify
 import cc_pivot as cc
 import random as r
 import graph_tool as gt
+from itertools import product, combinations
 
 
 def make_circle(n):
@@ -24,15 +25,24 @@ def make_circle(n):
     return graph
 
 
-def make_rings(size, nb_ring, shared_sign=True):
-    # TODO add ring_size_ratio, the length ratio between the small half rings
-    # and long half rings. So 1 should yield equal size rings summing up to N.
+def empty_graph():
     graph = gt.Graph(directed=False)
     graph.ep['fake'] = graph.new_edge_property('bool')
     edge_is_positive = graph.new_edge_property("bool")
     graph.ep['sign'] = edge_is_positive
-    cluster_index = graph.new_vertex_property("int")
-    graph.vp['cluster'] = cluster_index
+    graph.vp['cluster'] = graph.new_vertex_property("int")
+    return graph, edge_is_positive
+
+
+def finalize_graph(graph):
+    edge_tuple = lambda e: (min(map(int, e)), max(map(int, e)))
+    densify.N = graph.num_vertices()
+    densify.EDGES_SIGN = {edge_tuple(e): bool(graph.ep['sign'][e])
+                          for e in graph.edges()}
+
+
+def make_rings(size, nb_rings, ring_size_ratio=1, shared_sign=True):
+    graph, edge_is_positive = empty_graph()
 
     v1, v2 = graph.add_vertex(), graph.add_vertex()
     shared = graph.add_edge(v1, v2)
@@ -40,7 +50,9 @@ def make_rings(size, nb_ring, shared_sign=True):
 
     def add_cycle(length):
         start = graph.vertex(1)
-        negative_index = r.randint(0, length-1)
+        # if the shared edge is not positive, then we don't need to add any
+        # other negative edges in the rings
+        negative_index = r.randint(0, length-1) if shared_sign else -1
         for i in range(length-1):
             end = graph.add_vertex()
             e = graph.add_edge(start, end)
@@ -49,14 +61,71 @@ def make_rings(size, nb_ring, shared_sign=True):
         e = graph.add_edge(end, 0)
         edge_is_positive[e] = (length - 1) != negative_index
 
-    for _ in range(nb_ring):
-        add_cycle(size/nb_ring)
+    nb_small_rings = nb_rings / 2
+    nb_large_rings = nb_rings - nb_small_rings
+    large_length = int((size + nb_rings)/(nb_small_rings * ring_size_ratio +
+                                          nb_large_rings))
+    for _ in range(nb_large_rings):
+        add_cycle(large_length)
+    for _ in range(nb_small_rings):
+        add_cycle(max(int(large_length*ring_size_ratio), 2))
 
-    edge_tuple = lambda e: (min(map(int, e)), max(map(int, e)))
-    densify.N = graph.num_vertices()
-    densify.EDGES_SIGN = {edge_tuple(e): bool(edge_is_positive[e])
-                          for e in graph.edges()}
+    finalize_graph(graph)
     return graph
+
+
+def planted_clusters(ball_size=12, nb_balls=5):
+    graph, __ = empty_graph()
+    graph.vp['true_cluster'] = graph.new_vertex_property('int')
+    balls = [make_ball(graph, ball_size) for _ in range(nb_balls)]
+    pos = cc.gtdraw.sfdp_layout(graph)
+    for b1, b2 in combinations(balls, 2):
+        link_balls(graph, b1, b2)
+    flip_random_edges(graph)
+    finalize_graph(graph)
+    return graph, pos
+
+
+def make_ball(graph, n):
+    gsize = graph.num_vertices()
+    if gsize == 0:
+        cluster_index = 0
+    else:
+        cluster_index = graph.vp['true_cluster'][graph.vertex(gsize-1)] + 1
+    size = r.randint(int(0.7*n), int(1.3*n))
+    index = set()
+    for _ in range(size):
+        v = graph.add_vertex()
+        graph.vp['true_cluster'][v] = cluster_index
+        index.add(v)
+    edges = r.sample(list(combinations(index, 2)), int(1.5*size))
+    endpoints = set()
+    for u, v in edges:
+        e = graph.add_edge(u, v)
+        endpoints.add(u)
+        endpoints.add(v)
+        graph.ep['sign'][e] = True
+    # make sure the ball forms a connected component
+    alone = index.difference(endpoints)
+    endpoints = list(endpoints)
+    for u in alone:
+        e = graph.add_edge(u, r.choice(endpoints))
+        graph.ep['sign'][e] = True
+    return index
+
+
+def link_balls(graph, b1, b2):
+    edges = r.sample(list(product(b1, b2)), int(1.0*(len(b1)+len(b2))/2))
+    for u, v in edges:
+        e = graph.add_edge(u, v)
+        graph.ep['sign'][e] = False
+
+
+def flip_random_edges(graph, fraction=0.1):
+    """Change the sign of `fraction` of `graph` edges"""
+    E = list(graph.edges())
+    for e in r.sample(E, int(fraction*len(E))):
+        graph.ep['sign'][e] = not graph.ep['sign'][e]
 
 
 def run_one_experiment(graph):

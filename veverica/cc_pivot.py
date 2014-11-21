@@ -33,12 +33,16 @@ def cc_pivot(graph):
     graph.set_vertex_filter(None)
 
 
-def count_disagreements(g):
+def count_disagreements(g, alt_index=False):
     """Return a boolean edge map of disagreement with current clustering"""
-    if 'fake' in g.ep:
-        g.set_edge_filter(g.ep['fake'], inverted=True)
+    if not alt_index:
+        if 'fake' in g.ep:
+            g.set_edge_filter(g.ep['fake'], inverted=True)
+        cluster_index_name = 'cluster'
+    else:
+        cluster_index_name = alt_index
     disagree = g.new_edge_property('bool')
-    cluster = lambda v: g.vp['cluster'][v]
+    cluster = lambda v: g.vp[cluster_index_name][v]
     positive = lambda e: g.ep['sign'][e]
     negative = lambda e: not positive(e)
     for e in g.edges():
@@ -89,7 +93,9 @@ def add_edge_disagreement_size(graph, disagreement):
     return {'pen_width': edge_width}
 
 
-def draw_clustering(graph, filename=None, pos=None, vmore=None):
+def draw_clustering(graph, filename=None, pos=None, vmore=None,
+                    show_filling=False):
+    graph.set_edge_filter(graph.ep['fake'], inverted=True)
     pos = pos or gtdraw.sfdp_layout(graph, cooling_step=0.95, epsilon=5e-2)
     vertex_options = {'pen_width': 0}
     if vmore:
@@ -100,8 +106,16 @@ def draw_clustering(graph, filename=None, pos=None, vmore=None):
         name[v] = str(i)
     vertex_options['text'] = name
     d = count_disagreements(graph)
+    if not show_filling:
+        graph.set_edge_filter(graph.ep['fake'], inverted=True)
     print(str(d.a.sum().ravel()[0]) + ' disagreements')
-    edge_options = {'pen_width': 3}
+    if not show_filling:
+        edge_options = {'pen_width': 2}
+    else:
+        edge_width = graph.new_edge_property('float')
+        for e in graph.edges():
+            edge_width[e] = 1 if graph.ep['fake'][e] else 2
+        edge_options = {'pen_width': edge_width}
     edge_options.update(add_edge_sign_color(graph))
     # edge_options.update(add_edge_disagreement_size(graph, d))
 

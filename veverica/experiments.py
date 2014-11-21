@@ -63,7 +63,7 @@ def make_rings(size, nb_rings, ring_size_ratio=1, shared_sign=True):
         e = graph.add_edge(end, 0)
         edge_is_positive[e] = (length - 1) != negative_index
 
-    nb_small_rings = nb_rings / 2
+    nb_small_rings = int(nb_rings / 2)
     nb_large_rings = nb_rings - nb_small_rings
     large_length = int((size + nb_rings)/(nb_small_rings * ring_size_ratio +
                                           nb_large_rings))
@@ -150,9 +150,9 @@ def run_ring_experiment(size, nb_rings, ring_size_ratio=1, shared_sign=True,
     for _ in range(n_rep):
         g = make_rings(size, nb_rings, ring_size_ratio, shared_sign)
         runs.append(run_one_experiment(g))
-    res = {'time': map(itemgetter(0), runs),
+    res = {'time': list(map(itemgetter(0), runs)),
            # 'nb_cluster': map(itemgetter(1), runs),
-           'nb_error': map(itemgetter(2), runs)}
+           'nb_error': list(map(itemgetter(2), runs))}
     suffix = 'pos' if shared_sign else 'neg'
     p.save_var('rings_{:04d}_{:02d}_{:.3f}_{}.my'.format(size, nb_rings,
                                                          ring_size_ratio,
@@ -166,9 +166,9 @@ def run_planted_experiment(ball_size, nb_balls, n_rep=100):
         delta = cc.count_disagreements(g, alt_index='true_cluster').a.sum().ravel()[0]
         time, _, errors = run_one_experiment(g)
         runs.append([time, delta, errors])
-    res = {'time': map(itemgetter(0), runs),
-           'delta': map(itemgetter(1), runs),
-           'nb_error': map(itemgetter(2), runs)}
+    res = {'time': list(map(itemgetter(0), runs)),
+           'delta': list(map(itemgetter(1), runs)),
+           'nb_error': list(map(itemgetter(2), runs))}
     p.save_var('planted_{:04d}_{:02d}.my'.format(ball_size, nb_balls), res)
 
 
@@ -199,12 +199,12 @@ if __name__ == '__main__':
     # cc.draw_clustering(ring, filename="ring.pdf", pos=pos,
     #                    vmore={'text': name})
 
-    Ns = map(int, np.linspace(40, 150, 3))
+    Ns = list(map(int, np.linspace(40, 150, 3)))
     ratios = [1.0, 0.2]
     shared_positives = [True, False]
     for params in product(Ns, ratios, shared_positives):
-        run_ring_experiment(params[0], params[0]/3, params[1], params[2])
-    Ns = map(int, np.linspace(15, 60, 3))
+        run_ring_experiment(params[0], int(params[0]/3), params[1], params[2])
+    Ns = list(map(int, np.linspace(15, 60, 3)))
     for n in Ns:
         run_planted_experiment(n, int(n/3))
     import sys
@@ -231,7 +231,7 @@ if __name__ == '__main__':
         this_run = []
         for _ in range(K):
             this_run.append(run_one_experiment(make_circle(n)))
-        res = {'time': map(itemgetter(0), this_run),
-               'nb_cluster': map(itemgetter(1), this_run),
-               'nb_error': map(itemgetter(2), this_run)}
+        res = {'time': list(map(itemgetter(0), this_run)),
+               'nb_cluster': list(map(itemgetter(1), this_run)),
+               'nb_error': list(map(itemgetter(2), this_run))}
         p.save_var('circle_{}.my'.format(n), res)

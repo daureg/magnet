@@ -93,7 +93,7 @@ def triangle_is_closed(hash_):
 def ego_triangle(v):
     """Return all triangles (as int tuples) involving `v`"""
     neighbors = (_+(v,) for _ in combinations(v.out_neighbours(), 2))
-    return [hash_triangle(*map(int, nodes)) for nodes in neighbors]
+    return [hash_triangle(*list(map(int, nodes))) for nodes in neighbors]
 
 
 @profile

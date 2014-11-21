@@ -69,12 +69,21 @@ def run_one_experiment(graph):
     return elapsed, nb_cluster, disagreements.a.sum().ravel()[0]
 
 
-def delta_fas_circle(n, p):
-    graph = make_circle(n)
-    densify.random_completion(graph, p)
-    cc.cc_pivot(graph)
-    disagreements = cc.count_disagreements(graph)
-    return disagreements.a.sum().ravel()[0], graph
+def delta_fas_circle(n, p, k=100):
+    orig = make_circle(n)
+    densify.random_completion(orig, p)
+    res, best_g, best_d, worst_g, worst_d = [], None, N, None, 0
+    for _ in range(k):
+        graph = orig.copy()
+        cc.cc_pivot(graph)
+        disagreements = cc.count_disagreements(graph)
+        d = disagreements.a.sum().ravel()[0]
+        if d < best_d:
+            best_g, best_d = graph.copy(), d
+        if d > worst_d:
+            worst_g, worst_d = graph.copy(), d
+        res.append(d)
+    return res, best_d, best_g, worst_d, worst_g
 
 if __name__ == '__main__':
     # pylint: disable=C0103
@@ -87,26 +96,19 @@ if __name__ == '__main__':
     # cc.draw_clustering(ring, filename="ring.pdf", pos=pos,
     #                    vmore={'text': name})
     import persistent as p
-    N = 8
-    res, best_g, best_d, worst_g, worst_d = [], None, N, None, 0
-    for _ in xrange(1000):
-        d, g = delta_fas_circle(8, 0.5)
-        if d < best_d:
-            best_g, best_d = g.copy(), d
-        if d > worst_d:
-            worst_g, worst_d = g.copy(), d
-        res.append(d)
-    p.save_var('test_fas.my', res)
-    best_g.save('fas_best_{:03d}.gt'.format(N))
-    worst_g.save('fas_worst_{:03d}.gt'.format(N))
-    cc.draw_clustering(best_g, filename='fas_best_{:03d}.pdf'.format(N))
-    cc.draw_clustering(worst_g, filename='fas_worst_{:03d}.pdf'.format(N))
+    N, proba = 20, 2
+    res, _, best_g, _, worst_g = delta_fas_circle(N, proba, 1000)
+    p.save_var('test_fas_pos.my', res)
+    best_g.save('fas_best_{:03d}_pos.gt'.format(N))
+    worst_g.save('fas_worst_{:03d}_pos.gt'.format(N))
+    cc.draw_clustering(best_g, filename='fas_best_{:03d}_pos.pdf'.format(N))
+    cc.draw_clustering(worst_g, filename='fas_worst_{:03d}_pos.pdf'.format(N))
     import sys
     sys.exit()
     N, k = 33, 4
     best_g = None
     best_d = N*N
-    for _ in xrange(6):
+    for _ in range(6):
         g = make_rings(N, k)
         t, c, d = run_one_experiment(g)
         if d < best_d:

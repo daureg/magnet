@@ -2,8 +2,8 @@
 # vim: set fileencoding=utf-8
 import graph_tool.generation as gtgeneration
 import graph_tool.draw as gtdraw
-import prettyplotlib as ppl
-COLORS = ppl.colors.set1
+import numpy as np
+import seaborn as sns
 import random as r
 """Implementation of Quick Pivot algorithm for correlation clustering.
 Ailon, N., Charikar, M., & Newman, A. (2008). Aggregating inconsistent
@@ -65,8 +65,10 @@ def make_signed_graph(graph):
 def add_cluster_name_and_color(graph):
     cluster_color = graph.new_vertex_property('vector<float>')
     cluster_name = graph.new_vertex_property('string')
+    nb_cluster = np.unique(graph.vp['cluster'].a).size
+    colors = sns.color_palette("Set1", nb_cluster)
     for v in graph.vertices():
-        cluster_color[v] = list(COLORS[graph.vp['cluster'][v]])+[0.9, ]
+        cluster_color[v] = list(colors[graph.vp['cluster'][v]])+[0.9, ]
         cluster_name[v] = '{:01d}'.format(graph.vp['cluster'][v])
     return {'fill_color': cluster_color,
             'text': cluster_name}

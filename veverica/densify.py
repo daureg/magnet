@@ -40,8 +40,8 @@ triangle_is_closed_ = {
     (True, True, True): True}
 
 
-# def profile(f):
-#     return f
+def profile(f):
+    return f
 
 
 @profile

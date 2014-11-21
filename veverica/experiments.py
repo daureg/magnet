@@ -7,7 +7,9 @@ import densify
 import cc_pivot as cc
 import random as r
 import graph_tool as gt
+from operator import itemgetter
 from itertools import product, combinations
+import persistent as p
 
 
 def make_circle(n):
@@ -128,14 +130,46 @@ def flip_random_edges(graph, fraction=0.1):
         graph.ep['sign'][e] = not graph.ep['sign'][e]
 
 
-def run_one_experiment(graph):
+def run_one_experiment(graph, cc_run=500):
     start = default_timer()
     densify.complete_graph(graph)
     elapsed = default_timer() - start
-    cc.cc_pivot(graph)
+    res = []
+    for _ in range(cc_run):
+        tmp_graph = graph.copy()
+        cc.cc_pivot(tmp_graph)
+        disagreements = cc.count_disagreements(tmp_graph)
+        res.append(disagreements.a.sum().ravel()[0])
     nb_cluster = np.unique(graph.vp['cluster'].a).size
-    disagreements = cc.count_disagreements(graph)
-    return elapsed, nb_cluster, disagreements.a.sum().ravel()[0]
+    return elapsed, nb_cluster, np.mean(res)
+
+
+def run_ring_experiment(size, nb_rings, ring_size_ratio=1, shared_sign=True,
+                        n_rep=100):
+    runs = []
+    for _ in range(n_rep):
+        g = make_rings(size, nb_rings, ring_size_ratio, shared_sign)
+        runs.append(run_one_experiment(g))
+    res = {'time': map(itemgetter(0), runs),
+           # 'nb_cluster': map(itemgetter(1), runs),
+           'nb_error': map(itemgetter(2), runs)}
+    suffix = 'pos' if shared_sign else 'neg'
+    p.save_var('rings_{:04d}_{:02d}_{:.3f}_{}.my'.format(size, nb_rings,
+                                                         ring_size_ratio,
+                                                         suffix), res)
+
+
+def run_planted_experiment(ball_size, nb_balls, n_rep=100):
+    runs = []
+    for _ in range(n_rep):
+        g, _ = planted_clusters(ball_size, nb_balls)
+        delta = cc.count_disagreements(g, alt_index='true_cluster').a.sum().ravel()[0]
+        time, _, errors = run_one_experiment(g)
+        runs.append([time, delta, errors])
+    res = {'time': map(itemgetter(0), runs),
+           'delta': map(itemgetter(1), runs),
+           'nb_error': map(itemgetter(2), runs)}
+    p.save_var('planted_{:04d}_{:02d}.my'.format(ball_size, nb_balls), res)
 
 
 def delta_fas_circle(n, p, k=100):
@@ -164,7 +198,17 @@ if __name__ == '__main__':
     # print(run_one_experiment(ring))
     # cc.draw_clustering(ring, filename="ring.pdf", pos=pos,
     #                    vmore={'text': name})
-    import persistent as p
+
+    Ns = map(int, np.linspace(40, 150, 3))
+    ratios = [1.0, 0.2]
+    shared_positives = [True, False]
+    for params in product(Ns, ratios, shared_positives):
+        run_ring_experiment(params[0], params[0]/3, params[1], params[2])
+    Ns = map(int, np.linspace(15, 60, 3))
+    for n in Ns:
+        run_planted_experiment(n, int(n/3))
+    import sys
+    sys.exit()
     N, proba = 20, 2
     res, _, best_g, _, worst_g = delta_fas_circle(N, proba, 1000)
     p.save_var('test_fas_pos.my', res)
@@ -172,8 +216,6 @@ if __name__ == '__main__':
     worst_g.save('fas_worst_{:03d}_pos.gt'.format(N))
     cc.draw_clustering(best_g, filename='fas_best_{:03d}_pos.pdf'.format(N))
     cc.draw_clustering(worst_g, filename='fas_worst_{:03d}_pos.pdf'.format(N))
-    import sys
-    sys.exit()
     N, k = 33, 4
     best_g = None
     best_d = N*N
@@ -183,7 +225,6 @@ if __name__ == '__main__':
         if d < best_d:
             best_g, best_d = g.copy(), d
     cc.draw_clustering(best_g, filename='ring_{:03d}.pdf'.format(N))
-    from operator import itemgetter
     Ns = np.linspace(6, 150, 6)
     K = 100
     for n in map(int, Ns):

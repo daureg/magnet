@@ -163,13 +163,23 @@ def run_planted_experiment(ball_size, nb_balls, n_rep=100):
     runs = []
     for _ in range(n_rep):
         g, _ = planted_clusters(ball_size, nb_balls)
-        delta = cc.count_disagreements(g, alt_index='true_cluster').a.sum().ravel()[0]
+        delta = cc.count_disagreements(g, alt_index='true_cluster')
+        delta = delta.a.sum().ravel()[0]
         time, _, errors = run_one_experiment(g)
         runs.append([time, delta, errors])
     res = {'time': list(map(itemgetter(0), runs)),
            'delta': list(map(itemgetter(1), runs)),
            'nb_error': list(map(itemgetter(2), runs))}
     p.save_var('planted_{:04d}_{:02d}.my'.format(ball_size, nb_balls), res)
+
+
+def run_circle_experiment(size, n_rep=100):
+    runs = []
+    for _ in range(n_rep):
+        runs.append(run_one_experiment(make_circle(size)), 150)
+    res = {'time': list(map(itemgetter(0), runs)),
+           'nb_error': list(map(itemgetter(2), runs))}
+    p.save_var('circle_{:04d}.my'.format(size), res)
 
 
 def delta_fas_circle(n, p, k=100):
@@ -199,6 +209,11 @@ if __name__ == '__main__':
     # cc.draw_clustering(ring, filename="ring.pdf", pos=pos,
     #                    vmore={'text': name})
 
+    for n in list(map(int, np.linspace(10, 150, 6))):
+        run_circle_experiment(n)
+    run_planted_experiment(20, 7)
+    import sys
+    sys.exit()
     Ns = list(map(int, np.linspace(40, 150, 3)))
     ratios = [1.0, 0.2]
     shared_positives = [True, False]
@@ -207,8 +222,6 @@ if __name__ == '__main__':
     Ns = list(map(int, np.linspace(15, 60, 3)))
     for n in Ns:
         run_planted_experiment(n, int(n/3))
-    import sys
-    sys.exit()
     N, proba = 20, 2
     res, _, best_g, _, worst_g = delta_fas_circle(N, proba, 1000)
     p.save_var('test_fas_pos.my', res)

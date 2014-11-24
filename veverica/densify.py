@@ -3,11 +3,18 @@
 """Take a general signed graph and complete it randomly (to some extent)."""
 import random as r
 from itertools import combinations
+import matplotlib.pyplot as plt
+import prettyplotlib as ppl
 
 CLOSEABLE_TRIANGLES = None
 N = -1
 GRAPH = None
 EDGES_SIGN = {}
+ADJ_NAME = None
+ADJ_NUMBER = 0
+SIGN = None
+import graph_tool.spectral as spectral
+import numpy as np
 triangle_is_closeable_ = {
     (None, None, None): False, (None, None, False): False,
     (None, None, True): False, (None, False, None): False,
@@ -119,6 +126,24 @@ def add_signed_edge(graph, src, dst, positive=False):
     graph.ep['sign'][e] = positive
     src, dst = min(src, dst), max(src, dst)
     EDGES_SIGN[(src, dst)] = positive
+    SIGN.a = graph.ep['sign'].a.astype(np.int8)*2-1
+    A = np.array(spectral.adjacency(graph, SIGN).todense())
+    global ADJ_NUMBER
+    plot_adj(A, ADJ_NUMBER)
+    ADJ_NUMBER += 1
+
+
+def plot_adj(A, seq=0):
+    nodes = list(map(str, range(1, A.shape[0]+1)))
+    f = ppl.pcolormesh((np.flipud(A)), xticklabels=nodes,
+                       yticklabels=list(reversed(nodes)))
+    f.axes[0].set_aspect('equal')
+    f.set_figheight(5)
+    f.set_figwidth(5)
+    f.tight_layout()
+    plt.savefig('a_{}_{:05d}.png'.format(abs(ADJ_NAME), seq))
+    f.clear()
+    plt.close()
 
 
 @profile
@@ -155,6 +180,10 @@ def update_triangle_status(graph, a, b):
 def complete_graph(graph):
     """Close every possible triangles and then add negative edges"""
     global CLOSEABLE_TRIANGLES
+    global ADJ_NAME
+    global SIGN
+    SIGN = graph.new_edge_property('int')
+    ADJ_NAME = hash(graph)
     N = graph.num_vertices()
     CLOSEABLE_TRIANGLES = set()
     for i, j, k in combinations(range(N), 3):
@@ -162,11 +191,18 @@ def complete_graph(graph):
         if triangle_is_closeable(h):
             CLOSEABLE_TRIANGLES.add(h)
     nb_iter = 0
+    closed = len(EDGES_SIGN)
+    adj = []
     while CLOSEABLE_TRIANGLES and nb_iter < N*N*N/6:
         # TODO: choose pivot without replacement
         complete_pivot(graph, r.randint(0, N-1))
+        if len(EDGES_SIGN) != closed:
+            closed = len(EDGES_SIGN)
+            # sign.a = graph.ep['sign'].a.astype(np.int8)*2-1
+            # adj.append(np.array(spectral.adjacency(graph, sign).todense()))
         nb_iter += 1
     random_completion(graph, -1)
+    return adj
 
 
 def random_completion(graph, positive_proba=0.5):

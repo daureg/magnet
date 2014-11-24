@@ -132,7 +132,7 @@ def flip_random_edges(graph, fraction=0.1):
 
 def run_one_experiment(graph, cc_run=500):
     start = default_timer()
-    densify.complete_graph(graph)
+    adj = densify.complete_graph(graph)
     elapsed = default_timer() - start
     res = []
     for _ in range(cc_run):
@@ -141,7 +141,7 @@ def run_one_experiment(graph, cc_run=500):
         disagreements = cc.count_disagreements(tmp_graph)
         res.append(disagreements.a.sum().ravel()[0])
     nb_cluster = np.unique(graph.vp['cluster'].a).size
-    return elapsed, nb_cluster, np.mean(res)
+    return elapsed, nb_cluster, np.mean(res), adj
 
 
 def run_ring_experiment(size, nb_rings, ring_size_ratio=1, shared_sign=True,
@@ -209,11 +209,12 @@ if __name__ == '__main__':
     # cc.draw_clustering(ring, filename="ring.pdf", pos=pos,
     #                    vmore={'text': name})
 
+    import sys
+    run_one_experiment(make_circle(10), 5)
+    sys.exit()
     for n in list(map(int, np.linspace(10, 150, 6))):
         run_circle_experiment(n)
     run_planted_experiment(20, 7)
-    import sys
-    sys.exit()
     Ns = list(map(int, np.linspace(40, 150, 3)))
     ratios = [1.0, 0.2]
     shared_positives = [True, False]

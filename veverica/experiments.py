@@ -43,18 +43,31 @@ def finalize_graph(graph):
                           for e in graph.edges()}
 
 
-def make_rings(size, nb_rings, ring_size_ratio=1, shared_sign=True):
+def make_rings(size, nb_rings, ring_size_ratio=1, shared_sign=True,
+               rigged=False):
+    """Create a graph with around `size` nodes splits into `nb_rings`. Half of
+    them are `ring_size_ratio` smaller than the others. They have one common
+    edge with `shared_sign`. If `rigged` is True, the negative edge of each
+    ring is at the middle, or at a position specified by a list."""
+    if nb_rings == 1:
+        return make_circle(size)
     graph, edge_is_positive = empty_graph()
 
     v1, v2 = graph.add_vertex(), graph.add_vertex()
     shared = graph.add_edge(v1, v2)
     edge_is_positive[shared] = shared_sign
+    ring_id = 0
 
-    def add_cycle(length):
+    def add_cycle(length, ring_id):
         start = graph.vertex(1)
         # if the shared edge is not positive, then we don't need to add any
         # other negative edges in the rings
         negative_index = r.randint(0, length-1) if shared_sign else -1
+        if negative_index >= 0 and rigged:
+            negative_index = int(length/2)
+        if negative_index >= 0 and isinstance(rigged, list):
+            negative_index = rigged[ring_id] - 1
+            assert 0 <= negative_index <= length
         for i in range(length-1):
             end = graph.add_vertex()
             e = graph.add_edge(start, end)
@@ -68,9 +81,11 @@ def make_rings(size, nb_rings, ring_size_ratio=1, shared_sign=True):
     large_length = int((size + nb_rings)/(nb_small_rings * ring_size_ratio +
                                           nb_large_rings))
     for _ in range(nb_large_rings):
-        add_cycle(large_length)
+        add_cycle(large_length, ring_id)
+        ring_id += 1
     for _ in range(nb_small_rings):
-        add_cycle(max(int(large_length*ring_size_ratio), 2))
+        add_cycle(max(int(large_length*ring_size_ratio), 2), ring_id)
+        ring_id += 1
 
     finalize_graph(graph)
     return graph
@@ -144,17 +159,18 @@ def run_one_experiment(graph, cc_run=500):
     return elapsed, nb_cluster, np.mean(res), adj
 
 
-def run_ring_experiment(size, nb_rings, ring_size_ratio=1, shared_sign=True,
-                        n_rep=100):
+def run_ring_experiment(size, nb_rings, ring_size_ratio=1.0, shared_sign=True,
+                        rigged=False, n_rep=100):
     runs = []
     for _ in range(n_rep):
-        g = make_rings(size, nb_rings, ring_size_ratio, shared_sign)
-        runs.append(run_one_experiment(g))
+        g = make_rings(size, nb_rings, ring_size_ratio, shared_sign, rigged)
+        runs.append(run_one_experiment(g, 100))
     res = {'time': list(map(itemgetter(0), runs)),
            # 'nb_cluster': map(itemgetter(1), runs),
            'nb_error': list(map(itemgetter(2), runs))}
     suffix = 'pos' if shared_sign else 'neg'
-    p.save_var('rings_{:04d}_{:02d}_{:.3f}_{}.my'.format(size, nb_rings,
+    suffix += '_rigged' if rigged else ''
+    p.save_var('rings_{:04d}_{:02d}_{:.1f}_{}.my'.format(size, nb_rings,
                                                          ring_size_ratio,
                                                          suffix), res)
 
@@ -176,7 +192,7 @@ def run_planted_experiment(ball_size, nb_balls, n_rep=100):
 def run_circle_experiment(size, n_rep=100):
     runs = []
     for _ in range(n_rep):
-        runs.append(run_one_experiment(make_circle(size)), 150)
+        runs.append(run_one_experiment(make_circle(size), 150))
     res = {'time': list(map(itemgetter(0), runs)),
            'nb_error': list(map(itemgetter(2), runs))}
     p.save_var('circle_{:04d}.my'.format(size), res)
@@ -209,12 +225,11 @@ if __name__ == '__main__':
     # cc.draw_clustering(ring, filename="ring.pdf", pos=pos,
     #                    vmore={'text': name})
 
+    # for nb_rings in range(1, 7):
+    #     run_ring_experiment(60, nb_rings)
+    # run_ring_experiment(60, 4, rigged=True)
     import sys
-    run_one_experiment(make_circle(10), 5)
     sys.exit()
-    for n in list(map(int, np.linspace(10, 150, 6))):
-        run_circle_experiment(n)
-    run_planted_experiment(20, 7)
     Ns = list(map(int, np.linspace(40, 150, 3)))
     ratios = [1.0, 0.2]
     shared_positives = [True, False]

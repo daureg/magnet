@@ -10,7 +10,7 @@ Ailon, N., Charikar, M., & Newman, A. (2008). Aggregating inconsistent
 information. Journal of the ACM, 55(5), 1–27. doi:10.1145/1411509.1411513"""
 
 
-def cc_pivot(graph):
+def cc_pivot(graph, pivot_seq=None):
     """Fill g's cluster_index according to Ailon algorithm"""
     current_cluster_index = 0
     clustered = graph.new_vertex_property('bool')
@@ -19,10 +19,23 @@ def cc_pivot(graph):
     def add_to_current_cluster(node):
         graph.vp['cluster'][node] = current_cluster_index
         clustered[node] = True
+        # print('\tadd {} to cluster {}'.format(int(node),
+        #                                       current_cluster_index))
 
     still_unclustered = list(graph.vertices())
+    pivots = (graph.vertex(_) for _ in pivot_seq) if pivot_seq else None
+    # print(pivots)
     while len(still_unclustered) > 0:
         pivot = r.choice(still_unclustered)
+        if pivots:
+            try:
+                pivot = next(pivots)
+                # print('pick '+int(pivot))
+                while pivot not in still_unclustered:
+                    pivot = next(pivots)
+            except StopIteration:
+                pivot = r.choice(still_unclustered)
+        # print('choose {} as pivot'.format(int(pivot)))
         add_to_current_cluster(pivot)
         for e in pivot.out_edges():
             positive_neighbor = graph.ep['sign'][e]

@@ -19,9 +19,8 @@ def profile_densify(n=40, k=50):
     """Run complete_graph `k` time on a `n` circle."""
     import experiments as xp
     import densify
-    orig = xp.make_circle(n)
     for _ in range(k):
-        g = orig.copy()
+        g = xp.make_circle(n)
         densify.complete_graph(g)
 
 

@@ -107,7 +107,7 @@ def add_edge_disagreement_size(graph, disagreement):
 
 
 def draw_clustering(graph, filename=None, pos=None, vmore=None,
-                    show_filling=False):
+                    emore=None, show_filling=False):
     graph.set_edge_filter(graph.ep['fake'], inverted=True)
     pos = pos or gtdraw.sfdp_layout(graph, cooling_step=0.95, epsilon=5e-2)
     vertex_options = {'pen_width': 0}
@@ -127,13 +127,20 @@ def draw_clustering(graph, filename=None, pos=None, vmore=None,
     else:
         edge_width = graph.new_edge_property('float')
         for e in graph.edges():
-            edge_width[e] = 1 if graph.ep['fake'][e] else 2
+            if not graph.ep['fake'][e]:
+                edge_width[e] = 3
+            else:
+                edge_width[e] = 1  # if graph.ep['sign'][e] else 1
         edge_options = {'pen_width': edge_width}
     edge_options.update(add_edge_sign_color(graph))
     # edge_options.update(add_edge_disagreement_size(graph, d))
+    if emore:
+        edge_options.update(emore)
 
     gtdraw.graph_draw(graph, pos=pos, vprops=vertex_options,
-                      eprops=edge_options, output=filename)
+                      eprops=edge_options, output=filename, fit_view=True,
+                      output_size=(1500, 900))
+    graph.set_edge_filter(None)
 
 if __name__ == '__main__':
     N = 10

@@ -17,13 +17,17 @@ def make_circle(n):
     graph = cc.make_signed_graph(circle)
     densify.N = n
     densify.EDGES_SIGN.clear()
+    densify.EDGES_DEPTH.clear()
     fake = graph.new_edge_property('bool')
     graph.ep['fake'] = fake
+    graph.ep['depth'] = graph.new_edge_property('short')
+    graph.ep['depth'].a = 1
     for i, e in enumerate(graph.edges()):
         graph.ep['sign'][e] = i != 0
         src, dst = int(e.source()), int(e.target())
         src, dst = min(src, dst), max(src, dst)
         densify.EDGES_SIGN[(src, dst)] = bool(graph.ep['sign'][e])
+        densify.EDGES_DEPTH[(src, dst)] = 1
     return graph
 
 
@@ -32,6 +36,8 @@ def empty_graph():
     graph.ep['fake'] = graph.new_edge_property('bool')
     edge_is_positive = graph.new_edge_property("bool")
     graph.ep['sign'] = edge_is_positive
+    graph.ep['depth'] = graph.new_edge_property('short')
+    graph.ep['depth'].a = 1
     graph.vp['cluster'] = graph.new_vertex_property("int")
     return graph, edge_is_positive
 
@@ -40,6 +46,8 @@ def finalize_graph(graph):
     edge_tuple = lambda e: (min(map(int, e)), max(map(int, e)))
     densify.N = graph.num_vertices()
     densify.EDGES_SIGN = {edge_tuple(e): bool(graph.ep['sign'][e])
+                          for e in graph.edges()}
+    densify.EDGES_DEPTH = {edge_tuple(e): int(graph.ep['depth'][e])
                           for e in graph.edges()}
 
 
@@ -147,7 +155,7 @@ def flip_random_edges(graph, fraction=0.1):
 
 def run_one_experiment(graph, cc_run=500):
     start = default_timer()
-    adj = densify.complete_graph(graph)
+    densify.complete_graph(graph)
     elapsed = default_timer() - start
     res = []
     for _ in range(cc_run):
@@ -156,7 +164,7 @@ def run_one_experiment(graph, cc_run=500):
         disagreements = cc.count_disagreements(tmp_graph)
         res.append(disagreements.a.sum().ravel()[0])
     nb_cluster = np.unique(graph.vp['cluster'].a).size
-    return elapsed, nb_cluster, np.mean(res), adj
+    return elapsed, nb_cluster, np.mean(res)
 
 
 def run_ring_experiment(size, nb_rings, ring_size_ratio=1.0, shared_sign=True,

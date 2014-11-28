@@ -117,7 +117,8 @@ def draw_clustering(graph, filename=None, pos=None, vmore=None,
     name = graph.new_vertex_property('string')
     for i, v in enumerate(graph.vertices()):
         name[v] = str(i)
-    vertex_options['text'] = name
+    if np.unique(graph.vp['cluster'].a).size < 2:
+        vertex_options['text'] = name
     d = count_disagreements(graph)
     if not show_filling:
         graph.set_edge_filter(graph.ep['fake'], inverted=True)
@@ -139,7 +140,7 @@ def draw_clustering(graph, filename=None, pos=None, vmore=None,
 
     gtdraw.graph_draw(graph, pos=pos, vprops=vertex_options,
                       eprops=edge_options, output=filename, fit_view=True,
-                      output_size=(1500, 900))
+                      output_size=(1300, 700))
     graph.set_edge_filter(None)
 
 if __name__ == '__main__':

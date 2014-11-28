@@ -48,7 +48,7 @@ def finalize_graph(graph):
     densify.EDGES_SIGN = {edge_tuple(e): bool(graph.ep['sign'][e])
                           for e in graph.edges()}
     densify.EDGES_DEPTH = {edge_tuple(e): int(graph.ep['depth'][e])
-                          for e in graph.edges()}
+                           for e in graph.edges()}
 
 
 def make_rings(size, nb_rings, ring_size_ratio=1, shared_sign=True,
@@ -64,6 +64,7 @@ def make_rings(size, nb_rings, ring_size_ratio=1, shared_sign=True,
     v1, v2 = graph.add_vertex(), graph.add_vertex()
     shared = graph.add_edge(v1, v2)
     edge_is_positive[shared] = shared_sign
+    graph.ep['depth'][shared] = 1
     ring_id = 0
 
     def add_cycle(length, ring_id):
@@ -79,9 +80,11 @@ def make_rings(size, nb_rings, ring_size_ratio=1, shared_sign=True,
         for i in range(length-1):
             end = graph.add_vertex()
             e = graph.add_edge(start, end)
+            graph.ep['depth'][e] = 1
             edge_is_positive[e] = i != negative_index
             start = end
         e = graph.add_edge(end, 0)
+        graph.ep['depth'][e] = 1
         edge_is_positive[e] = (length - 1) != negative_index
 
     nb_small_rings = int(nb_rings / 2)
@@ -153,9 +156,10 @@ def flip_random_edges(graph, fraction=0.1):
         graph.ep['sign'][e] = not graph.ep['sign'][e]
 
 
-def run_one_experiment(graph, cc_run=500):
+def run_one_experiment(graph, cc_run=500, shared_edges=None, by_degree=False):
     start = default_timer()
-    densify.complete_graph(graph)
+    densify.complete_graph(graph, shared_edges=shared_edges,
+                           by_degree=by_degree)
     elapsed = default_timer() - start
     res = []
     for _ in range(cc_run):
@@ -168,19 +172,27 @@ def run_one_experiment(graph, cc_run=500):
 
 
 def run_ring_experiment(size, nb_rings, ring_size_ratio=1.0, shared_sign=True,
-                        rigged=False, n_rep=100):
+                        rigged=False, n_rep=100, shared_edges=None,
+                        by_degree=False):
     runs = []
     for _ in range(n_rep):
         g = make_rings(size, nb_rings, ring_size_ratio, shared_sign, rigged)
-        runs.append(run_one_experiment(g, 100))
+        runs.append(run_one_experiment(g, 150, shared_edges, by_degree))
     res = {'time': list(map(itemgetter(0), runs)),
            # 'nb_cluster': map(itemgetter(1), runs),
            'nb_error': list(map(itemgetter(2), runs))}
     suffix = 'pos' if shared_sign else 'neg'
     suffix += '_rigged' if rigged else ''
-    p.save_var('rings_{:04d}_{:02d}_{:.1f}_{}.my'.format(size, nb_rings,
-                                                         ring_size_ratio,
-                                                         suffix), res)
+    suffix += '_' + str(n_rep)
+    heuristic = ''
+    if shared_edges:
+        heuristic = 'SE'
+    if by_degree:
+        heuristic = 'BD'
+    suffix += '_' + heuristic
+    p.save_var('square_{:04d}_{:02d}_{:.1f}_{}.my'.format(size, nb_rings,
+                                                          ring_size_ratio,
+                                                          suffix), res)
 
 
 def run_planted_experiment(ball_size, nb_balls, n_rep=100):
@@ -237,6 +249,14 @@ if __name__ == '__main__':
     #     run_ring_experiment(60, nb_rings)
     # run_ring_experiment(60, 4, rigged=True)
     import sys
+    Ns = list(map(int, np.linspace(30, 100, 5)))
+    for n_squares in Ns:
+        run_ring_experiment(2+2*n_squares, n_squares, n_rep=400)
+        run_ring_experiment(2+2*n_squares, n_squares, shared_edges=[(0, 1)],
+                            n_rep=400)
+    run_ring_experiment(2*10, 2, shared_edges=[(0, 1)], n_rep=500)
+    run_ring_experiment(2*10, 2, by_degree=True, n_rep=500)
+    run_ring_experiment(2*10, 2, n_rep=500)
     sys.exit()
     Ns = list(map(int, np.linspace(40, 150, 3)))
     ratios = [1.0, 0.2]

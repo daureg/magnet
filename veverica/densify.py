@@ -2,14 +2,15 @@
 # vim: set fileencoding=utf-8
 """Take a general signed graph and complete it randomly (to some extent)."""
 import random as r
-from itertools import combinations
+import bisect
+from itertools import combinations, accumulate
+import numpy as np
 
 CLOSEABLE_TRIANGLES = None
 N = -1
 GRAPH = None
 EDGES_SIGN = {}
 EDGES_DEPTH = {}
-import numpy as np
 triangle_is_closeable_ = {
     (None, None, None): False, (None, None, False): False,
     (None, None, True): False, (None, False, None): False,
@@ -46,11 +47,31 @@ def profile(f):
     return f
 
 
+class WeightedRandomGenerator(object):
+    """Draw integer between 0 and len(weights)-1 according to
+    `Weights` probability."""
+    def __init__(self, weights):
+        self.totals = list(accumulate(weights))
+
+    def __next__(self):
+        rnd = r.random() * self.totals[-1]
+        return bisect.bisect_right(self.totals, rnd)
+
+
 @profile
 def hash_triangle(a, b, c):
     """Give an unique id to each vertices triplet"""
     a, b, c = sorted([a, b, c])
     return int(N*(a*N+b)+c)
+
+
+@profile
+def choose_pivot(N, nb_iter, pivots_gen=None, uniform_ending=True):
+    """Choose a index from `pivots_gen` or uniformly from [0, N-1]"""
+    threshold = 1.5*int(N*np.log(N))
+    if not pivots_gen or (nb_iter > threshold and uniform_ending):
+        return r.randint(0, N-1)
+    return next(pivots_gen)
 
 
 @profile
@@ -165,7 +186,7 @@ def non_shared_vertices(N, shared_edges):
 
 
 @profile
-def complete_graph(graph, shared_edges=None, close_all=True):
+def complete_graph(graph, shared_edges=None, close_all=True, by_degree=False):
     """Close every possible triangles and then add negative edges"""
     global CLOSEABLE_TRIANGLES
     N = graph.num_vertices()
@@ -176,17 +197,20 @@ def complete_graph(graph, shared_edges=None, close_all=True):
             CLOSEABLE_TRIANGLES.add(h)
     nb_iter = 0
     if shared_edges:
-        cheating = True
+        assert not by_degree, ("can't cheat and use by_degree"
+                               "at the same time")
         non_shared = non_shared_vertices(N, shared_edges)
+        vertices_gen = iter(lambda: r.choice(non_shared), -1)
     else:
-        cheating = False
-        non_shared = list(range(N))
+        if by_degree:
+            degs = graph.degree_property_map('total').a
+            weights = np.exp(-degs)/np.sum(np.exp(-degs))
+            vertices_gen = WeightedRandomGenerator(weights)
+        else:
+            vertices_gen = None
     threshold = int(N*np.log(N))
     while CLOSEABLE_TRIANGLES and nb_iter < 3*threshold:
-        if cheating and nb_iter == threshold:
-            # stop cheating
-            non_shared = list(range(N))
-        pivot_index = r.choice(non_shared)
+        pivot_index = choose_pivot(N, nb_iter, vertices_gen)
         complete_pivot(graph, pivot_index)
         nb_iter += 1
     print(nb_iter, len(CLOSEABLE_TRIANGLES))

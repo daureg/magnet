@@ -3,19 +3,13 @@
 """Take a general signed graph and complete it randomly (to some extent)."""
 import random as r
 from itertools import combinations
-# import matplotlib.pyplot as plt
-# import prettyplotlib as ppl
 
 CLOSEABLE_TRIANGLES = None
 N = -1
 GRAPH = None
 EDGES_SIGN = {}
 EDGES_DEPTH = {}
-# ADJ_NAME = None
-# ADJ_NUMBER = 0
-# SIGN = None
-# import graph_tool.spectral as spectral
-# import numpy as np
+import numpy as np
 triangle_is_closeable_ = {
     (None, None, None): False, (None, None, False): False,
     (None, None, True): False, (None, False, None): False,
@@ -128,28 +122,9 @@ def add_signed_edge(graph, src, dst, depth, positive=False):
     e = graph.add_edge(src, dst)
     graph.ep['fake'][e] = True
     graph.ep['sign'][e] = positive
-    # graph.ep['depth'][e] = depth
     src, dst = min(src, dst), max(src, dst)
     EDGES_SIGN[(src, dst)] = positive
     EDGES_DEPTH[(src, dst)] = depth
-    # SIGN.a = graph.ep['sign'].a.astype(np.int8)*2-1
-    # A = np.array(spectral.adjacency(graph, SIGN).todense())
-    # global ADJ_NUMBER
-    # plot_adj(A, ADJ_NUMBER)
-    # ADJ_NUMBER += 1
-
-
-def plot_adj(A, seq=0):
-    nodes = list(map(str, range(1, A.shape[0]+1)))
-    f = ppl.pcolormesh((np.flipud(A)), xticklabels=nodes,
-                       yticklabels=list(reversed(nodes)))
-    f.axes[0].set_aspect('equal')
-    f.set_figheight(5)
-    f.set_figwidth(5)
-    f.tight_layout()
-    plt.savefig('a_{}_{:05d}.png'.format(abs(ADJ_NAME), seq))
-    f.clear()
-    plt.close()
 
 
 @profile
@@ -178,51 +153,46 @@ def update_triangle_status(graph, a, b):
         # FIXME: those triangle should be identified before this point
         if triangle_is_closed(h):
             CLOSEABLE_TRIANGLES.discard(h)
-        # if a < 2 or b < 2 or v < 2:
-        #     continue
         if triangle_is_closeable(h):
             CLOSEABLE_TRIANGLES.add(h)
 
 
+def non_shared_vertices(N, shared_edges):
+    """Return the vertices not part of `shared_edges` in a `N` nodes graph"""
+    src, dst = zip(*shared_edges)
+    shared_vertices = set(list(src)+list(dst))
+    return list(set(range(N)).difference(shared_vertices))
+
+
 @profile
-def complete_graph(graph, cheating=False, close_all=True):
+def complete_graph(graph, shared_edges=None, close_all=True):
     """Close every possible triangles and then add negative edges"""
     global CLOSEABLE_TRIANGLES
-    # global ADJ_NAME
-    # global SIGN
-    # SIGN = graph.new_edge_property('int')
-    # ADJ_NAME = hash(graph)
     N = graph.num_vertices()
     CLOSEABLE_TRIANGLES = set()
     for i, j, k in combinations(range(N), 3):
-        # if i < 2 or j < 2 or k < 2:
-        #     continue
         h = hash_triangle(i, j, k)
         if triangle_is_closeable(h):
             CLOSEABLE_TRIANGLES.add(h)
     nb_iter = 0
-    # closed = len(EDGES_SIGN)
-    adj = []
-    threshold = 300 if cheating else 0
-    non_shared = [_ for _ in range(N) if _ % 32 >= 2]
-    while CLOSEABLE_TRIANGLES and (nb_iter < (800 if cheating else N*N*N/6)):
-        # print(len(CLOSEABLE_TRIANGLES))
-        if cheating and nb_iter < threshold:
-            pivot_index = r.choice(non_shared)
-        else:
-            pivot_index = r.randint((0 if nb_iter >= threshold else 2), N-1)
+    if shared_edges:
+        cheating = True
+        non_shared = non_shared_vertices(N, shared_edges)
+    else:
+        cheating = False
+        non_shared = list(range(N))
+    threshold = int(N*np.log(N))
+    while CLOSEABLE_TRIANGLES and nb_iter < 3*threshold:
+        if cheating and nb_iter == threshold:
+            # stop cheating
+            non_shared = list(range(N))
+        pivot_index = r.choice(non_shared)
         complete_pivot(graph, pivot_index)
-        # if len(EDGES_SIGN) != closed:
-        #     closed = len(EDGES_SIGN)
-            # sign.a = graph.ep['sign'].a.astype(np.int8)*2-1
-            # adj.append(np.array(spectral.adjacency(graph, sign).todense()))
         nb_iter += 1
-    # print(list(map(triangle_nodes, CLOSEABLE_TRIANGLES)))
     print(nb_iter, len(CLOSEABLE_TRIANGLES))
     if close_all:
         random_completion(graph, -1)
     transfer_depth(graph)
-    return adj
 
 
 @profile

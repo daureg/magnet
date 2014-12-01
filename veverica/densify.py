@@ -145,19 +145,21 @@ def add_signed_edge(graph, src, dst, depth, positive=False):
     graph.ep['sign'][e] = positive
     src, dst = min(src, dst), max(src, dst)
     EDGES_SIGN[(src, dst)] = positive
-    EDGES_DEPTH[(src, dst)] = depth
+    # EDGES_DEPTH[(src, dst)] = depth
 
 
 @profile
 def complete_pivot(graph, v):
     """Close all triangles related to `v`"""
     candidates = ego_triangle(graph.vertex(v))
+    r.shuffle(candidates)
     removed = []
     for triangle in candidates:
         if triangle in CLOSEABLE_TRIANGLES:
             a, b, sign, depth = how_to_complete_triangle(triangle)
             add_signed_edge(graph, a, b, depth, sign)
             removed.append((a, b, triangle))
+            break
     for done in removed:
         CLOSEABLE_TRIANGLES.remove(done[2])
         update_triangle_status(graph, done[0], done[1])
@@ -209,7 +211,7 @@ def complete_graph(graph, shared_edges=None, close_all=True, by_degree=False):
         else:
             vertices_gen = None
     threshold = int(N*np.log(N))
-    while CLOSEABLE_TRIANGLES and nb_iter < 3*threshold:
+    while CLOSEABLE_TRIANGLES and nb_iter < N*threshold:
         pivot_index = choose_pivot(N, nb_iter, vertices_gen)
         complete_pivot(graph, pivot_index)
         nb_iter += 1

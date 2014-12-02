@@ -17,7 +17,7 @@ def make_circle(n):
     graph = cc.make_signed_graph(circle)
     densify.N = n
     densify.EDGES_SIGN.clear()
-    densify.EDGES_DEPTH.clear()
+    # densify.EDGES_DEPTH.clear()
     fake = graph.new_edge_property('bool')
     graph.ep['fake'] = fake
     graph.ep['depth'] = graph.new_edge_property('long')
@@ -27,7 +27,7 @@ def make_circle(n):
         src, dst = int(e.source()), int(e.target())
         src, dst = min(src, dst), max(src, dst)
         densify.EDGES_SIGN[(src, dst)] = bool(graph.ep['sign'][e])
-        densify.EDGES_DEPTH[(src, dst)] = 1
+        # densify.EDGES_DEPTH[(src, dst)] = 1
     return graph
 
 

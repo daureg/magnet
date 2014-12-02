@@ -20,7 +20,7 @@ def make_circle(n):
     densify.EDGES_DEPTH.clear()
     fake = graph.new_edge_property('bool')
     graph.ep['fake'] = fake
-    graph.ep['depth'] = graph.new_edge_property('short')
+    graph.ep['depth'] = graph.new_edge_property('long')
     graph.ep['depth'].a = 1
     for i, e in enumerate(graph.edges()):
         graph.ep['sign'][e] = i != 0
@@ -47,8 +47,8 @@ def finalize_graph(graph):
     densify.N = graph.num_vertices()
     densify.EDGES_SIGN = {edge_tuple(e): bool(graph.ep['sign'][e])
                           for e in graph.edges()}
-    densify.EDGES_DEPTH = {edge_tuple(e): int(graph.ep['depth'][e])
-                           for e in graph.edges()}
+    # densify.EDGES_DEPTH = {edge_tuple(e): int(graph.ep['depth'][e])
+    #                        for e in graph.edges()}
 
 
 def make_rings(size, nb_rings, ring_size_ratio=1, shared_sign=True,

@@ -10,7 +10,7 @@ CLOSEABLE_TRIANGLES = None
 N = -1
 GRAPH = None
 EDGES_SIGN = {}
-EDGES_DEPTH = {}
+# EDGES_DEPTH = {}
 triangle_is_closeable_ = {
     (None, None, None): False, (None, None, False): False,
     (None, None, True): False, (None, False, None): False,
@@ -126,8 +126,9 @@ def how_to_complete_triangle(hash_):
     triangle `hash_`"""
     u, v, w = triangle_nodes(hash_)
     eu, ev, ew = triangle_edges(hash_)
-    du, dv, dw = (EDGES_DEPTH.get((v, w), None), EDGES_DEPTH.get((u, w), None),
-                  EDGES_DEPTH.get((u, v), None))
+    # du, dv, dw = (EDGES_DEPTH.get((v, w), None), EDGES_DEPTH.get((u, w), None),
+    #               EDGES_DEPTH.get((u, v), None))
+    du, dv, dw = 0, 0, 0
     if eu is None:
         a, b, first, second, depth = v, w, ev, ew, dv+dw
     if ev is None:
@@ -218,7 +219,7 @@ def complete_graph(graph, shared_edges=None, close_all=True, by_degree=False):
     print(nb_iter, len(CLOSEABLE_TRIANGLES))
     if close_all:
         random_completion(graph, -1)
-    transfer_depth(graph)
+    # transfer_depth(graph)
 
 
 @profile

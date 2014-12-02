@@ -217,6 +217,9 @@ def complete_graph(graph, shared_edges=None, close_all=True, by_degree=False):
         complete_pivot(graph, pivot_index)
         nb_iter += 1
     print(nb_iter, len(CLOSEABLE_TRIANGLES))
+    # print('completed {}, {}'.format(hash(graph),
+    #                                 int(''.join(map(lambda x: str(int(x)),
+    #                                             EDGES_SIGN.values())), 2)))
     if close_all:
         random_completion(graph, -1)
     # transfer_depth(graph)

@@ -8,7 +8,7 @@ import cc_pivot as cc
 import random as r
 import graph_tool as gt
 from operator import itemgetter
-from itertools import product, combinations
+from itertools import product, combinations, repeat
 import persistent as p
 
 
@@ -49,6 +49,7 @@ def finalize_graph(graph):
                           for e in graph.edges()}
     # densify.EDGES_DEPTH = {edge_tuple(e): int(graph.ep['depth'][e])
     #                        for e in graph.edges()}
+    # print('finalize {}'.format(hash(graph)))
 
 
 def make_rings(size, nb_rings, ring_size_ratio=1, shared_sign=True,
@@ -171,15 +172,30 @@ def run_one_experiment(graph, cc_run=500, shared_edges=None, by_degree=False):
     return elapsed, nb_cluster, np.mean(res)
 
 
+def process_graph(kwargs):
+    g = make_rings(kwargs['size'], kwargs['nb_rings'],
+                   kwargs['ring_size_ratio'], kwargs['shared_sign'],
+                   kwargs['rigged'])
+    # print(hash(g))
+    # print(id(g))
+    # print(g)
+    return run_one_experiment(g, 150, kwargs['shared_edges'],
+                              kwargs['by_degree'])
+
+
 def run_ring_experiment(size, nb_rings, ring_size_ratio=1.0, shared_sign=True,
                         rigged=False, n_rep=100, shared_edges=None,
-                        by_degree=False):
-    runs = []
-    for _ in range(n_rep):
-        g = make_rings(size, nb_rings, ring_size_ratio, shared_sign, rigged)
-        runs.append(run_one_experiment(g, 150, shared_edges, by_degree))
+                        by_degree=False, pool=None):
+    args = repeat({"size": size, "nb_rings": nb_rings, "ring_size_ratio":
+                   ring_size_ratio, "shared_sign": shared_sign, "rigged":
+                   rigged, "shared_edges": shared_edges, "by_degree":
+                   by_degree}, n_rep)
+    if pool:
+        runs = list(pool.imap_unordered(process_graph, args,
+                                        chunksize=n_rep//10))
+    else:
+        runs = list(map(process_graph, args))
     res = {'time': list(map(itemgetter(0), runs)),
-           # 'nb_cluster': map(itemgetter(1), runs),
            'nb_error': list(map(itemgetter(2), runs))}
     suffix = 'pos' if shared_sign else 'neg'
     suffix += '_rigged' if rigged else ''
@@ -189,6 +205,7 @@ def run_ring_experiment(size, nb_rings, ring_size_ratio=1.0, shared_sign=True,
         heuristic = 'SE'
     if by_degree:
         heuristic = 'BD'
+    heuristic = '_ONE_BY_ONE'
     suffix += '_' + heuristic
     p.save_var('square_{:04d}_{:02d}_{:.1f}_{}.my'.format(size, nb_rings,
                                                           ring_size_ratio,
@@ -251,12 +268,7 @@ if __name__ == '__main__':
     import sys
     Ns = list(map(int, np.linspace(30, 100, 5)))
     for n_squares in Ns:
-        run_ring_experiment(2+2*n_squares, n_squares, n_rep=400)
-        run_ring_experiment(2+2*n_squares, n_squares, shared_edges=[(0, 1)],
-                            n_rep=400)
-    run_ring_experiment(2*10, 2, shared_edges=[(0, 1)], n_rep=500)
-    run_ring_experiment(2*10, 2, by_degree=True, n_rep=500)
-    run_ring_experiment(2*10, 2, n_rep=500)
+        run_ring_experiment(2+2*n_squares, n_squares, n_rep=350)
     sys.exit()
     Ns = list(map(int, np.linspace(40, 150, 3)))
     ratios = [1.0, 0.2]

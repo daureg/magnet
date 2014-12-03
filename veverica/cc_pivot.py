@@ -5,6 +5,7 @@ import graph_tool.draw as gtdraw
 import numpy as np
 import seaborn as sns
 import random as r
+from collections import defaultdict
 """Implementation of Quick Pivot algorithm for correlation clustering.
 Ailon, N., Charikar, M., & Newman, A. (2008). Aggregating inconsistent
 information. Journal of the ACM, 55(5), 1–27. doi:10.1145/1411509.1411513"""
@@ -79,14 +80,14 @@ def make_signed_graph(graph):
     return graph
 
 
-def add_cluster_name_and_color(graph):
+def add_cluster_name_and_color(graph, cluster_prop='cluster'):
     cluster_color = graph.new_vertex_property('vector<float>')
     cluster_name = graph.new_vertex_property('string')
-    nb_cluster = np.unique(graph.vp['cluster'].a).size
+    nb_cluster = np.unique(graph.vp[cluster_prop].a).size
     colors = sns.color_palette("Set1", nb_cluster)
     for v in graph.vertices():
-        cluster_color[v] = list(colors[graph.vp['cluster'][v]])+[0.9, ]
-        cluster_name[v] = '{:01d}'.format(graph.vp['cluster'][v])
+        cluster_color[v] = list(colors[graph.vp[cluster_prop][v]])+[0.9, ]
+        cluster_name[v] = '{:01d}'.format(graph.vp[cluster_prop][v])
     return {'fill_color': cluster_color,
             'text': cluster_name}
 
@@ -106,20 +107,35 @@ def add_edge_disagreement_size(graph, disagreement):
     return {'pen_width': edge_width}
 
 
+def lined_up_cluster(graph, cluster_index_name):
+    """Return nodes positions where members of a given cluster are vertically
+    aligned."""
+    pos = graph.new_vertex_property('vector<float>')
+    coord = []
+    counter = defaultdict(int)
+    for c in graph.vp[cluster_index_name].a:
+        coord.append((5*c+.5*r.choice(np.linspace(-3, 3, 6)), counter[c]))
+        counter[c] += 2
+    pos.set_2d_array(np.array(list(zip(*tmp))))
+    return pos
+
+
 def draw_clustering(graph, filename=None, pos=None, vmore=None,
-                    emore=None, show_filling=False):
+                    emore=None, show_filling=False,
+                    cluster_index_name='cluster'):
     graph.set_edge_filter(graph.ep['fake'], inverted=True)
-    pos = pos or gtdraw.sfdp_layout(graph, cooling_step=0.95, epsilon=5e-2)
+    pos = pos or gtdraw.sfdp_layout(graph)
     vertex_options = {'pen_width': 0}
     if vmore:
         vertex_options.update(vmore)
-    vertex_options.update(add_cluster_name_and_color(graph))
+    vertex_options.update(add_cluster_name_and_color(graph,
+                                                     cluster_index_name))
     name = graph.new_vertex_property('string')
     for i, v in enumerate(graph.vertices()):
         name[v] = str(i)
-    if np.unique(graph.vp['cluster'].a).size < 2:
+    if np.unique(graph.vp[cluster_index_name].a).size < 2:
         vertex_options['text'] = name
-    d = count_disagreements(graph)
+    d = count_disagreements(graph, alt_index=cluster_index_name)
     if not show_filling:
         graph.set_edge_filter(graph.ep['fake'], inverted=True)
     print(str(d.a.sum().ravel()[0]) + ' disagreements')

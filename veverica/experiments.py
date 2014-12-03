@@ -157,10 +157,12 @@ def flip_random_edges(graph, fraction=0.1):
         graph.ep['sign'][e] = not graph.ep['sign'][e]
 
 
-def run_one_experiment(graph, cc_run=500, shared_edges=None, by_degree=False):
+def run_one_experiment(graph, cc_run=500, shared_edges=None, by_degree=False,
+                       one_at_a_time=False, by_betweenness=False):
     start = default_timer()
     densify.complete_graph(graph, shared_edges=shared_edges,
-                           by_degree=by_degree)
+                           by_degree=by_degree, one_at_a_time=one_at_a_time,
+                           by_betweenness=by_betweenness)
     elapsed = default_timer() - start
     res = []
     for _ in range(cc_run):

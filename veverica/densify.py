@@ -5,6 +5,7 @@ import random as r
 import bisect
 from itertools import combinations, accumulate
 import numpy as np
+from graph_tool import centrality
 
 CLOSEABLE_TRIANGLES = None
 N = -1
@@ -150,17 +151,19 @@ def add_signed_edge(graph, src, dst, depth, positive=False):
 
 
 @profile
-def complete_pivot(graph, v):
+def complete_pivot(graph, v, one_at_a_time):
     """Close all triangles related to `v`"""
     candidates = ego_triangle(graph.vertex(v))
-    r.shuffle(candidates)
+    if one_at_a_time:
+        r.shuffle(candidates)
     removed = []
     for triangle in candidates:
         if triangle in CLOSEABLE_TRIANGLES:
             a, b, sign, depth = how_to_complete_triangle(triangle)
             add_signed_edge(graph, a, b, depth, sign)
             removed.append((a, b, triangle))
-            break
+            if one_at_a_time:
+                break
     for done in removed:
         CLOSEABLE_TRIANGLES.remove(done[2])
         update_triangle_status(graph, done[0], done[1])
@@ -189,7 +192,8 @@ def non_shared_vertices(N, shared_edges):
 
 
 @profile
-def complete_graph(graph, shared_edges=None, close_all=True, by_degree=False):
+def complete_graph(graph, shared_edges=None, close_all=True, by_degree=False,
+                   one_at_a_time=False, by_betweenness=False):
     """Close every possible triangles and then add negative edges"""
     global CLOSEABLE_TRIANGLES
     N = graph.num_vertices()
@@ -209,12 +213,18 @@ def complete_graph(graph, shared_edges=None, close_all=True, by_degree=False):
             degs = graph.degree_property_map('total').a
             weights = np.exp(-degs)/np.sum(np.exp(-degs))
             vertices_gen = WeightedRandomGenerator(weights)
-        else:
+        if by_betweenness:
+            vb, _ = centrality.betweenness(graph)
+            vb = N*vb.a/5
+            weights = np.exp(-vb)/np.sum(np.exp(-vb))
+            vertices_gen = WeightedRandomGenerator(weights)
+        if not by_degree and not by_betweenness:
             vertices_gen = None
     threshold = int(N*np.log(N))
-    while CLOSEABLE_TRIANGLES and nb_iter < N*threshold:
+    coeff = N if one_at_a_time else 3
+    while CLOSEABLE_TRIANGLES and nb_iter < coeff*threshold:
         pivot_index = choose_pivot(N, nb_iter, vertices_gen)
-        complete_pivot(graph, pivot_index)
+        complete_pivot(graph, pivot_index, one_at_a_time)
         nb_iter += 1
     print(nb_iter, len(CLOSEABLE_TRIANGLES))
     # print('completed {}, {}'.format(hash(graph),

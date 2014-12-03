@@ -2,6 +2,7 @@
 # vim: set fileencoding=utf-8
 """."""
 from timeit import default_timer
+import time
 import numpy as np
 import densify
 import cc_pivot as cc
@@ -174,7 +175,7 @@ def run_one_experiment(graph, cc_run=500, shared_edges=None, by_degree=False,
     return elapsed, nb_cluster, np.mean(res)
 
 
-def process_graph(kwargs):
+def process_rings(kwargs):
     g = make_rings(kwargs['size'], kwargs['nb_rings'],
                    kwargs['ring_size_ratio'], kwargs['shared_sign'],
                    kwargs['rigged'])
@@ -193,10 +194,10 @@ def run_ring_experiment(size, nb_rings, ring_size_ratio=1.0, shared_sign=True,
                    rigged, "shared_edges": shared_edges, "by_degree":
                    by_degree}, n_rep)
     if pool:
-        runs = list(pool.imap_unordered(process_graph, args,
+        runs = list(pool.imap_unordered(process_rings, args,
                                         chunksize=n_rep//10))
     else:
-        runs = list(map(process_graph, args))
+        runs = list(map(process_rings, args))
     res = {'time': list(map(itemgetter(0), runs)),
            'nb_error': list(map(itemgetter(2), runs))}
     suffix = 'pos' if shared_sign else 'neg'
@@ -214,18 +215,39 @@ def run_ring_experiment(size, nb_rings, ring_size_ratio=1.0, shared_sign=True,
                                                           suffix), res)
 
 
-def run_planted_experiment(ball_size, nb_balls, n_rep=100):
-    runs = []
-    for _ in range(n_rep):
-        g, _ = planted_clusters(ball_size, nb_balls)
-        delta = cc.count_disagreements(g, alt_index='true_cluster')
-        delta = delta.a.sum().ravel()[0]
-        time, _, errors = run_one_experiment(g)
-        runs.append([time, delta, errors])
+def process_planted(kwargs):
+    g = planted_clusters(kwargs['ball_size'], kwargs['nb_balls'])
+    return run_one_experiment(g, 150, kwargs['shared_edges'],
+                              kwargs['by_degree'], kwargs['one_at_a_time'],
+                              kwargs['by_betweenness'])
+
+
+def run_planted_experiment(ball_size, nb_balls, by_degree=False,
+                           one_at_a_time=False, by_betweenness=False,
+                           n_rep=100, pool=None):
+    args = repeat({"ball_size": ball_size, "nb_balls": nb_balls,
+                   "shared_edges": False, "by_degree": by_degree,
+                   "one_at_a_time": one_at_a_time, "by_betweenness":
+                   by_betweenness}, n_rep)
+
+    if pool:
+        runs = list(pool.imap_unordered(process_planted, args,
+                                        chunksize=n_rep//10))
+    else:
+        runs = list(map(process_planted, args))
     res = {'time': list(map(itemgetter(0), runs)),
-           'delta': list(map(itemgetter(1), runs)),
            'nb_error': list(map(itemgetter(2), runs))}
-    p.save_var('planted_{:04d}_{:02d}.my'.format(ball_size, nb_balls), res)
+    heuristic = 'UNI'
+    if by_degree:
+        heuristic = 'BD'
+    if one_at_a_time:
+        heuristic = 'ONE_BY_ONE'
+    if by_betweenness:
+        heuristic = 'BTW'
+    p.save_var('planted_{:04d}_{:02d}_{}_{}.my'.format(ball_size, nb_balls,
+                                                       heuristic,
+                                                       int(time.time())),
+               res)
 
 
 def run_circle_experiment(size, n_rep=100):

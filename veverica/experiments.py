@@ -216,10 +216,14 @@ def run_ring_experiment(size, nb_rings, ring_size_ratio=1.0, shared_sign=True,
 
 
 def process_planted(kwargs):
-    g = planted_clusters(kwargs['ball_size'], kwargs['nb_balls'])
-    return run_one_experiment(g, 150, kwargs['shared_edges'],
-                              kwargs['by_degree'], kwargs['one_at_a_time'],
-                              kwargs['by_betweenness'])
+    g, _ = planted_clusters(kwargs['ball_size'], kwargs['nb_balls'])
+    delta = cc.count_disagreements(g, alt_index='true_cluster')
+    delta = delta.a.sum().ravel()[0]
+    times, _, errors = run_one_experiment(g, 150, kwargs['shared_edges'],
+                                          kwargs['by_degree'],
+                                          kwargs['one_at_a_time'],
+                                          kwargs['by_betweenness'])
+    return [times, delta, errors]
 
 
 def run_planted_experiment(ball_size, nb_balls, by_degree=False,
@@ -236,6 +240,7 @@ def run_planted_experiment(ball_size, nb_balls, by_degree=False,
     else:
         runs = list(map(process_planted, args))
     res = {'time': list(map(itemgetter(0), runs)),
+           'delta': list(map(itemgetter(1), runs)),
            'nb_error': list(map(itemgetter(2), runs))}
     heuristic = 'UNI'
     if by_degree:

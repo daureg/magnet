@@ -6,42 +6,38 @@ import bisect
 from itertools import combinations, accumulate
 import numpy as np
 from graph_tool import centrality
+from enum import Enum, unique
+import persistent as p
+
+
+@unique
+class PivotStrategy(Enum):
+    """How to choose the pivot at each iteration"""
+    uniform = 1
+    by_degree = 2
+    by_betweenness = 3
+    weighted = 4
+    no_pivot = 5
+
+
+@unique
+class TriangleStatus(Enum):
+    """What kind of triangle are we picking as candidates for potential
+    closing"""
+    closeable = 1
+    one_edge_missing = 2
+    one_edge_positive = 3
+    any = 4
+    closed = 5
+
 
 CLOSEABLE_TRIANGLES = None
+TWO_PATHS = None
 N = -1
 GRAPH = None
 EDGES_SIGN = {}
 # EDGES_DEPTH = {}
-triangle_is_closeable_ = {
-    (None, None, None): False, (None, None, False): False,
-    (None, None, True): False, (None, False, None): False,
-    (None, False, False): False, (None, False, True): True,
-    (None, True, None): False, (None, True, False): True,
-    (None, True, True): True, (False, None, None): False,
-    (False, None, False): False, (False, None, True): True,
-    (False, False, None): False, (False, False, False): False,
-    (False, False, True): False, (False, True, None): True,
-    (False, True, False): False, (False, True, True): False,
-    (True, None, None): False, (True, None, False): True,
-    (True, None, True): True, (True, False, None): True,
-    (True, False, False): False, (True, False, True): False,
-    (True, True, None): True, (True, True, False): False,
-    (True, True, True): False}
-triangle_is_closed_ = {
-    (None, None, None): False, (None, None, False): False,
-    (None, None, True): False, (None, False, None): False,
-    (None, False, False): False, (None, False, True): False,
-    (None, True, None): False, (None, True, False): False,
-    (None, True, True): False, (False, None, None): False,
-    (False, None, False): False, (False, None, True): False,
-    (False, False, None): False, (False, False, False): True,
-    (False, False, True): True, (False, True, None): False,
-    (False, True, False): True, (False, True, True): True,
-    (True, None, None): False, (True, None, False): False,
-    (True, None, True): False, (True, False, None): False,
-    (True, False, False): True, (True, False, True): True,
-    (True, True, None): False, (True, True, False): True,
-    (True, True, True): True}
+TRIANGLE_STATUS_CACHE = None
 
 
 def profile(f):
@@ -62,6 +58,7 @@ class WeightedRandomGenerator(object):
 @profile
 def hash_triangle(a, b, c):
     """Give an unique id to each vertices triplet"""
+    # TODO is node order significant?
     a, b, c = sorted([a, b, c])
     return int(N*(a*N+b)+c)
 
@@ -93,24 +90,19 @@ def triangle_edges(hash_):
             EDGES_SIGN.get((u, v), None))
 
 
-def triangle_score(hash_):
-    """Return a number characterizing the triangle's edge type"""
-    # score each edge as : {+: 1, -: -1, absent: -10}
-    edge_score = lambda e: -10 if e is None else (e*2 - 1)
-    return sum((edge_score(e) for e in triangle_edges(hash_)))
-
-
 @profile
 def triangle_is_closeable(hash_):
     """A triangle is closeable if one edge is missing and at least another
     one is positive"""
-    return triangle_is_closeable_[triangle_edges(hash_)]
+    edges = triangle_edges(hash_)
+    return TRIANGLE_STATUS_CACHE[TriangleStatus.closeable][edges]
 
 
 @profile
 def triangle_is_closed(hash_):
     """Tell if a triangle has 3 edges"""
-    return triangle_is_closed_[triangle_edges(hash_)]
+    edges = triangle_edges(hash_)
+    return TRIANGLE_STATUS_CACHE[TriangleStatus.closed][edges]
 
 
 @profile
@@ -127,7 +119,8 @@ def how_to_complete_triangle(hash_):
     triangle `hash_`"""
     u, v, w = triangle_nodes(hash_)
     eu, ev, ew = triangle_edges(hash_)
-    # du, dv, dw = (EDGES_DEPTH.get((v, w), None), EDGES_DEPTH.get((u, w), None),
+    # du, dv, dw = (EDGES_DEPTH.get((v, w), None),
+    #               EDGES_DEPTH.get((u, w), None),
     #               EDGES_DEPTH.get((u, v), None))
     du, dv, dw = 0, 0, 0
     if eu is None:
@@ -151,25 +144,6 @@ def add_signed_edge(graph, src, dst, depth, positive=False):
 
 
 @profile
-def complete_pivot(graph, v, one_at_a_time):
-    """Close all triangles related to `v`"""
-    candidates = ego_triangle(graph.vertex(v))
-    if one_at_a_time:
-        r.shuffle(candidates)
-    removed = []
-    for triangle in candidates:
-        if triangle in CLOSEABLE_TRIANGLES:
-            a, b, sign, depth = how_to_complete_triangle(triangle)
-            add_signed_edge(graph, a, b, depth, sign)
-            removed.append((a, b, triangle))
-            if one_at_a_time:
-                break
-    for done in removed:
-        CLOSEABLE_TRIANGLES.remove(done[2])
-        update_triangle_status(graph, done[0], done[1])
-
-
-@profile
 def update_triangle_status(graph, a, b):
     """Look for all closeable triangles involving edge (`a`,`b`)"""
     Na = set(map(int, graph.vertex(a).out_neighbours()))
@@ -177,11 +151,15 @@ def update_triangle_status(graph, a, b):
     common_neighbors = Na.union(Nb).difference((a, b))
     for v in common_neighbors:
         h = hash_triangle(a, b, v)
-        # FIXME: those triangle should be identified before this point
         if triangle_is_closed(h):
             CLOSEABLE_TRIANGLES.discard(h)
+            TWO_PATHS.discard(h)
         if triangle_is_closeable(h):
             CLOSEABLE_TRIANGLES.add(h)
+    for v in Na.union(Nb).difference(common_neighbors):
+        # v is a exclusive neighbor of either a or b
+        h = hash_triangle(a, b, v)
+        TWO_PATHS.add(h)
 
 
 def non_shared_vertices(N, shared_edges):
@@ -191,40 +169,41 @@ def non_shared_vertices(N, shared_edges):
     return list(set(range(N)).difference(shared_vertices))
 
 
+def is_a_two_path(hash_):
+    edges = triangle_edges(hash_)
+    return TRIANGLE_STATUS_CACHE[TriangleStatus.one_edge_missing][edges]
+
+
 @profile
-def complete_graph(graph, shared_edges=None, close_all=True, by_degree=False,
-                   one_at_a_time=False, by_betweenness=False):
+def complete_graph(graph, shared_edges=None, close_all=True,
+                   pivot_strategy=PivotStrategy.uniform,
+                   pivot_gen=None,
+                   triangle_strategy=TriangleStatus.closeable):
     """Close every possible triangles and then add negative edges"""
-    global CLOSEABLE_TRIANGLES
+    global CLOSEABLE_TRIANGLES, TWO_PATHS
+    global TRIANGLE_STATUS_CACHE
+    TRIANGLE_STATUS_CACHE = p.load_var('triangle_strategy.my')
+    print(TRIANGLE_STATUS_CACHE.keys())
     N = graph.num_vertices()
     CLOSEABLE_TRIANGLES = set()
+    TWO_PATHS = set()
     for i, j, k in combinations(range(N), 3):
         h = hash_triangle(i, j, k)
         if triangle_is_closeable(h):
             CLOSEABLE_TRIANGLES.add(h)
+        if is_a_two_path(h):
+            TWO_PATHS.add(h)
     nb_iter = 0
-    if shared_edges:
-        assert not by_degree, ("can't cheat and use by_degree"
-                               "at the same time")
-        non_shared = non_shared_vertices(N, shared_edges)
-        vertices_gen = iter(lambda: r.choice(non_shared), -1)
-    else:
-        if by_degree:
-            degs = graph.degree_property_map('total').a
-            weights = np.exp(-degs)/np.sum(np.exp(-degs))
-            vertices_gen = WeightedRandomGenerator(weights)
-        if by_betweenness:
-            vb, _ = centrality.betweenness(graph)
-            vb = N*vb.a/5
-            weights = np.exp(-vb)/np.sum(np.exp(-vb))
-            vertices_gen = WeightedRandomGenerator(weights)
-        if not by_degree and not by_betweenness:
-            vertices_gen = None
+    vertices_gen = build_pivot_generator(N, graph, shared_edges,
+                                         pivot_strategy, pivot_gen)
     threshold = int(N*np.log(N))
-    coeff = N if one_at_a_time else 3
-    while CLOSEABLE_TRIANGLES and nb_iter < coeff*threshold:
-        pivot_index = choose_pivot(N, nb_iter, vertices_gen)
-        complete_pivot(graph, pivot_index, one_at_a_time)
+    while CLOSEABLE_TRIANGLES and nb_iter < N*threshold:
+        if pivot_strategy is PivotStrategy.no_pivot:
+            pivot = None
+        else:
+            pivot = choose_pivot(N, nb_iter, vertices_gen)
+        triangle = pick_triangle(graph, pivot, triangle_strategy)
+        complete_triangle(graph, triangle)
         nb_iter += 1
     print(nb_iter, len(CLOSEABLE_TRIANGLES))
     # print('completed {}, {}'.format(hash(graph),
@@ -235,20 +214,72 @@ def complete_graph(graph, shared_edges=None, close_all=True, by_degree=False,
     # transfer_depth(graph)
 
 
+def pick_triangle(graph, pivot, triangle_strategy):
+    """Choose randomly the first triangle in `graph` that match
+    `triangle_strategy` involving `pivot`"""
+    if pivot is None:
+        candidates = TWO_PATHS
+    else:
+        candidates = ego_triangle(graph.vertex(pivot))
+    for idx in randperm(len(candidates)):
+        edges = triangle_edges(candidates[idx])
+        if TRIANGLE_STATUS_CACHE[triangle_strategy][edges]:
+            return candidates[idx]
+
+
+def complete_triangle(graph, triangle):
+    """Close `triangle` in `graph` and make necessary updates."""
+    if triangle in CLOSEABLE_TRIANGLES:
+        a, b, sign, depth = how_to_complete_triangle(triangle)
+        add_signed_edge(graph, a, b, depth, sign)
+        CLOSEABLE_TRIANGLES.remove(triangle)
+        update_triangle_status(graph, a, b)
+
+
+def randperm(seq_len):
+    """Yield indices in [0, `seq_len`] at random without replacement"""
+    indices = list(range(seq_len))
+    r.shuffle(indices)
+    for idx in indices:
+        yield idx
+
+
+def build_pivot_generator(N, graph, shared_edges, pivot_strategy, pivot_gen):
+    """Return a vertex generator according to the chosen strategy"""
+    if shared_edges:
+        non_shared = non_shared_vertices(N, shared_edges)
+        return iter(lambda: r.choice(non_shared), -1)
+    if pivot_strategy is PivotStrategy.weighted:
+        assert pivot_gen, "provide your own generator"
+        return pivot_gen
+    if pivot_strategy in [PivotStrategy.uniform, PivotStrategy.no_pivot]:
+        return None
+    if pivot_strategy is PivotStrategy.by_degree:
+        degs = graph.degree_property_map('total').a
+        weights = np.exp(-degs)/np.sum(np.exp(-degs))
+        return WeightedRandomGenerator(weights)
+    if pivot_strategy is PivotStrategy.by_betweenness:
+        vb, _ = centrality.betweenness(graph)
+        vb = N*vb.a/5
+        weights = np.exp(-vb)/np.sum(np.exp(-vb))
+        return WeightedRandomGenerator(weights)
+    raise ValueError('check build_pivot_generator call')
+
+
 @profile
 def transfer_depth(graph):
     """Copy EDGES_DEPTH back to graph property"""
     for e in graph.edges():
         src, dst = int(e.source()), int(e.target())
         src, dst = min(src, dst), max(src, dst)
-        EDGES_SIGN[(src, dst)] = bool()
-        graph.ep['depth'][e] = EDGES_DEPTH[(src, dst)]
+        # graph.ep['depth'][e] = EDGES_DEPTH[(src, dst)]
 
 
 def random_completion(graph, positive_proba=0.5):
     """Set `graph` absent edges positive with `positive_proba`ility."""
-    max_depth = int(graph.ep['depth'].a.max())
-    larger_depth = int(1.4*max_depth)
+    # max_depth = int(graph.ep['depth'].a.max())
+    # larger_depth = int(1.4*max_depth)
+    larger_depth = 2
     for i, j in combinations(range(N), 2):
         if (i, j) not in EDGES_SIGN:
             add_signed_edge(graph, i, j, larger_depth,
@@ -260,7 +291,7 @@ if __name__ == '__main__':
     import cc_pivot as cc
     GRAPH = cc.make_signed_graph(cc.gtgeneration.circular_graph(N))
     EDGES_SIGN.clear()
-    EDGES_DEPTH.clear()
+    # EDGES_DEPTH.clear()
     name = GRAPH.new_vertex_property('string')
     fake = GRAPH.new_edge_property('bool')
     GRAPH.ep['fake'] = fake
@@ -271,7 +302,7 @@ if __name__ == '__main__':
         src, dst = int(e.source()), int(e.target())
         src, dst = min(src, dst), max(src, dst)
         EDGES_SIGN[(src, dst)] = bool(GRAPH.ep['sign'][e])
-        EDGES_DEPTH[(src, dst)] = 1
+        # EDGES_DEPTH[(src, dst)] = 1
     pos = cc.gtdraw.sfdp_layout(GRAPH, cooling_step=0.95, epsilon=5e-2)
 
     complete_graph(GRAPH)

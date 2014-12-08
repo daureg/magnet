@@ -6,6 +6,7 @@ import bisect
 from itertools import combinations, accumulate
 import numpy as np
 from graph_tool import centrality
+from TriangleCache import TriangleStatus
 from enum import Enum, unique
 import persistent as p
 
@@ -20,24 +21,14 @@ class PivotStrategy(Enum):
     no_pivot = 5
 
 
-@unique
-class TriangleStatus(Enum):
-    """What kind of triangle are we picking as candidates for potential
-    closing"""
-    closeable = 1
-    one_edge_missing = 2
-    one_edge_positive = 3
-    any = 4
-    closed = 5
-
-
 CLOSEABLE_TRIANGLES = None
 TWO_PATHS = None
 N = -1
 GRAPH = None
 EDGES_SIGN = {}
 # EDGES_DEPTH = {}
-TRIANGLE_STATUS_CACHE = None
+DATA = p.load_var('triangle_cache.my')
+TRIANGLE_STATUS_CACHE = lambda x: DATA[x.value]
 
 
 def profile(f):
@@ -95,14 +86,14 @@ def triangle_is_closeable(hash_):
     """A triangle is closeable if one edge is missing and at least another
     one is positive"""
     edges = triangle_edges(hash_)
-    return TRIANGLE_STATUS_CACHE[TriangleStatus.closeable][edges]
+    return TRIANGLE_STATUS_CACHE(TriangleStatus.closeable)[edges]
 
 
 @profile
 def triangle_is_closed(hash_):
     """Tell if a triangle has 3 edges"""
     edges = triangle_edges(hash_)
-    return TRIANGLE_STATUS_CACHE[TriangleStatus.closed][edges]
+    return TRIANGLE_STATUS_CACHE(TriangleStatus.closed)[edges]
 
 
 @profile
@@ -171,7 +162,7 @@ def non_shared_vertices(N, shared_edges):
 
 def is_a_two_path(hash_):
     edges = triangle_edges(hash_)
-    return TRIANGLE_STATUS_CACHE[TriangleStatus.one_edge_missing][edges]
+    return TRIANGLE_STATUS_CACHE(TriangleStatus.one_edge_missing)[edges]
 
 
 @profile
@@ -181,9 +172,6 @@ def complete_graph(graph, shared_edges=None, close_all=True,
                    triangle_strategy=TriangleStatus.closeable):
     """Close every possible triangles and then add negative edges"""
     global CLOSEABLE_TRIANGLES, TWO_PATHS
-    global TRIANGLE_STATUS_CACHE
-    TRIANGLE_STATUS_CACHE = p.load_var('triangle_strategy.my')
-    print(TRIANGLE_STATUS_CACHE.keys())
     N = graph.num_vertices()
     CLOSEABLE_TRIANGLES = set()
     TWO_PATHS = set()
@@ -223,7 +211,7 @@ def pick_triangle(graph, pivot, triangle_strategy):
         candidates = ego_triangle(graph.vertex(pivot))
     for idx in randperm(len(candidates)):
         edges = triangle_edges(candidates[idx])
-        if TRIANGLE_STATUS_CACHE[triangle_strategy][edges]:
+        if TRIANGLE_STATUS_CACHE(triangle_strategy)[edges]:
             return candidates[idx]
 
 

@@ -12,6 +12,20 @@ from operator import itemgetter
 from itertools import product, combinations, repeat
 from TriangleCache import TriangleStatus
 import persistent as p
+import os
+NUM_THREADS = os.environ('NUM_THREADS', 14)
+
+
+def negative_pattern(n, quantity=None, distance=None):
+    """create position for `quantity` negative edges or two of them separated
+    by `distance` vertices."""
+    assert quantity or distance, "give a argument"
+    vertices = list(range(n))
+    if quantity:
+        starts = sorted(r.sample(vertices, int(quantity)))
+        return [(_, (_+1) % n) for _ in starts]
+    assert distance < n
+    return [(0, 1), (distance, (distance+1) % n)]
 
 
 def make_circle(n, rigged=False):
@@ -30,7 +44,7 @@ def make_circle(n, rigged=False):
         if not rigged:
             graph.ep['sign'][e] = i != 0
         else:
-            graph.ep['sign'][e] = (src, dst) in rigged
+            graph.ep['sign'][e] = (src, dst) not in rigged
         densify.EDGES_SIGN[(src, dst)] = bool(graph.ep['sign'][e])
         # densify.EDGES_DEPTH[(src, dst)] = 1
     return graph
@@ -208,7 +222,7 @@ def run_ring_experiment(size, nb_rings, ring_size_ratio=1.0, shared_sign=True,
                    triangle_strategy, "one_at_a_time": one_at_a_time}, n_rep)
     if pool:
         runs = list(pool.imap_unordered(process_rings, args,
-                                        chunksize=n_rep//10))
+                                        chunksize=n_rep//NUM_THREADS))
     else:
         runs = list(map(process_rings, args))
     res = {'time': list(map(itemgetter(0), runs)),
@@ -246,7 +260,7 @@ def run_planted_experiment(ball_size, nb_balls,
 
     if pool:
         runs = list(pool.imap_unordered(process_planted, args,
-                                        chunksize=n_rep//10))
+                                        chunksize=n_rep//NUM_THREADS))
     else:
         runs = list(map(process_planted, args))
     res = {'time': list(map(itemgetter(0), runs)),
@@ -285,7 +299,7 @@ def run_circle_experiment(size, rigged=False,
 
     if pool:
         runs = list(pool.imap_unordered(process_circle, args,
-                                        chunksize=n_rep//10))
+                                        chunksize=n_rep//NUM_THREADS))
     else:
         runs = list(map(process_planted, args))
     res = {'time': list(map(itemgetter(0), runs)),

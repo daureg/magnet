@@ -10,10 +10,11 @@ import random as r
 import graph_tool as gt
 from operator import itemgetter
 from itertools import product, combinations, repeat
+from TriangleCache import TriangleStatus
 import persistent as p
 
 
-def make_circle(n):
+def make_circle(n, rigged=False):
     circle = cc.gtgeneration.circular_graph(n)
     graph = cc.make_signed_graph(circle)
     densify.N = n
@@ -24,9 +25,12 @@ def make_circle(n):
     graph.ep['depth'] = graph.new_edge_property('long')
     graph.ep['depth'].a = 1
     for i, e in enumerate(graph.edges()):
-        graph.ep['sign'][e] = i != 0
         src, dst = int(e.source()), int(e.target())
         src, dst = min(src, dst), max(src, dst)
+        if not rigged:
+            graph.ep['sign'][e] = i != 0
+        else:
+            graph.ep['sign'][e] = (src, dst) in rigged
         densify.EDGES_SIGN[(src, dst)] = bool(graph.ep['sign'][e])
         # densify.EDGES_DEPTH[(src, dst)] = 1
     return graph
@@ -158,12 +162,15 @@ def flip_random_edges(graph, fraction=0.1):
         graph.ep['sign'][e] = not graph.ep['sign'][e]
 
 
-def run_one_experiment(graph, cc_run=500, shared_edges=None, by_degree=False,
-                       one_at_a_time=False, by_betweenness=False):
+def run_one_experiment(graph, cc_run=500, shared_edges=None,
+                       pivot_strategy=densify.PivotStrategy.uniform,
+                       triangle_strategy=TriangleStatus.closeable,
+                       one_at_a_time=False):
     start = default_timer()
     densify.complete_graph(graph, shared_edges=shared_edges,
-                           by_degree=by_degree, one_at_a_time=one_at_a_time,
-                           by_betweenness=by_betweenness)
+                           pivot_strategy=pivot_strategy,
+                           triangle_strategy=triangle_strategy,
+                           one_at_a_time=one_at_a_time)
     elapsed = default_timer() - start
     res = []
     for _ in range(cc_run):
@@ -183,16 +190,22 @@ def process_rings(kwargs):
     # print(id(g))
     # print(g)
     return run_one_experiment(g, 150, kwargs['shared_edges'],
-                              kwargs['by_degree'])
+                              kwargs['pivot_strategy'],
+                              kwargs['triangle_strategy'],
+                              kwargs['one_at_a_time'])
 
 
 def run_ring_experiment(size, nb_rings, ring_size_ratio=1.0, shared_sign=True,
                         rigged=False, n_rep=100, shared_edges=None,
-                        by_degree=False, pool=None):
+                        pivot_strategy=densify.PivotStrategy.uniform,
+                        triangle_strategy=TriangleStatus.closeable,
+                        one_at_a_time=True,
+                        pool=None):
     args = repeat({"size": size, "nb_rings": nb_rings, "ring_size_ratio":
                    ring_size_ratio, "shared_sign": shared_sign, "rigged":
-                   rigged, "shared_edges": shared_edges, "by_degree":
-                   by_degree}, n_rep)
+                   rigged, "shared_edges": shared_edges,
+                   "pivot_strategy": pivot_strategy, "triangle_strategy":
+                   triangle_strategy, "one_at_a_time": one_at_a_time}, n_rep)
     if pool:
         runs = list(pool.imap_unordered(process_rings, args,
                                         chunksize=n_rep//10))
@@ -203,16 +216,11 @@ def run_ring_experiment(size, nb_rings, ring_size_ratio=1.0, shared_sign=True,
     suffix = 'pos' if shared_sign else 'neg'
     suffix += '_rigged' if rigged else ''
     suffix += '_' + str(n_rep)
-    heuristic = ''
-    if shared_edges:
-        heuristic = 'SE'
-    if by_degree:
-        heuristic = 'BD'
-    heuristic = '_ONE_BY_ONE'
-    suffix += '_' + heuristic
-    p.save_var('square_{:04d}_{:02d}_{:.1f}_{}.my'.format(size, nb_rings,
-                                                          ring_size_ratio,
-                                                          suffix), res)
+    heuristic = strategy_to_str(pivot_strategy, triangle_strategy,
+                                one_at_a_time)
+    exp_name = 'square_{:04d}_{:02d}_{:.1f}_{}_{}_{}.my'
+    p.save_var(exp_name.format(size, nb_rings, ring_size_ratio, suffix,
+                               heuristic, int(time.time())), res)
 
 
 def process_planted(kwargs):
@@ -220,19 +228,21 @@ def process_planted(kwargs):
     delta = cc.count_disagreements(g, alt_index='true_cluster')
     delta = delta.a.sum().ravel()[0]
     times, _, errors = run_one_experiment(g, 150, kwargs['shared_edges'],
-                                          kwargs['by_degree'],
-                                          kwargs['one_at_a_time'],
-                                          kwargs['by_betweenness'])
+                                          kwargs['pivot_strategy'],
+                                          kwargs['triangle_strategy'],
+                                          kwargs['one_at_a_time'])
     return [times, delta, errors]
 
 
-def run_planted_experiment(ball_size, nb_balls, by_degree=False,
-                           one_at_a_time=False, by_betweenness=False,
+def run_planted_experiment(ball_size, nb_balls,
+                           pivot_strategy=densify.PivotStrategy.uniform,
+                           triangle_strategy=TriangleStatus.closeable,
+                           one_at_a_time=True,
                            n_rep=100, pool=None):
     args = repeat({"ball_size": ball_size, "nb_balls": nb_balls,
-                   "shared_edges": False, "by_degree": by_degree,
-                   "one_at_a_time": one_at_a_time, "by_betweenness":
-                   by_betweenness}, n_rep)
+                   "shared_edges": False,
+                   "pivot_strategy": pivot_strategy, "triangle_strategy":
+                   triangle_strategy, "one_at_a_time": one_at_a_time}, n_rep)
 
     if pool:
         runs = list(pool.imap_unordered(process_planted, args,
@@ -242,32 +252,55 @@ def run_planted_experiment(ball_size, nb_balls, by_degree=False,
     res = {'time': list(map(itemgetter(0), runs)),
            'delta': list(map(itemgetter(1), runs)),
            'nb_error': list(map(itemgetter(2), runs))}
-    heuristic = 'UNI'
-    if by_degree:
-        heuristic = 'BD'
-    if one_at_a_time:
-        heuristic = 'ONE_BY_ONE'
-    if by_betweenness:
-        heuristic = 'BTW'
+    heuristic = strategy_to_str(pivot_strategy, triangle_strategy,
+                                one_at_a_time)
     p.save_var('planted_{:04d}_{:02d}_{}_{}.my'.format(ball_size, nb_balls,
                                                        heuristic,
                                                        int(time.time())),
                res)
 
 
-def run_circle_experiment(size, n_rep=100):
-    runs = []
-    for _ in range(n_rep):
-        runs.append(run_one_experiment(make_circle(size), 150))
+def strategy_to_str(pivot_strategy, triangle_strategy, one_at_a_time):
+    return '{}_{}_{}'.format(pivot_strategy.name, triangle_strategy.name,
+                             'ONE' if one_at_a_time else 'ALL')
+
+
+def process_circle(kwargs):
+    g = make_circle(kwargs['circle_size'], kwargs['rigged'])
+    return run_one_experiment(g, 100, kwargs['shared_edges'],
+                              kwargs['pivot_strategy'],
+                              kwargs['triangle_strategy'],
+                              kwargs['one_at_a_time'])
+
+
+def run_circle_experiment(size, rigged=False,
+                          pivot_strategy=densify.PivotStrategy.uniform,
+                          triangle_strategy=TriangleStatus.closeable,
+                          one_at_a_time=True,
+                          n_rep=100, pool=None):
+    args = repeat({"circle_size": size, "rigged": rigged,
+                   "shared_edges": False,
+                   "pivot_strategy": pivot_strategy, "triangle_strategy":
+                   triangle_strategy, "one_at_a_time": one_at_a_time}, n_rep)
+
+    if pool:
+        runs = list(pool.imap_unordered(process_circle, args,
+                                        chunksize=n_rep//10))
+    else:
+        runs = list(map(process_planted, args))
     res = {'time': list(map(itemgetter(0), runs)),
            'nb_error': list(map(itemgetter(2), runs))}
-    p.save_var('circle_{:04d}.my'.format(size), res)
+    heuristic = strategy_to_str(pivot_strategy, triangle_strategy,
+                                one_at_a_time)
+    p.save_var('circle_{:04d}_{}_{}.my'.format(size, heuristic,
+                                               int(time.time())),
+               res)
 
 
 def delta_fas_circle(n, p, k=100):
     orig = make_circle(n)
     densify.random_completion(orig, p)
-    res, best_g, best_d, worst_g, worst_d = [], None, N, None, 0
+    res, best_g, best_d, worst_g, worst_d = [], None, n, None, 0
     for _ in range(k):
         graph = orig.copy()
         cc.cc_pivot(graph)
@@ -279,57 +312,3 @@ def delta_fas_circle(n, p, k=100):
             worst_g, worst_d = graph.copy(), d
         res.append(d)
     return res, best_d, best_g, worst_d, worst_g
-
-if __name__ == '__main__':
-    # pylint: disable=C0103
-    # ring = make_rings(35, 5)
-    # name = ring.new_vertex_property('string')
-    # for i, v in enumerate(ring.vertices()):
-    #     name[v] = str(i)
-    # pos = cc.gtdraw.sfdp_layout(ring, cooling_step=0.95, epsilon=5e-2)
-    # print(run_one_experiment(ring))
-    # cc.draw_clustering(ring, filename="ring.pdf", pos=pos,
-    #                    vmore={'text': name})
-
-    # for nb_rings in range(1, 7):
-    #     run_ring_experiment(60, nb_rings)
-    # run_ring_experiment(60, 4, rigged=True)
-    import sys
-    Ns = list(map(int, np.linspace(30, 100, 5)))
-    for n_squares in Ns:
-        run_ring_experiment(2+2*n_squares, n_squares, n_rep=350)
-    sys.exit()
-    Ns = list(map(int, np.linspace(40, 150, 3)))
-    ratios = [1.0, 0.2]
-    shared_positives = [True, False]
-    for params in product(Ns, ratios, shared_positives):
-        run_ring_experiment(params[0], int(params[0]/3), params[1], params[2])
-    Ns = list(map(int, np.linspace(15, 60, 3)))
-    for n in Ns:
-        run_planted_experiment(n, int(n/3))
-    N, proba = 20, 2
-    res, _, best_g, _, worst_g = delta_fas_circle(N, proba, 1000)
-    p.save_var('test_fas_pos.my', res)
-    best_g.save('fas_best_{:03d}_pos.gt'.format(N))
-    worst_g.save('fas_worst_{:03d}_pos.gt'.format(N))
-    cc.draw_clustering(best_g, filename='fas_best_{:03d}_pos.pdf'.format(N))
-    cc.draw_clustering(worst_g, filename='fas_worst_{:03d}_pos.pdf'.format(N))
-    N, k = 33, 4
-    best_g = None
-    best_d = N*N
-    for _ in range(6):
-        g = make_rings(N, k)
-        t, c, d = run_one_experiment(g)
-        if d < best_d:
-            best_g, best_d = g.copy(), d
-    cc.draw_clustering(best_g, filename='ring_{:03d}.pdf'.format(N))
-    Ns = np.linspace(6, 150, 6)
-    K = 100
-    for n in map(int, Ns):
-        this_run = []
-        for _ in range(K):
-            this_run.append(run_one_experiment(make_circle(n)))
-        res = {'time': list(map(itemgetter(0), this_run)),
-               'nb_cluster': list(map(itemgetter(1), this_run)),
-               'nb_error': list(map(itemgetter(2), this_run))}
-        p.save_var('circle_{}.my'.format(n), res)

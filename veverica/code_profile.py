@@ -21,7 +21,7 @@ def profile_densify(n=40, k=50):
     import densify
     for _ in range(k):
         g = xp.make_circle(n)
-        densify.complete_graph(g)
+        densify.complete_graph(g, one_at_a_time=False)
 
 
 if __name__ == '__main__':

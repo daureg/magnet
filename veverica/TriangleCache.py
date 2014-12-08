@@ -37,4 +37,5 @@ TriangleStatusCache = {TriangleStatus.closeable.value: triangle_is_closeable,
                        TriangleStatus.any.value: any_,
                        TriangleStatus.closed.value: triangle_is_closed}
 
-p.save_var('triangle_cache.my', TriangleStatusCache)
+if __name__ == '__main__':
+    p.save_var('triangle_cache.my', TriangleStatusCache)

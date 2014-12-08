@@ -65,13 +65,14 @@ def hash_triangle(points):
     """Give an unique id to each vertices triplet"""
     # TODO is node order significant?
     a, b, c = sorted(points)
+    # assert a != b and b != c and c != a, points
     return int(N*(a*N+b)+c)
 
 
 @profile
 def choose_pivot(N, nb_iter, pivots_gen=None, uniform_ending=True):
     """Choose a index from `pivots_gen` or uniformly from [0, N-1]"""
-    threshold = 1.5*int(N*np.log(N))
+    threshold = N*int(N*np.log(N))
     if not pivots_gen or (nb_iter > threshold and uniform_ending):
         return r.randint(0, N-1)
     return next(pivots_gen)
@@ -150,20 +151,18 @@ def add_signed_edge(graph, src, dst, depth, positive=False):
 @profile
 def update_triangle_status(graph, a, b):
     """Look for all closeable triangles involving edge (`a`,`b`)"""
-    Na = {int(v) for v in graph.vertex(a).out_neighbours()}
-    Nb = {int(v) for v in graph.vertex(b).out_neighbours()}
-    common_neighbors = Na.union(Nb).difference((a, b))
-    for v in common_neighbors:
+    Na = {int(v) for v in graph.vertex(a).out_neighbours() if int(v) != a}
+    Nb = {int(v) for v in graph.vertex(b).out_neighbours() if int(v) != b}
+    shared_neighbors = Na.union(Nb).difference((a, b))
+    for v in shared_neighbors:
         h = hash_triangle((a, b, v))
         if triangle_is_closed(h):
             CLOSEABLE_TRIANGLES.discard(h)
             TWO_PATHS.discard(h)
+        else:
+            TWO_PATHS.add(h)
         if triangle_is_closeable(h):
             CLOSEABLE_TRIANGLES.add(h)
-    for v in Na.union(Nb).difference(common_neighbors):
-        # v is a exclusive neighbor of either a or b
-        h = hash_triangle((a, b, v))
-        TWO_PATHS.add(h)
 
 
 @profile
@@ -226,9 +225,8 @@ def complete_pivot(graph, pivot, triangle_strategy, one_at_a_time):
     removed = []
     for idx in randperm(len(candidates)):
         triangle = candidates[idx]
-        if triangle in CLOSEABLE_TRIANGLES:
-            a, b, sign, depth = how_to_complete_triangle(triangle)
-            add_signed_edge(graph, a, b, depth, sign)
+        a, b = complete_triangle(graph, triangle, one_at_a_time)
+        if a and b:
             removed.append((a, b, triangle))
     for done in removed:
         CLOSEABLE_TRIANGLES.remove(done[2])
@@ -240,7 +238,7 @@ def pick_triangle(graph, pivot, triangle_strategy, one_at_a_time):
     """Choose randomly the first (or all) triangle in `graph` that match
     `triangle_strategy` involving `pivot`"""
     if pivot is None:
-        candidates = TWO_PATHS
+        candidates = list(TWO_PATHS)
     else:
         candidates = ego_triangle(graph.vertex(pivot))
     if not one_at_a_time:
@@ -258,8 +256,8 @@ def complete_triangle(graph, triangle, one_at_a_time):
     if triangle in CLOSEABLE_TRIANGLES:
         a, b, sign, depth = how_to_complete_triangle(triangle)
         add_signed_edge(graph, a, b, depth, sign)
-        CLOSEABLE_TRIANGLES.remove(triangle)
         if one_at_a_time:
+            CLOSEABLE_TRIANGLES.remove(triangle)
             update_triangle_status(graph, a, b)
         return a, b
     return None, None

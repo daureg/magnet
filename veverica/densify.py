@@ -21,6 +21,16 @@ class PivotStrategy(Enum):
     no_pivot = 5
 
 
+def memodict(f):
+    """ Memoization decorator for a function taking a single argument """
+    class memodict(dict):
+        __slots__ = ()
+
+        def __missing__(self, key):
+            self[key] = ret = f(key)
+            return ret
+    return memodict().__getitem__
+
 CLOSEABLE_TRIANGLES = None
 TWO_PATHS = None
 N = -1
@@ -28,7 +38,10 @@ GRAPH = None
 EDGES_SIGN = {}
 # EDGES_DEPTH = {}
 DATA = p.load_var('triangle_cache.my')
-TRIANGLE_STATUS_CACHE = lambda x: DATA[x.value]
+triangle_is_closed_ = DATA[TriangleStatus.closed.value]
+triangle_is_closeable_ = DATA[TriangleStatus.closeable.value]
+triangle_is_two_path = DATA[TriangleStatus.one_edge_missing.value]
+triangle_is_relevant_ = None
 
 
 def profile(f):
@@ -46,11 +59,12 @@ class WeightedRandomGenerator(object):
         return bisect.bisect_right(self.totals, rnd)
 
 
+@memodict
 @profile
-def hash_triangle(a, b, c):
+def hash_triangle(points):
     """Give an unique id to each vertices triplet"""
     # TODO is node order significant?
-    a, b, c = sorted([a, b, c])
+    a, b, c = sorted(points)
     return int(N*(a*N+b)+c)
 
 
@@ -63,6 +77,7 @@ def choose_pivot(N, nb_iter, pivots_gen=None, uniform_ending=True):
     return next(pivots_gen)
 
 
+@memodict
 @profile
 def triangle_nodes(hash_):
     """Return the 3 vertices index making a triangle id"""
@@ -85,22 +100,20 @@ def triangle_edges(hash_):
 def triangle_is_closeable(hash_):
     """A triangle is closeable if one edge is missing and at least another
     one is positive"""
-    edges = triangle_edges(hash_)
-    return TRIANGLE_STATUS_CACHE(TriangleStatus.closeable)[edges]
+    return triangle_is_closeable_[triangle_edges(hash_)]
 
 
 @profile
 def triangle_is_closed(hash_):
     """Tell if a triangle has 3 edges"""
-    edges = triangle_edges(hash_)
-    return TRIANGLE_STATUS_CACHE(TriangleStatus.closed)[edges]
+    return triangle_is_closed_[triangle_edges(hash_)]
 
 
 @profile
 def ego_triangle(v):
     """Return all triangles (as int tuples) involving `v`"""
     neighbors = (_+(v,) for _ in combinations(v.out_neighbours(), 2))
-    return [hash_triangle(int(nodes[0]), int(nodes[1]), int(nodes[2]))
+    return [hash_triangle((int(nodes[0]), int(nodes[1]), int(nodes[2])))
             for nodes in neighbors]
 
 
@@ -137,11 +150,11 @@ def add_signed_edge(graph, src, dst, depth, positive=False):
 @profile
 def update_triangle_status(graph, a, b):
     """Look for all closeable triangles involving edge (`a`,`b`)"""
-    Na = set(map(int, graph.vertex(a).out_neighbours()))
-    Nb = set(map(int, graph.vertex(b).out_neighbours()))
+    Na = {int(v) for v in graph.vertex(a).out_neighbours()}
+    Nb = {int(v) for v in graph.vertex(b).out_neighbours()}
     common_neighbors = Na.union(Nb).difference((a, b))
     for v in common_neighbors:
-        h = hash_triangle(a, b, v)
+        h = hash_triangle((a, b, v))
         if triangle_is_closed(h):
             CLOSEABLE_TRIANGLES.discard(h)
             TWO_PATHS.discard(h)
@@ -149,10 +162,11 @@ def update_triangle_status(graph, a, b):
             CLOSEABLE_TRIANGLES.add(h)
     for v in Na.union(Nb).difference(common_neighbors):
         # v is a exclusive neighbor of either a or b
-        h = hash_triangle(a, b, v)
+        h = hash_triangle((a, b, v))
         TWO_PATHS.add(h)
 
 
+@profile
 def non_shared_vertices(N, shared_edges):
     """Return the vertices not part of `shared_edges` in a `N` nodes graph"""
     src, dst = zip(*shared_edges)
@@ -160,23 +174,25 @@ def non_shared_vertices(N, shared_edges):
     return list(set(range(N)).difference(shared_vertices))
 
 
+@profile
 def is_a_two_path(hash_):
-    edges = triangle_edges(hash_)
-    return TRIANGLE_STATUS_CACHE(TriangleStatus.one_edge_missing)[edges]
+    return triangle_is_two_path[triangle_edges(hash_)]
 
 
 @profile
 def complete_graph(graph, shared_edges=None, close_all=True,
                    pivot_strategy=PivotStrategy.uniform,
                    pivot_gen=None,
-                   triangle_strategy=TriangleStatus.closeable):
+                   triangle_strategy=TriangleStatus.closeable,
+                   one_at_a_time=True):
     """Close every possible triangles and then add negative edges"""
-    global CLOSEABLE_TRIANGLES, TWO_PATHS
+    global CLOSEABLE_TRIANGLES, TWO_PATHS, triangle_is_relevant_
+    triangle_is_relevant_ = DATA[triangle_strategy.value]
     N = graph.num_vertices()
     CLOSEABLE_TRIANGLES = set()
     TWO_PATHS = set()
     for i, j, k in combinations(range(N), 3):
-        h = hash_triangle(i, j, k)
+        h = hash_triangle((i, j, k))
         if triangle_is_closeable(h):
             CLOSEABLE_TRIANGLES.add(h)
         if is_a_two_path(h):
@@ -190,8 +206,7 @@ def complete_graph(graph, shared_edges=None, close_all=True,
             pivot = None
         else:
             pivot = choose_pivot(N, nb_iter, vertices_gen)
-        triangle = pick_triangle(graph, pivot, triangle_strategy)
-        complete_triangle(graph, triangle)
+        complete_pivot(graph, pivot, triangle_strategy, one_at_a_time)
         nb_iter += 1
     print(nb_iter, len(CLOSEABLE_TRIANGLES))
     # print('completed {}, {}'.format(hash(graph),
@@ -202,28 +217,55 @@ def complete_graph(graph, shared_edges=None, close_all=True,
     # transfer_depth(graph)
 
 
-def pick_triangle(graph, pivot, triangle_strategy):
-    """Choose randomly the first triangle in `graph` that match
+@profile
+def complete_pivot(graph, pivot, triangle_strategy, one_at_a_time):
+    """Complete one or all triangle related to `pivot`"""
+    candidates = pick_triangle(graph, pivot, triangle_strategy, one_at_a_time)
+    if one_at_a_time:
+        return complete_triangle(graph, candidates, one_at_a_time)
+    removed = []
+    for idx in randperm(len(candidates)):
+        triangle = candidates[idx]
+        if triangle in CLOSEABLE_TRIANGLES:
+            a, b, sign, depth = how_to_complete_triangle(triangle)
+            add_signed_edge(graph, a, b, depth, sign)
+            removed.append((a, b, triangle))
+    for done in removed:
+        CLOSEABLE_TRIANGLES.remove(done[2])
+        update_triangle_status(graph, done[0], done[1])
+
+
+@profile
+def pick_triangle(graph, pivot, triangle_strategy, one_at_a_time):
+    """Choose randomly the first (or all) triangle in `graph` that match
     `triangle_strategy` involving `pivot`"""
     if pivot is None:
         candidates = TWO_PATHS
     else:
         candidates = ego_triangle(graph.vertex(pivot))
+    if not one_at_a_time:
+        return [tr for tr in candidates
+                if triangle_is_relevant_[triangle_edges(tr)]]
     for idx in randperm(len(candidates)):
         edges = triangle_edges(candidates[idx])
-        if TRIANGLE_STATUS_CACHE(triangle_strategy)[edges]:
+        if triangle_is_relevant_[edges]:
             return candidates[idx]
 
 
-def complete_triangle(graph, triangle):
+@profile
+def complete_triangle(graph, triangle, one_at_a_time):
     """Close `triangle` in `graph` and make necessary updates."""
     if triangle in CLOSEABLE_TRIANGLES:
         a, b, sign, depth = how_to_complete_triangle(triangle)
         add_signed_edge(graph, a, b, depth, sign)
         CLOSEABLE_TRIANGLES.remove(triangle)
-        update_triangle_status(graph, a, b)
+        if one_at_a_time:
+            update_triangle_status(graph, a, b)
+        return a, b
+    return None, None
 
 
+@profile
 def randperm(seq_len):
     """Yield indices in [0, `seq_len`] at random without replacement"""
     indices = list(range(seq_len))
@@ -232,6 +274,7 @@ def randperm(seq_len):
         yield idx
 
 
+@profile
 def build_pivot_generator(N, graph, shared_edges, pivot_strategy, pivot_gen):
     """Return a vertex generator according to the chosen strategy"""
     if shared_edges:
@@ -263,6 +306,7 @@ def transfer_depth(graph):
         # graph.ep['depth'][e] = EDGES_DEPTH[(src, dst)]
 
 
+@profile
 def random_completion(graph, positive_proba=0.5):
     """Set `graph` absent edges positive with `positive_proba`ility."""
     # max_depth = int(graph.ep['depth'].a.max())

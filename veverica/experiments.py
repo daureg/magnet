@@ -13,7 +13,7 @@ from itertools import product, combinations, repeat
 from TriangleCache import TriangleStatus
 import persistent as p
 import os
-NUM_THREADS = os.environ('NUM_THREADS', 14)
+NUM_THREADS = os.environ.get('NUM_THREADS', 14)
 
 
 def negative_pattern(n, quantity=None, distance=None):

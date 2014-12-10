@@ -200,7 +200,7 @@ def complete_graph(graph, shared_edges=None, close_all=True,
     vertices_gen = build_pivot_generator(N, graph, shared_edges,
                                          pivot_strategy, pivot_gen)
     threshold = int(N*np.log(N))
-    while CLOSEABLE_TRIANGLES and nb_iter < N*threshold:
+    while CLOSEABLE_TRIANGLES and nb_iter < 5*N*threshold:
         if pivot_strategy is PivotStrategy.no_pivot:
             pivot = None
         else:

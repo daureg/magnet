@@ -59,7 +59,7 @@ class WeightedRandomGenerator(object):
         return bisect.bisect_right(self.totals, rnd)
 
 
-@memodict
+# @memodict
 @profile
 def hash_triangle(points):
     """Give an unique id to each vertices triplet"""
@@ -78,7 +78,7 @@ def choose_pivot(N, nb_iter, pivots_gen=None, uniform_ending=True):
     return next(pivots_gen)
 
 
-@memodict
+# @memodict
 @profile
 def triangle_nodes(hash_):
     """Return the 3 vertices index making a triangle id"""
@@ -128,6 +128,10 @@ def how_to_complete_triangle(hash_):
     #               EDGES_DEPTH.get((u, w), None),
     #               EDGES_DEPTH.get((u, v), None))
     du, dv, dw = 0, 0, 0
+    msg = '{} {} {}'.format(hash_ in CLOSEABLE_TRIANGLES, sorted([u,v,w]),
+                            [eu, ev, ew])
+    # print('wondered about {}'.format(hash_))
+    assert eu is None or ev is None or ew is None, msg
     if eu is None:
         a, b, first, second, depth = v, w, ev, ew, dv+dw
     if ev is None:
@@ -144,6 +148,7 @@ def add_signed_edge(graph, src, dst, depth, positive=False):
     graph.ep['fake'][e] = True
     graph.ep['sign'][e] = positive
     src, dst = min(src, dst), max(src, dst)
+    # print('add {} {} {}'.format(src, {True:'+', False:'-'}[positive], dst))
     EDGES_SIGN[(src, dst)] = positive
     # EDGES_DEPTH[(src, dst)] = depth
 
@@ -200,43 +205,50 @@ def complete_graph(graph, shared_edges=None, close_all=True,
     vertices_gen = build_pivot_generator(N, graph, shared_edges,
                                          pivot_strategy, pivot_gen)
     threshold = int(N*np.log(N))
-    while CLOSEABLE_TRIANGLES and nb_iter < 5*N*threshold:
+    print(list(sorted(map(triangle_nodes, CLOSEABLE_TRIANGLES))))
+    while CLOSEABLE_TRIANGLES and nb_iter < N*threshold:
         if pivot_strategy is PivotStrategy.no_pivot:
             pivot = None
         else:
             pivot = choose_pivot(N, nb_iter, vertices_gen)
-        complete_pivot(graph, pivot, triangle_strategy, one_at_a_time)
+        complete_pivot(graph, pivot, one_at_a_time)
         nb_iter += 1
-    print(nb_iter, len(CLOSEABLE_TRIANGLES))
+    print(nb_iter, N*threshold, len(CLOSEABLE_TRIANGLES))
+    # print(list(sorted(map(triangle_nodes, CLOSEABLE_TRIANGLES))))
     # print('completed {}, {}'.format(hash(graph),
     #                                 int(''.join(map(lambda x: str(int(x)),
     #                                             EDGES_SIGN.values())), 2)))
     if close_all:
-        random_completion(graph, -1)
     # transfer_depth(graph)
+        how_many_closed = random_completion(graph, -1)
+        print('edge closed negatively by default: {}'.format(how_many_closed))
 
 
 @profile
-def complete_pivot(graph, pivot, triangle_strategy, one_at_a_time):
+def complete_pivot(graph, pivot, one_at_a_time):
     """Complete one or all triangle related to `pivot`"""
-    candidates = pick_triangle(graph, pivot, triangle_strategy, one_at_a_time)
-    if one_at_a_time:
-        return complete_triangle(graph, candidates, one_at_a_time)
+    # print(list(sorted(map(triangle_nodes, CLOSEABLE_TRIANGLES))))
+    # print('pivot: {}'.format(pivot))
+    candidates = pick_triangle(graph, pivot, one_at_a_time)
+    # print(sorted(map(triangle_nodes, candidates)))
     removed = []
     for idx in randperm(len(candidates)):
         triangle = candidates[idx]
-        a, b = complete_triangle(graph, triangle, one_at_a_time)
-        if a and b:
+        a, b = complete_triangle(graph, triangle)
+        if a is not None and b is not None:
+            # print('completed {} {}'.format(sorted(triangle_nodes(triangle)),
+            #                                sorted([a, b, pivot])))
             removed.append((a, b, triangle))
     for done in removed:
         CLOSEABLE_TRIANGLES.remove(done[2])
         update_triangle_status(graph, done[0], done[1])
+    # print(list(sorted(map(triangle_nodes, CLOSEABLE_TRIANGLES))))
 
 
 @profile
-def pick_triangle(graph, pivot, triangle_strategy, one_at_a_time):
+def pick_triangle(graph, pivot, one_at_a_time):
     """Choose randomly the first (or all) triangle in `graph` that match
-    `triangle_strategy` involving `pivot`"""
+    the chosen triangle strategy involving `pivot`"""
     if pivot is None:
         candidates = list(TWO_PATHS)
     else:
@@ -247,18 +259,17 @@ def pick_triangle(graph, pivot, triangle_strategy, one_at_a_time):
     for idx in randperm(len(candidates)):
         edges = triangle_edges(candidates[idx])
         if triangle_is_relevant_[edges]:
-            return candidates[idx]
+            return [candidates[idx]]
+    return []
 
 
 @profile
-def complete_triangle(graph, triangle, one_at_a_time):
-    """Close `triangle` in `graph` and make necessary updates."""
+def complete_triangle(graph, triangle):
+    """Close `triangle` in `graph`."""
     if triangle in CLOSEABLE_TRIANGLES:
         a, b, sign, depth = how_to_complete_triangle(triangle)
+        # print('i know how to complete {}'.format(triangle))
         add_signed_edge(graph, a, b, depth, sign)
-        if one_at_a_time:
-            CLOSEABLE_TRIANGLES.remove(triangle)
-            update_triangle_status(graph, a, b)
         return a, b
     return None, None
 
@@ -266,10 +277,13 @@ def complete_triangle(graph, triangle, one_at_a_time):
 @profile
 def randperm(seq_len):
     """Yield indices in [0, `seq_len`] at random without replacement"""
-    indices = list(range(seq_len))
-    r.shuffle(indices)
-    for idx in indices:
-        yield idx
+    if seq_len == 1:
+        yield 0
+    else:
+        indices = list(range(seq_len))
+        r.shuffle(indices)
+        for idx in indices:
+            yield idx
 
 
 @profile
@@ -310,10 +324,13 @@ def random_completion(graph, positive_proba=0.5):
     # max_depth = int(graph.ep['depth'].a.max())
     # larger_depth = int(1.4*max_depth)
     larger_depth = 2
+    how_many_closed = 0
     for i, j in combinations(range(N), 2):
         if (i, j) not in EDGES_SIGN:
+            how_many_closed += 1
             add_signed_edge(graph, i, j, larger_depth,
                             r.random() < positive_proba)
+    return how_many_closed
 
 if __name__ == '__main__':
     # pylint: disable=C0103

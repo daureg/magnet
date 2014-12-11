@@ -46,7 +46,7 @@ def make_circle(n, rigged=False):
     graph = cc.make_signed_graph(circle)
     densify.N = n
     densify.EDGES_SIGN.clear()
-    # densify.EDGES_DEPTH.clear()
+    densify.EDGES_DEPTH.clear()
     fake = graph.new_edge_property('bool')
     graph.ep['fake'] = fake
     graph.ep['depth'] = graph.new_edge_property('long')
@@ -59,7 +59,7 @@ def make_circle(n, rigged=False):
         else:
             graph.ep['sign'][e] = (src, dst) not in rigged
         densify.EDGES_SIGN[(src, dst)] = bool(graph.ep['sign'][e])
-        # densify.EDGES_DEPTH[(src, dst)] = 1
+        densify.EDGES_DEPTH[(src, dst)] = 0
     return graph
 
 
@@ -79,8 +79,8 @@ def finalize_graph(graph):
     densify.N = graph.num_vertices()
     densify.EDGES_SIGN = {edge_tuple(e): bool(graph.ep['sign'][e])
                           for e in graph.edges()}
-    # densify.EDGES_DEPTH = {edge_tuple(e): int(graph.ep['depth'][e])
-    #                        for e in graph.edges()}
+    densify.EDGES_DEPTH = {edge_tuple(e): int(graph.ep['depth'][e])
+                           for e in graph.edges()}
     # print('finalize {}'.format(hash(graph)))
 
 

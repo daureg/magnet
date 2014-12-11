@@ -145,9 +145,9 @@ def draw_clustering(graph, filename=None, pos=None, vmore=None,
         edge_width = graph.new_edge_property('float')
         for e in graph.edges():
             if not graph.ep['fake'][e]:
-                edge_width[e] = 3
+                edge_width[e] = 6
             else:
-                edge_width[e] = 1  # if graph.ep['sign'][e] else 1
+                edge_width[e] = 3  # if graph.ep['sign'][e] else 1
         edge_options = {'pen_width': edge_width}
     edge_options.update(add_edge_sign_color(graph))
     # edge_options.update(add_edge_disagreement_size(graph, d))
@@ -156,7 +156,7 @@ def draw_clustering(graph, filename=None, pos=None, vmore=None,
 
     gtdraw.graph_draw(graph, pos=pos, vprops=vertex_options,
                       eprops=edge_options, output=filename, fit_view=True,
-                      output_size=(1300, 700))
+                      output_size=(600, 600))
     graph.set_edge_filter(None)
 
 if __name__ == '__main__':

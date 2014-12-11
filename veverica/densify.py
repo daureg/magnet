@@ -36,12 +36,13 @@ TWO_PATHS = None
 N = -1
 GRAPH = None
 EDGES_SIGN = {}
-# EDGES_DEPTH = {}
+EDGES_DEPTH = {}
 DATA = p.load_var('triangle_cache.my')
 triangle_is_closed_ = DATA[TriangleStatus.closed.value]
 triangle_is_closeable_ = DATA[TriangleStatus.closeable.value]
 triangle_is_two_path = DATA[TriangleStatus.one_edge_missing.value]
 triangle_is_relevant_ = None
+HISTORY = []
 
 
 def profile(f):
@@ -150,7 +151,7 @@ def add_signed_edge(graph, src, dst, depth, positive=False):
     src, dst = min(src, dst), max(src, dst)
     # print('add {} {} {}'.format(src, {True:'+', False:'-'}[positive], dst))
     EDGES_SIGN[(src, dst)] = positive
-    # EDGES_DEPTH[(src, dst)] = depth
+    EDGES_DEPTH[(src, dst)] = (len(HISTORY) + 1)//2
 
 
 @profile
@@ -190,6 +191,8 @@ def complete_graph(graph, shared_edges=None, close_all=True,
                    triangle_strategy=TriangleStatus.closeable,
                    one_at_a_time=True):
     """Close every possible triangles and then add negative edges"""
+    global HISTORY
+    HISTORY.clear()
     global CLOSEABLE_TRIANGLES, TWO_PATHS, triangle_is_relevant_
     triangle_is_relevant_ = DATA[triangle_strategy.value]
     N = graph.num_vertices()
@@ -219,19 +222,29 @@ def complete_graph(graph, shared_edges=None, close_all=True,
     #                                 int(''.join(map(lambda x: str(int(x)),
     #                                             EDGES_SIGN.values())), 2)))
     if close_all:
-    # transfer_depth(graph)
         how_many_closed = random_completion(graph, -1)
         print('edge closed negatively by default: {}'.format(how_many_closed))
+    transfer_depth(graph)
 
 
+edge_tuple = lambda e: (min(map(int, e)), max(map(int, e)))
 @profile
 def complete_pivot(graph, pivot, one_at_a_time):
     """Complete one or all triangle related to `pivot`"""
     # print(list(sorted(map(triangle_nodes, CLOSEABLE_TRIANGLES))))
     # print('pivot: {}'.format(pivot))
     candidates = pick_triangle(graph, pivot, one_at_a_time)
+    closeable_edges = []
+    for c in candidates:
+        if c in CLOSEABLE_TRIANGLES:
+            u, v, w = triangle_nodes(c)
+            for e in [(u,v), (v,w), (w,u)]:
+                if pivot not in e:
+                    closeable_edges.append(edge_tuple(e))
+    HISTORY.append((pivot, closeable_edges))
     # print(sorted(map(triangle_nodes, candidates)))
     removed = []
+    closed_edges = []
     for idx in randperm(len(candidates)):
         triangle = candidates[idx]
         a, b = complete_triangle(graph, triangle)
@@ -239,9 +252,13 @@ def complete_pivot(graph, pivot, one_at_a_time):
             # print('completed {} {}'.format(sorted(triangle_nodes(triangle)),
             #                                sorted([a, b, pivot])))
             removed.append((a, b, triangle))
+            closed_edges.append((min(a, b), max(a, b)))
+    if one_at_a_time:
+        assert len(removed) < 2
     for done in removed:
         CLOSEABLE_TRIANGLES.remove(done[2])
         update_triangle_status(graph, done[0], done[1])
+    HISTORY.append((pivot, closed_edges))
     # print(list(sorted(map(triangle_nodes, CLOSEABLE_TRIANGLES))))
 
 
@@ -315,7 +332,7 @@ def transfer_depth(graph):
     for e in graph.edges():
         src, dst = int(e.source()), int(e.target())
         src, dst = min(src, dst), max(src, dst)
-        # graph.ep['depth'][e] = EDGES_DEPTH[(src, dst)]
+        graph.ep['depth'][e] = EDGES_DEPTH[(src, dst)]
 
 
 @profile

@@ -11,11 +11,11 @@ EDGES_SIGN = {}
 EDGES_ORIG = None
 import random as r
 from itertools import combinations
-import persistent as p
-from TriangleCache import TriangleStatus
-DATA = p.load_var('triangle_cache.my')
-TRIANGLE_IS_CLOSED_ = DATA[TriangleStatus.closed.value]
-TRIANGLE_IS_CLOSEABLE_ = DATA[TriangleStatus.closeable.value]
+# import persistent as p
+# from TriangleCache import TriangleStatus
+# DATA = p.load_var('triangle_cache.my')
+# TRIANGLE_IS_CLOSED_ = DATA[TriangleStatus.closed.value]
+# TRIANGLE_IS_CLOSEABLE_ = DATA[TriangleStatus.closeable.value]
 
 
 def profile(func):
@@ -63,17 +63,17 @@ def triangle_edges(hash_):
             EDGES_SIGN.get((u, v), None))
 
 
-@profile
-def triangle_is_closeable(hash_):
-    """A triangle is closeable if one edge is missing and at least another
-    one is positive"""
-    return TRIANGLE_IS_CLOSEABLE_[triangle_edges(hash_)]
+# @profile
+# def triangle_is_closeable(hash_):
+#     """A triangle is closeable if one edge is missing and at least another
+#     one is positive"""
+#     return TRIANGLE_IS_CLOSEABLE_[triangle_edges(hash_)]
 
 
-@profile
-def triangle_is_closed(hash_):
-    """Tell if a triangle has 3 edges"""
-    return TRIANGLE_IS_CLOSED_[triangle_edges(hash_)]
+# @profile
+# def triangle_is_closed(hash_):
+#     """Tell if a triangle has 3 edges"""
+#     return TRIANGLE_IS_CLOSED_[triangle_edges(hash_)]
 
 
 @profile

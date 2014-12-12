@@ -36,6 +36,7 @@ def make_circle(n):
 
 
 def to_graph_tool():
+    import graph_tool as gt
     graph = gt.Graph(directed=False)
     graph.ep['fake'] = graph.new_edge_property('bool')
     graph.ep['sign'] = graph.new_edge_property('bool')

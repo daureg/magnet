@@ -3,8 +3,14 @@
 """Convert graph_tool graph to dict of sets and back within the redensify
 module."""
 import redensify
-import graph_tool as gt
 import random as r
+from collections import Counter
+from timeit import default_timer
+from itertools import repeat
+from operator import itemgetter
+import persistent as p
+import time
+NUM_THREADS = 14
 
 
 def to_python_graph(graph):
@@ -86,3 +92,39 @@ def count_disagreements(cluster):
 
     return [disagree(edge, redensify.EDGES_SIGN[edge])
             for edge in redensify.EDGES_ORIG]
+
+
+def process_circle(kwargs):
+    make_circle(kwargs['circle_size'])
+    return run_one_experiment(100, kwargs['one_at_a_time'])
+
+
+def run_circle_experiment(size, one_at_a_time=True, n_rep=100, pool=None):
+    args = repeat({"circle_size": size,
+                   "one_at_a_time": one_at_a_time}, n_rep)
+
+    if pool:
+        runs = list(pool.imap_unordered(process_circle, args,
+                                        chunksize=n_rep//NUM_THREADS))
+    else:
+        runs = list(map(process_circle, args))
+    res = {'time': list(map(itemgetter(0), runs)),
+           'nb_error': list(map(itemgetter(2), runs))}
+    p.save_var('circle_new_{:04d}_{}.my'.format(size,
+                                               int(time.time())),
+               res)
+
+
+def run_one_experiment(cc_run=100, one_at_a_time=True):
+    start = default_timer()
+    redensify.complete_graph(one_at_a_time=one_at_a_time)
+    elapsed = default_timer() - start
+    res = []
+    for _ in range(cc_run):
+        clusters = cc_pivot()
+        disagreements = count_disagreements(clusters)
+        res.append(sum(disagreements))
+    nb_cluster = len(Counter(clusters).keys())
+    mean = sum(res)/len(res)
+    print(mean)
+    return elapsed, nb_cluster, mean

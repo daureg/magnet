@@ -90,8 +90,10 @@ def sample_key(dictionary):
 
 
 @profile
-def sample_set(sett):
+def sample_set(sett, one_at_a_time=False):
     """Return an element at random from a set"""
+    if not one_at_a_time:
+        return list(sett)
     return [r.choice(list(sett))]
     n = len(sett)
     if n == 0:
@@ -133,13 +135,14 @@ def find_initial_closeable():
     """Find the initial set of closeable triangles"""
     for middle, neighbors in G.items():
         for a, b in combinations(neighbors, 2):
-            s1, s2 = EDGES_SIGN[(a, middle) if a < middle else (middle, a)], EDGES_SIGN[(b, middle) if b < middle else (middle, b)],
+            s1 = EDGES_SIGN[(a, middle) if a < middle else (middle, a)]
+            s2 = EDGES_SIGN[(b, middle) if b < middle else (middle, b)]
             if s1 or s2:
                 add_triangle(a, middle, b)
 
 
 @profile
-def complete_graph():
+def complete_graph(one_at_a_time=True):
     from math import log
     # r.seed(800)
     global N_CLOSEABLE
@@ -154,15 +157,24 @@ def complete_graph():
         #                                                         TMP_SET.symmetric_difference(current))
         pivot, closeables = sample_key(CLOSEABLE_TRIANGLES)
         # print('pivot {}'.format(pivot))
-        triangle = sample_set(closeables)
+        triangles = sample_set(closeables, one_at_a_time)
+        closed = [close_triangle(triangle) for triangle in triangles]
+        for a, b, sign in closed:
+            update_triangle_status(a, b, sign)
         # print(triangle_nodes(triangle))
         # assert triangle
-        a, b, sign = how_to_complete_triangle(triangle)
-        add_signed_edge(a, b, sign)
-        update_triangle_status(a, b, sign)
         nb_iter += 1
     print(nb_iter, N*threshold, CLOSEABLE_TRIANGLES, N_CLOSEABLE)
-    print(random_completion(-1))
+    remaining_edges = random_completion(-1)
+    # print(remaining_edges)
+
+
+@profile
+def close_triangle(triangle):
+    """Close triangle and return the added edge and its sign"""
+    a, b, sign = how_to_complete_triangle(triangle)
+    add_signed_edge(a, b, sign)
+    return a, b, sign
 
 
 @profile

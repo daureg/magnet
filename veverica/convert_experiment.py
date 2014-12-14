@@ -54,24 +54,35 @@ def to_graph_tool():
 
 def cc_pivot():
     """Fill g's cluster_index according to Ailon algorithm"""
-    current_cluster_index = 0
+    N = redensify.N
     clustered = set()
+    unclustered = set(range(N))
     cluster = {}
+    current_cluster_index = 0
 
     def add_to_current_cluster(node):
         cluster[node] = current_cluster_index
         clustered.add(node)
+        unclustered.remove(node)
 
-    N = redensify.N
-    still_unclustered = list(range(N))
-    while still_unclustered:
-        pivot = r.choice(still_unclustered)
+    while unclustered:
+        pivot = r.choice(list(unclustered))
         add_to_current_cluster(pivot)
         for n in redensify.G[pivot]:
             edge = (n, pivot) if n < pivot else (pivot, n)
             positive_neighbor = redensify.EDGES_SIGN[edge]
-            if positive_neighbor:
+            if positive_neighbor and n in unclustered:
                 add_to_current_cluster(n)
         current_cluster_index += 1
-        still_unclustered = list(set(range(N)).difference(clustered))
     return cluster
+
+
+def count_disagreements(cluster):
+    """Return a boolean edge map of disagreement with current clustering"""
+
+    def disagree(edge, positive):
+        return (cluster[edge[0]] == cluster[edge[1]] and not positive) or \
+                (cluster[edge[0]] != cluster[edge[1]] and positive)
+
+    return [disagree(edge, redensify.EDGES_SIGN[edge])
+            for edge in redensify.EDGES_ORIG]

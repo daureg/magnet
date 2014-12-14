@@ -92,6 +92,7 @@ def sample_key(dictionary):
 @profile
 def sample_set(sett):
     """Return an element at random from a set"""
+    return [r.choice(list(sett))]
     n = len(sett)
     if n == 0:
         return None

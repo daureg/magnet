@@ -1,0 +1,75 @@
+\section{Introduction}
+
+In \pcc{}, we have a set of $n$ objects and a binary
+relationship between them denoting similarity $(+)$  or dissimilarity $(-)$.
+The objective is to cluster them according to this similarity information. One
+natural measure of success is the number of disagreements, that is $-$ edges
+within cluster or $+$ across them.
+
+It was showed to be NP-hard even on complete graph \autocite{Bansal2002},
+although there exists an elegant algorithm by \textcite{Ailon2008} that runs
+in $O(n)$ and has an approximation ratio of $3$. When some edges are missing, it
+becomes APX-hard \autocites{Charikar2003}{Demaine2006} and these two papers
+provide polynomial algorithm achieving $O(\log n)$ approximation. Yet they
+resort to expensive semi definite program so we are seeking a combinatorial
+approach that would transform a graph into a clique and then use
+\textcite{Ailon2008} algorithm.
+
+\section{Method}
+
+We obtain a clique by repeatedly closing triangles according to the following
+rules:
+
+\begin{itemize}
+	\item 2 $+$ edges are closed by a $+$ edge;
+	\item 1 $+$ and 1 $-$ edges are closed by a $-$ edge;
+	\item 2 $-$ edges are not closed, as it does not provide enough
+		information.
+\end{itemize}
+
+The full algorithm is presented in \autoref{alg:complete}. The crucial step
+is \textsc{PickTriangles} for as we shall see in the experiments, it strongly
+affects the performance in terms of disagreements.
+
+The first decision is whether to start by selecting a distinguished vertex
+(called \emph{pivot}) and consider only triangles involving the pivot or
+consider all possible triangles. In a second time, we can choose only one
+triangle at each iteration or all of the candidates. \emph{make it clearer,
+maybe using a table}
+
+\begin{algorithm}
+	\caption{Forming a clique \label{alg:complete}}
+	\begin{algorithmic}[0]
+		\Let{$CT$}{\textsc{FindInitialCloseableTriangles()}}
+		\While{$CT \neq \emptyset$}
+			\ForAll{$triangle$ in \textsc{PickTriangles}$(CT)$}
+				\State \textsc{Close}$(triangle)$
+			\EndFor
+			\State \textsc{Update}$(CT)$
+		\EndWhile
+		\State set remaining edges to negative
+	\end{algorithmic}
+\end{algorithm}
+
+\section{Experiment}
+
+We try our implementation on different controlled geometry to see how it
+behaves. For each case, we complete the graph 50 times, and for each completed
+graph, run \textsc{CC-Pivot} algorithm 100 times.
+
+\subsection{Large cycle with on negative edge}
+The optimal solution is either one or two contiguous clusters, yielding one
+disagreement.
+
+\subsection{Large cycle with two negative edges at various distance from each
+other}
+This time the optimal solution cost is 0.
+
+\subsection{squares sharing one positive edge}
+\subsection{planted clusters}
+\autocite{Makarychev2014}
+\section{Discussion}
+which strategy is the best
+algorithm in $O(n^3)$ not very scalable and because we are seeking a complete
+graph, it is not immediately clear how to take advantage of a distributed
+setting. Python implementation is maybe not optimal, rewrite in C++?

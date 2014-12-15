@@ -10,12 +10,8 @@ CLOSEABLE_TRIANGLES = {}
 EDGES_SIGN = {}
 EDGES_ORIG = None
 import random as r
+import gc
 from itertools import combinations
-# import persistent as p
-# from TriangleCache import TriangleStatus
-# DATA = p.load_var('triangle_cache.my')
-# TRIANGLE_IS_CLOSED_ = DATA[TriangleStatus.closed.value]
-# TRIANGLE_IS_CLOSEABLE_ = DATA[TriangleStatus.closeable.value]
 
 
 def profile(func):
@@ -63,46 +59,18 @@ def triangle_edges(hash_):
             EDGES_SIGN.get((u, v), None))
 
 
-# @profile
-# def triangle_is_closeable(hash_):
-#     """A triangle is closeable if one edge is missing and at least another
-#     one is positive"""
-#     return TRIANGLE_IS_CLOSEABLE_[triangle_edges(hash_)]
-
-
-# @profile
-# def triangle_is_closed(hash_):
-#     """Tell if a triangle has 3 edges"""
-#     return TRIANGLE_IS_CLOSED_[triangle_edges(hash_)]
-
-
 @profile
 def sample_key(dictionary):
     """Return a key, value tuple at random from dictionary"""
-    n = len(dictionary)
-    if n == 0:
-        return None, None
-    idx = r.randint(0, n-1)
-    for i, (k, v) in enumerate(dictionary.items()):
-        if i == idx:
-            return k, v
-    raise ValueError("Can't reach that point")
+    return r.choice(list(dictionary.items()))
 
 
 @profile
-def sample_set(sett, one_at_a_time=False):
-    """Return an element at random from a set"""
-    if not one_at_a_time:
-        return list(sett)
-    return [r.choice(list(sett))]
-    n = len(sett)
-    if n == 0:
-        return None
-    idx = r.randint(0, n-1)
-    for i, el in enumerate(sett):
-        if i == idx:
-            return el
-    raise ValueError("Can't reach that point")
+def sample_set(set_to_sample, one_at_a_time=False):
+    """Return an element at random from a set or all of them"""
+    if one_at_a_time:
+        return [r.choice(list(set_to_sample))]
+    return list(set_to_sample)
 
 
 @profile
@@ -164,6 +132,8 @@ def complete_graph(one_at_a_time=True):
         # print(triangle_nodes(triangle))
         # assert triangle
         nb_iter += 1
+        if (nb_iter + 1 % 5000) == 0:
+            gc.collect()
     print(nb_iter, N*threshold, CLOSEABLE_TRIANGLES, N_CLOSEABLE)
     remaining_edges = random_completion(-1)
     # print(remaining_edges)

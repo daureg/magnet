@@ -8,9 +8,8 @@ if __name__ == '__main__':
     import sys
     from multiprocessing import Pool
     pool = Pool(cexp.NUM_THREADS)
-    for k in range(2, 13):
-        cexp.run_circle_experiment(2**k, one_at_a_time=True,
-                                    n_rep=4*cexp.NUM_THREADS, pool=pool)
+    n = int(sys.argv[1])
+    cexp.run_circle_experiment(n, one_at_a_time=True,
+                               n_rep=1*cexp.NUM_THREADS, pool=pool)
     pool.close()
     pool.join()
-

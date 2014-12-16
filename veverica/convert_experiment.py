@@ -61,10 +61,7 @@ def make_rings(size, nb_rings, shared_sign=True, rigged=False):
     if nb_rings == 1:
         return make_circle(size)
     new_graph()
-
-    redensify.G[0] = set([1])
-    redensify.G[1] = set([0])
-    redensify.EDGES_SIGN[(0, 1)] = shared_sign
+    add_signed_edge(0, 1, shared_sign)
     ring_id = 0
 
     def add_cycle(length, ring_id):
@@ -79,17 +76,11 @@ def make_rings(size, nb_rings, shared_sign=True, rigged=False):
             assert 0 <= negative_index <= length
         for i in range(length-1):
             end = len(redensify.G)
-            redensify.EDGES_SIGN[(start, end)] = i != negative_index
-            redensify.G[end] = set([start])
-            redensify.G[start].add(end)
+            add_signed_edge(start, end, i != negative_index)
             start = end
         end = len(redensify.G)
-        redensify.EDGES_SIGN[(end-1, end)] = (length - 1) != negative_index
-        redensify.G[end-1].add(end)
-        redensify.G[end] = set([end-1])
-        redensify.EDGES_SIGN[(0, end)] = length != negative_index
-        redensify.G[0].add(end)
-        redensify.G[end].add(0)
+        add_signed_edge(end-1, end, (length - 1) != negative_index)
+        add_signed_edge(0, end, length != negative_index)
 
     for _ in range(nb_rings):
         add_cycle(size//nb_rings, ring_id)
@@ -105,17 +96,19 @@ def new_graph():
     redensify.EDGES_SIGN.clear()
 
 
-def make_circle(n):
+def make_circle(n, rigged=False):
     new_graph()
     redensify.N = n
     for i in range(n):
         a, p, b = (i-1) % n, i, (i+1) % n
         redensify.G[i] = set([a, b])
-        redensify.EDGES_SIGN[(p, b) if p < b else (b, p)] = i != 0
+        src, dst = min(p, b), max(p, b)
+        sign = i != 0 if not rigged else (src, dst) not in rigged
+        redensify.EDGES_SIGN[(src, dst)] = sign
     redensify.EDGES_ORIG = list(redensify.EDGES_SIGN.keys())
 
 
-def to_graph_tool():
+def to_graph_tool(run_cc=False):
     import graph_tool as gt
     graph = gt.Graph(directed=False)
     graph.ep['fake'] = graph.new_edge_property('bool')
@@ -126,9 +119,9 @@ def to_graph_tool():
         e = graph.add_edge(edge[0], edge[1])
         graph.ep['sign'][e] = sign
         graph.ep['fake'][e] = edge not in redensify.EDGES_ORIG
-    # from operator import itemgetter
-    # all_vert = list(range(redensify.N))
-    # graph.vp['cluster'].a = itemgetter(*all_vert)(cc_pivot())
+    if run_cc:
+        all_vert = list(range(redensify.N))
+        graph.vp['cluster'].a = itemgetter(*all_vert)(cc_pivot())
     return graph
 
 
@@ -193,12 +186,13 @@ def run_rings_experiment(size, nb_rings, shared_sign, rigged, one_at_a_time,
 
 
 def process_circle(kwargs):
-    make_circle(kwargs['circle_size'])
+    make_circle(kwargs['circle_size'], kwargs['rigged'])
     return run_one_experiment(100, kwargs['one_at_a_time'])
 
 
-def run_circle_experiment(size, one_at_a_time, n_rep=100, pool=None):
-    args = repeat({"circle_size": size,
+def run_circle_experiment(size, one_at_a_time, rigged=False, n_rep=100,
+                          pool=None):
+    args = repeat({"circle_size": size, "rigged": rigged,
                    "one_at_a_time": one_at_a_time}, n_rep)
 
     if pool:
@@ -224,3 +218,103 @@ def run_one_experiment(cc_run, one_at_a_time):
     nb_cluster = len(Counter(clusters).keys())
     mean = sum(res)/len(res)
     return elapsed, nb_cluster, mean
+
+
+def planted_clusters(ball_size=12, nb_balls=5, pos=False):
+    new_graph()
+    true_cluster = {}
+    balls = [make_ball(true_cluster, ball_size) for _ in range(nb_balls)]
+    if pos:
+        from graph_tool import draw as gtdraw
+        redensify.EDGES_ORIG = list(redensify.EDGES_SIGN.keys())
+        redensify.N = len(redensify.G)
+        k = to_graph_tool()
+        pos = gtdraw.sfdp_layout(k).get_2d_array([0, 1])
+    for b1, b2 in combinations(balls, 2):
+        link_balls(b1, b2)
+    flip_random_edges()
+    redensify.EDGES_ORIG = list(redensify.EDGES_SIGN.keys())
+    redensify.N = len(redensify.G)
+    return true_cluster, pos
+
+
+def make_ball(true_cluster, n):
+    gsize = len(redensify.G)
+    if gsize == 0:
+        cluster_index = 0
+    else:
+        cluster_index = true_cluster[gsize-1] + 1
+    size = r.randint(int(0.7*n), int(1.3*n))
+    index = set()
+    for _ in range(size):
+        v = gsize
+        gsize += 1
+        redensify.G[v] = set()
+        true_cluster[v] = cluster_index
+        index.add(v)
+    edges = r.sample(list(combinations(index, 2)), int(1.5*size))
+    endpoints = set()
+    for u, v in edges:
+        endpoints.add(u)
+        endpoints.add(v)
+        add_signed_edge(u, v, True)
+    # make sure the ball forms a connected component
+    alone = index.difference(endpoints)
+    endpoints = list(endpoints)
+    for u in alone:
+        add_signed_edge(u, r.choice(endpoints), True)
+    return index
+
+
+def add_signed_edge(a, b, sign):
+    """add (a,b) with `sign`"""
+    a, b = min(a, b), max(a, b)
+    if a in redensify.G:
+        redensify.G[a].add(b)
+    else:
+        redensify.G[a] = set([b])
+    if b in redensify.G:
+        redensify.G[b].add(a)
+    else:
+        redensify.G[b] = set([a])
+    redensify.EDGES_SIGN[(a, b)] = sign
+
+
+def link_balls(b1, b2):
+    edges = r.sample(list(product(b1, b2)), int(1.0*(len(b1)+len(b2))/2))
+    for u, v in edges:
+        add_signed_edge(u, v, False)
+
+
+def flip_random_edges(fraction=0.07):
+    """Change the sign of `fraction` of `graph` edges"""
+    E = list(redensify.EDGES_SIGN.keys())
+    for e in r.sample(E, int(fraction*len(E))):
+        redensify.EDGES_SIGN[e] = not redensify.EDGES_SIGN[e]
+
+
+def process_planted(kwargs):
+    true_cluster, _ = planted_clusters(kwargs['ball_size'], kwargs['nb_balls'])
+    delta = sum(count_disagreements(true_cluster))
+    times, _, errors = run_one_experiment(100, kwargs['one_at_a_time'])
+    return [times, delta, errors]
+
+
+def run_planted_experiment(ball_size, nb_balls, one_at_a_time=True, n_rep=100,
+                           pool=None):
+    args = repeat({"ball_size": ball_size, "nb_balls": nb_balls,
+                   "one_at_a_time": one_at_a_time}, n_rep)
+
+    if pool:
+        runs = list(pool.imap_unordered(process_planted, args,
+                                        chunksize=n_rep//NUM_THREADS))
+    else:
+        runs = list(map(process_planted, args))
+    res = {'time': list(map(itemgetter(0), runs)),
+           'delta': list(map(itemgetter(1), runs)),
+           'nb_error': list(map(itemgetter(2), runs))}
+    heuristic = 'ONE' if one_at_a_time else 'ALL'
+    p.save_var('planted_{:04d}_{:02d}_{}_{}.my'.format(ball_size, nb_balls,
+                                                       heuristic,
+                                                       int(time.time())),
+               res)

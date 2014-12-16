@@ -223,7 +223,10 @@ def run_one_experiment(cc_run, one_at_a_time):
 def planted_clusters(ball_size=12, nb_balls=5, pos=False):
     new_graph()
     true_cluster = {}
-    balls = [make_ball(true_cluster, ball_size) for _ in range(nb_balls)]
+    balls = [make_ball(true_cluster, ball_size) for _ in range(nb_balls-1)]
+    filling = int(1.1*ball_size*nb_balls) - len(redensify.G)
+    if filling > 0:
+        balls.append(make_ball(true_cluster, filling, exact=True))
     if pos:
         from graph_tool import draw as gtdraw
         redensify.EDGES_ORIG = list(redensify.EDGES_SIGN.keys())
@@ -238,13 +241,15 @@ def planted_clusters(ball_size=12, nb_balls=5, pos=False):
     return true_cluster, pos
 
 
-def make_ball(true_cluster, n):
+def make_ball(true_cluster, n, exact=False):
     gsize = len(redensify.G)
     if gsize == 0:
         cluster_index = 0
     else:
         cluster_index = true_cluster[gsize-1] + 1
     size = r.randint(int(0.7*n), int(1.3*n))
+    if exact:
+        size = n
     index = set()
     for _ in range(size):
         v = gsize

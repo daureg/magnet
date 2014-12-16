@@ -16,7 +16,7 @@ if __name__ == '__main__':
                                 one_at_a_time=True, n_rep=4*NUM_THREADS,
                                 pool=pool)
     cexp.run_planted_experiment(params[n][0], params[n][1],
-                                one_at_a_time=True, n_rep=4*NUM_THREADS,
+                                one_at_a_time=False, n_rep=4*NUM_THREADS,
                                 pool=pool)
     pool.close()
     pool.join()

@@ -6,15 +6,40 @@ import redensify
 import random as r
 from collections import Counter
 from timeit import default_timer
-from itertools import repeat
+from itertools import repeat, combinations, product
 from operator import itemgetter
 import persistent as p
 import time
-NUM_THREADS = 1
+NUM_THREADS = 0
+
+
+def make_dash(n, dash_length):
+    """put one negative edge every `dash_length` positive ones."""
+    start = 0
+    res = []
+    while start < n:
+        src, dst = start, (start+1) % n
+        res.append((min(src, dst), max(src, dst)))
+        start += 1+dash_length
+    return res
+
+
+def negative_pattern(n, quantity=None, distance=None, dash_length=None):
+    """create position for `quantity` negative edges or two of them separated
+    by `distance` vertices."""
+    assert any([quantity, distance, dash_length]), "give an argument"
+    if dash_length and dash_length > 0:
+        return make_dash(n, dash_length)
+    vertices = list(range(n))
+    if quantity:
+        starts = sorted(r.sample(vertices, int(quantity)))
+        return [(_, (_+1) % n) for _ in starts]
+    assert distance <= n//2
+    return [(0, 1), (distance, (distance+1) % n)]
 
 
 def to_python_graph(graph):
-    """populate redensify global variable with a representation of `graph`"""
+    """populate redensify global variables with a representation of `graph`"""
     redensify.N = graph.num_vertices()
     redensify.G.clear()
     redensify.CLOSEABLE_TRIANGLES.clear()

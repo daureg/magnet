@@ -1,19 +1,19 @@
-\section{Introduction}
+\section{Problem}
 
-In \pcc{}, we have a set of $n$ objects and a binary
-relationship between them denoting similarity $(+)$  or dissimilarity $(-)$.
-The objective is to cluster them according to this similarity information. One
-natural measure of success is the number of disagreements, that is $-$ edges
-within cluster or $+$ across them.
+In \pcc{}, we have a set of $n$ objects and a binary relationship between them
+denoting similarity $(+)$  or dissimilarity $(-)$. Such data are naturally
+associed with a signed graph. The objective is to cluster them according to
+this similarity information. One straightforward measure of success is the
+number of disagreements, that is $-$ edges within cluster or $+$ across them.
 
 It was showed to be NP-hard even on complete graph \autocite{Bansal2002},
-although there exists an elegant algorithm by \textcite{Ailon2008} that runs
-in $O(n)$ and has an approximation ratio of $3$. When some edges are missing, it
-becomes APX-hard \autocites{Charikar2003}{Demaine2006} and these two papers
-provide polynomial algorithm achieving $O(\log n)$ approximation. Yet they
-resort to expensive semi definite program so we are seeking a combinatorial
-approach that would transform a graph into a clique and then use
-\textcite{Ailon2008} algorithm.
+although there exists an elegant algorithm by \textcite{Ailon2008} (refered
+later as \ccp{}) that runs in $O(n)$ and has an approximation ratio of $3$.
+When some edges are missing, it becomes APX-hard
+\autocites{Charikar2003}{Demaine2006} and these two papers provide polynomial
+algorithm achieving $O(\log n)$ approximation. Yet they resort to expensive
+semi definite program so we are seeking a combinatorial approach that would
+transform a graph into a clique, in order to apply the \ccp{} algorithm.
 
 \section{Method}
 
@@ -28,14 +28,24 @@ rules:
 \end{itemize}
 
 The full algorithm is presented in \autoref{alg:complete}. The crucial step
-is \textsc{PickTriangles} for as we shall see in the experiments, it strongly
+is \textsc{PickTriangles}, for as we shall see in the experiments, it strongly
 affects the performance in terms of disagreements.
 
 The first decision is whether to start by selecting a distinguished vertex
 (called \emph{pivot}) and consider only triangles involving the pivot or
 consider all possible triangles. In a second time, we can choose only one
-triangle at each iteration or all of the candidates. \emph{make it clearer,
-maybe using a table}
+triangle at each iteration or all of the candidates.
+
+\begin{center}
+\begin{tabular}{ccc}
+\toprule
+& pivot & no pivot \\
+\midrule
+one triangle & $P_1$ & $N_1$ \\
+all triangles & $P_*$ & $N_*$ \\
+\bottomrule
+\end{tabular}
+\end{center}
 
 \begin{algorithm}
 	\caption{Forming a clique \label{alg:complete}}
@@ -55,21 +65,120 @@ maybe using a table}
 
 We try our implementation on different controlled geometry to see how it
 behaves. For each case, we complete the graph 50 times, and for each completed
-graph, run \textsc{CC-Pivot} algorithm 100 times.
+graph, run \ccp{} algorithm 100 times.
 
-\subsection{Large cycle with on negative edge}
+\subsection{Large cycle with one negative edge}
+
 The optimal solution is either one or two contiguous clusters, yielding one
-disagreement.
+disagreement. Strategy \pat{} achieves this optimum while \pot{} number of
+errors grows linearly with the length $n$ of the cycle.
 
-\subsection{Large cycle with two negative edges at various distance from each
-other}
-This time the optimal solution cost is 0.
+\begin{center}
+\begin{tabular}{lrrrrrrrrr}
+\toprule
+$n$      & 8   & 16  & 32  & 64   & 128  & 256  & 384   & 512   & 1024 \\
+\midrule
+\pot{}    & 1.4 & 3.1 & 7.3 & 17.2 & 40.0 & 86.2 & 132.7 & 179.6 & 371.0 \\
+\pat{}    & --  & --  & --  & --   & --   & 1.0  & --    & --    & -- \\
+\bottomrule
+\end{tabular}
+\end{center}
 
-\subsection{squares sharing one positive edge}
-\subsection{planted clusters}
-\autocite{Makarychev2014}
+\subsection{$100$-long cycle with two negative edges separated by $k$ vertex}
+Because there is more than one negative edge, the optimal solution cost is 0.
+It is found consistently by both strategies.
+
+\begin{center}
+\begin{tabular}{lrrrrr}
+\toprule
+$k$ &   0  &   1  &   25 &   50  \\
+\midrule
+\pot{} & 0.0 & 0.0 & 0.0 & 0.0  \\
+\pat{} &  0.0 &  0.0 & 0.0 & 0.0  \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{squares sharing one positive edge and containing one negative edge}
+
+\begin{center}
+\begin{tabular}{lrrrr}
+\toprule
+number of squares &  40  &  65  &  80  &  130 \\
+\midrule
+\pot{} &  2.9 &  2.6 &  2.9 &  2.9 \\
+\pat{} & 24.1 & 42.8 & 53.4 & 76.2 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{positive squares sharing one negative edge}
+
+If we move the position of the negative edge to the shared edge, the results
+do not change.
+
+\begin{center}
+\begin{tabular}{lrrrrr}
+\toprule
+number of squares &  40  &  65  &  80  &  130 &  170 \\
+\midrule
+\pot{} &  2.0 &  1.9 &  2.1 &  4.6 &  2.0 \\
+\pat{} & 21.8 & 31.7 & 42.6 & 62.6 & 88.2 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{$\floor*{\sqrt{n}}$ bad cycles of length $\floor*{\sqrt{n}}$
+	sharing one positive edge}
+
+\begin{center}
+\begin{tabular}{lrrrrr}
+\toprule
+cycle length &   7  &   9  &   12 &   15 &   20 \\
+\midrule
+\pot{} & 10.6 & 14.7 & 16.3 & 32.5 & 55.1 \\
+\pat{} &  6.8 &  8.8 & 12.0 & 15.1 & 20.1 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Planted clustering}
+
+We create $k$ clusters $\{C_1, \ldots, C_k\}$ of roughly the same size $n_i$
+with around $2n$ positive edges inside them and $n_1\cdot n_2$ negative edges
+across each others. Then we flip a fraction $p=0.07$ of edges are random,
+which us an estimation of the optimal number of disagreement, provided that
+the clustering stays the same. A similar model is considered by
+\textcite{Makarychev2014}.
+
+In the table below, we report the number of disagreement divided by the
+number of flipped edges, that is an estimation of the approximation ratio of
+our method.
+
+\begin{center}
+\begin{tabular}{lrrrrrrrrr}
+\toprule
+$k$      & 5   & 10  & 30  & 20  & 15  & 2   & 2   & 2   & 2  \\
+$n$      & 15  & 25  & 6   & 12  & 35  & 20  & 40  & 65  & 100 \\
+nodes    & 75  & 250 & 180 & 240 & 525 & 40  & 80  & 130 & 200 \\
+\midrule
+\pat{}   & 2.2 & 2.1 & 1.6 & 1.7 & 1.9 & 2.0 & 2.5 & 2.6 & 3.0 \\
+\pot{}   & 3.2 & 2.8 & 1.7 & 2.0 & 2.4 & 4.5 & 5.9 & 6.5 & 7.0 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
 \section{Discussion}
-which strategy is the best
-algorithm in $O(n^3)$ not very scalable and because we are seeking a complete
-graph, it is not immediately clear how to take advantage of a distributed
-setting. Python implementation is maybe not optimal, rewrite in C++?
+
+\begin{itemize}
+	\item Which strategy is the best?
+	\item How to incorporate the fact that edges we are adding are more
+		indirect --- especially in the latest stages ---, either in our
+		algorithm or by modifying \ccp{}?
+	\item The current algorithm has $O(n^3)$ time and space complexity and
+		thus is not very scalable. Furthermore, because we are looking for a
+		complete graph, it is not immediately clear how to take advantage of a
+		distributed setting.
+\end{itemize}
+
+% Python implementation is maybe not optimal, rewrite in C++?

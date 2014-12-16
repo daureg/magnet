@@ -85,8 +85,16 @@ def make_rings(size, nb_rings, shared_sign=True, rigged=False):
     for _ in range(nb_rings):
         add_cycle(size//nb_rings, ring_id)
         ring_id += 1
+    finalize_graph()
+
+
+def finalize_graph():
     redensify.EDGES_ORIG = list(redensify.EDGES_SIGN.keys())
     redensify.N = len(redensify.G)
+    for v in range(redensify.N):
+        redensify.NODE_DEPTH[v] = 1
+    for e in redensify.EDGES_ORIG:
+        redensify.EDGES_DEPTH[e] = 1
 
 
 def new_graph():
@@ -94,6 +102,8 @@ def new_graph():
     redensify.CLOSEABLE_TRIANGLES.clear()
     redensify.TMP_SET.clear()
     redensify.EDGES_SIGN.clear()
+    redensify.EDGES_DEPTH.clear()
+    redensify.NODE_DEPTH.clear()
 
 
 def make_circle(n, rigged=False):
@@ -105,7 +115,7 @@ def make_circle(n, rigged=False):
         src, dst = min(p, b), max(p, b)
         sign = i != 0 if not rigged else (src, dst) not in rigged
         redensify.EDGES_SIGN[(src, dst)] = sign
-    redensify.EDGES_ORIG = list(redensify.EDGES_SIGN.keys())
+    finalize_graph()
 
 
 def to_graph_tool(run_cc=False):
@@ -236,8 +246,7 @@ def planted_clusters(ball_size=12, nb_balls=5, pos=False):
     for b1, b2 in combinations(balls, 2):
         link_balls(b1, b2)
     flip_random_edges()
-    redensify.EDGES_ORIG = list(redensify.EDGES_SIGN.keys())
-    redensify.N = len(redensify.G)
+    finalize_graph()
     return true_cluster, pos
 
 

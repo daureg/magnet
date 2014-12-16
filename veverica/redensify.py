@@ -9,6 +9,12 @@ TMP_SET = set()
 CLOSEABLE_TRIANGLES = {}
 EDGES_SIGN = {}
 EDGES_ORIG = None
+EDGES_DEPTH = None
+NODE_DEPTH = None
+DEPTH_METHOD = 'constant'
+DEPTH_COMPUTATION = {'constant': lambda a, b: 1,
+                     'sum': lambda a, b: 1 + a + b,
+                     'max': lambda a, b: 1 + max(a, b)}
 import random as r
 import gc
 from itertools import combinations
@@ -74,13 +80,17 @@ def sample_set(set_to_sample, one_at_a_time=False):
 
 
 @profile
-def add_signed_edge(src, dst, positive=False):
+def add_signed_edge(src, dst, positive=False, depth_a=0, depth_b=0):
     """Add a edge between `src` and `dst`, potentially a positive one"""
     src, dst = min(src, dst), max(src, dst)
     # print('{} {} {}'.format(src, {True: '+', False: '-'}[positive], dst))
     EDGES_SIGN[(src, dst)] = positive
+    depth = DEPTH_METHOD(depth_a, depth_b)
+    EDGES_DEPTH[(src, dst)] = depth
     G[src].add(dst)
     G[dst].add(src)
+    NODE_DEPTH[src] += depth
+    NODE_DEPTH[dst] += depth
 
 
 @profile
@@ -91,11 +101,14 @@ def how_to_complete_triangle(hash_):
     eu, ev, ew = triangle_edges(hash_)
     if eu is None:
         a, b, first, second = v, w, ev, ew
+        da, db = EDGES_DEPTH[(u, w)], EDGES_DEPTH[(u, v)]
     if ev is None:
         a, b, first, second = u, w, eu, ew
+        da, db = EDGES_DEPTH[(v, w)], EDGES_DEPTH[(u, v)]
     if ew is None:
         a, b, first, second = u, v, eu, ev
-    return a, b, first and second
+        da, db = EDGES_DEPTH[(v, w)], EDGES_DEPTH[(u, w)]
+    return a, b, first and second, da, db
 
 
 @profile
@@ -135,15 +148,14 @@ def complete_graph(one_at_a_time=True):
         if (nb_iter + 1 % 5000) == 0:
             gc.collect()
     print(nb_iter, N*threshold, CLOSEABLE_TRIANGLES, N_CLOSEABLE)
-    remaining_edges = random_completion(-1)
-    # print(remaining_edges)
+    random_completion(-1)
 
 
 @profile
 def close_triangle(triangle):
     """Close triangle and return the added edge and its sign"""
-    a, b, sign = how_to_complete_triangle(triangle)
-    add_signed_edge(a, b, sign)
+    a, b, sign, da, db = how_to_complete_triangle(triangle)
+    add_signed_edge(a, b, sign, da, db)
     return a, b, sign
 
 

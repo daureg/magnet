@@ -8,15 +8,17 @@ N_CLOSEABLE = 0
 TMP_SET = set()
 CLOSEABLE_TRIANGLES = {}
 EDGES_SIGN = {}
-EDGES_ORIG = None
-EDGES_DEPTH = None
-NODE_DEPTH = None
+EDGES_ORIG = {}
+EDGES_DEPTH = {}
+NODE_DEPTH = {}
 DEPTH_METHOD = 'constant'
 DEPTH_COMPUTATION = {'constant': lambda a, b: 1,
                      'sum': lambda a, b: 1 + a + b,
-                     'max': lambda a, b: 1 + max(a, b)}
+                     'max': lambda a, b: 1 + max(a, b)}[DEPTH_METHOD]
+VALS = []
 import random as r
 import gc
+import os
 from itertools import combinations
 
 
@@ -85,7 +87,7 @@ def add_signed_edge(src, dst, positive=False, depth_a=0, depth_b=0):
     src, dst = min(src, dst), max(src, dst)
     # print('{} {} {}'.format(src, {True: '+', False: '-'}[positive], dst))
     EDGES_SIGN[(src, dst)] = positive
-    depth = DEPTH_METHOD(depth_a, depth_b)
+    depth = DEPTH_COMPUTATION(depth_a, depth_b)
     EDGES_DEPTH[(src, dst)] = depth
     G[src].add(dst)
     G[dst].add(src)
@@ -124,6 +126,7 @@ def find_initial_closeable():
 
 @profile
 def complete_graph(one_at_a_time=True):
+    no_pivot = bool(os.environ.get('NO_PIVOT', False))
     from math import log
     # r.seed(800)
     global N_CLOSEABLE
@@ -136,25 +139,38 @@ def complete_graph(one_at_a_time=True):
         # assert N_CLOSEABLE == len(current), '{}\n{}\n{}'.format(TMP_SET,
         #                                                         current,
         #                                                         TMP_SET.symmetric_difference(current))
-        pivot, closeables = sample_key(CLOSEABLE_TRIANGLES)
+        if no_pivot:
+            closeables = [t for s in CLOSEABLE_TRIANGLES.values() for t in s]
+        else:
+            pivot, closeables = sample_key(CLOSEABLE_TRIANGLES)
+        # if (nb_iter % 1) == 0:
+        #     VALS.append([NODE_DEPTH[i] for i in range(N)])
+        # if pivot < 2 and nb_iter < threshold//N:
+        #     nb_iter += 1
+        #     continue
         # print('pivot {}'.format(pivot))
         triangles = sample_set(closeables, one_at_a_time)
         closed = [close_triangle(triangle) for triangle in triangles]
         for a, b, sign in closed:
-            update_triangle_status(a, b, sign)
+            if a is not None:
+                update_triangle_status(a, b, sign)
         # print(triangle_nodes(triangle))
         # assert triangle
         nb_iter += 1
-        if (nb_iter + 1 % 5000) == 0:
+        if ((nb_iter + 1) % 5000) == 0:
             gc.collect()
-    print(nb_iter, N*threshold, CLOSEABLE_TRIANGLES, N_CLOSEABLE)
+    print(nb_iter, threshold, len(CLOSEABLE_TRIANGLES), N_CLOSEABLE)
     random_completion(-1)
 
 
 @profile
 def close_triangle(triangle):
     """Close triangle and return the added edge and its sign"""
-    a, b, sign, da, db = how_to_complete_triangle(triangle)
+    try:
+        a, b, sign, da, db = how_to_complete_triangle(triangle)
+    except UnboundLocalError:
+        delete_triangle(*triangle_nodes(triangle))
+        return None, None, None
     add_signed_edge(a, b, sign, da, db)
     return a, b, sign
 

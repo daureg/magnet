@@ -2,14 +2,23 @@
 
 In \pcc{}, we have a set of $n$ objects and a binary relationship between them
 denoting similarity $(+)$  or dissimilarity $(-)$. Such data are naturally
-associed with a signed graph. The objective is to cluster them according to
-this similarity information. One straightforward measure of success is the
-number of disagreements, that is $-$ edges within cluster or $+$ across them.
+associated with a signed graph. The objective is to cluster them according to
+this similarity information.
+Given any node partition, a \emph{disagreements edge} is a positive edge within a
+cluster or a negative edge between different clusters. A natural complexity
+measure for the edge labeling (the signs associated with edges) is the minimum
+number of disagreement edges over \textbf{all} possible node partitions of the node
+set.
 
-It was showed to be NP-hard even on complete graph \autocite{Bansal2002},
-although there exists an elegant algorithm by \textcite{Ailon2008} (refered
-later as \ccp{}) that runs in $O(n)$ and has an approximation ratio of $3$.
-When some edges are missing, it becomes APX-hard
+The problem of finding a partition minimizing the number of disagreements
+edges was showed to be NP-hard even on complete graph \autocite{Bansal2002},
+although there exists an elegant algorithm by \textcite{Ailon2008} (referred
+later as \ccp{}) running in $O(n\left|\mathcal{P}_{\text{\ccp{}}}\right|)$
+where $\left|\mathcal{P}_{\text{\ccp{}}}\right| \le |V|$ is the number of
+cluster found with this strategy. It is a randomized algorithm with an
+expected approximation ratio of $3$.
+
+When the input is a general graph, it becomes APX-hard
 \autocites{Charikar2003}{Demaine2006} and these two papers provide polynomial
 algorithm achieving $O(\log n)$ approximation. Yet they resort to expensive
 semi definite program so we are seeking a combinatorial approach that would
@@ -19,55 +28,89 @@ transform a graph into a clique, in order to apply the \ccp{} algorithm.
 
 We obtain a clique by repeatedly closing triangles according to the following
 rules:
-
-\begin{itemize}
+\begin{enumerate}[i]
 	\item 2 $+$ edges are closed by a $+$ edge;
 	\item 1 $+$ and 1 $-$ edges are closed by a $-$ edge;
 	\item 2 $-$ edges are not closed, as it does not provide enough
 		information.
-\end{itemize}
+\end{enumerate}
 
-The full algorithm is presented in \autoref{alg:complete}. The crucial step
-is \textsc{PickTriangles}, for as we shall see in the experiments, it strongly
-affects the performance in terms of disagreements.
-
-The first decision is whether to start by selecting a distinguished vertex
-(called \emph{pivot}) and consider only triangles involving the pivot or
-consider all possible triangles. In a second time, we can choose only one
-triangle at each iteration or all of the candidates.
-
-\begin{center}
-\begin{tabular}{ccc}
-\toprule
-& pivot & no pivot \\
-\midrule
-one triangle & $P_1$ & $N_1$ \\
-all triangles & $P_*$ & $N_*$ \\
-\bottomrule
-\end{tabular}
-\end{center}
+The full algorithm is presented in \autoref{alg:complete}. The crucial step is
+\textsc{PickTriangles} (\autoref{alg:pick}, for as we shall see in the
+experiments, it strongly affects the performance in terms of disagreements.
 
 \begin{algorithm}
 	\caption{Forming a clique \label{alg:complete}}
 	\begin{algorithmic}[0]
-		\Let{$CT$}{\textsc{FindInitialCloseableTriangles()}}
-		\While{$CT \neq \emptyset$}
-			\ForAll{$triangle$ in \textsc{PickTriangles}$(CT)$}
+		\Let{$C$}{\textsc{FindInitialCloseableTriangles()}}
+		\Comment{$C$ is the set of all triangles in the current graph with
+			exactly 2 edges satisfying condition i. and ii. in the list above}
+		\While{$C \neq{} \emptyset$}
+			\ForAll{$triangle$ in \textsc{PickTriangles}$(C)$}
 				\State \textsc{Close}$(triangle)$
 			\EndFor
-			\State \textsc{Update}$(CT)$
+			\State \textsc{Update}$(C)$
 		\EndWhile
 		\State set remaining edges to negative
+	\end{algorithmic}
+\end{algorithm}
+
+
+
+The first decision is whether to start by selecting a distinguished vertex
+(called \emph{pivot}) and consider only triangles involving the pivot or
+consider all possible triangles. In the second step, we can choose only one
+triangle at each iteration or all of the candidates.
+
+\begin{table}[htpb]
+	\centering
+	\caption{Short names of the different randomization strategy
+		\label{tab:strategy}}
+	\begin{tabular}{ccc}
+		\toprule
+		              & pivot & no pivot \\
+		\midrule
+		one triangle  & $P_1$ & $N_1$ \\
+		all triangles & $P_*$ & $N_*$ \\
+		\bottomrule
+	\end{tabular}
+\end{table}
+
+\begin{algorithm}
+	\caption{Selecting some triangles to be closed \label{alg:pick}}
+	\begin{algorithmic}[0]
+		\Function{\textsc{PickTriangles}}{$C$}
+			\If{strategy requires a pivot}
+				\Let{$pivot$}{sample a vertex between $1$ and $n$ according to
+					some distribution
+					% over the vertices
+					$\mathcal{D}_v$}
+				\Let{$candidates$}{all triangles in $C$ to which $pivot$
+					belongs}
+			\Else
+				\Let{$candidates$}{$C$}
+			\EndIf
+			\If{strategy requires only one triangle}
+				\State \textbf{return} a element of $candidates$ sampled
+				according to some distribution $\mathcal{D}$
+			\Else \Comment{strategy requires all triangles}
+				\State \textbf{return} $candidates$
+			\EndIf
+		\EndFunction
 	\end{algorithmic}
 \end{algorithm}
 
 \section{Experiment}
 
 We try our implementation on different controlled geometry to see how it
-behaves. For each case, we complete the graph 50 times, and for each completed
-graph, run \ccp{} algorithm 100 times.
+behaves. Most of them involve \emph{bad cycle}, that is cycle with exactly one
+negative edge that will necessarily incurs at least one disagreement.  Because
+our algorithm is randomized, we complete each graph 50 times.  On each
+completed graph, we run \ccp{} algorithm 100 times, to obtain an estimation of
+the expected cost of the complete graph. In all the following tables, we
+report the number of disagreement edges among edges of the original graph.
 
-\subsection{Large cycle with one negative edge}
+\subsection{One bad cycle of length $n$}
 
 The optimal solution is either one or two contiguous clusters, yielding one
 disagreement. Strategy \pat{} achieves this optimum while \pot{} number of
@@ -84,7 +127,8 @@ $n$      & 8   & 16  & 32  & 64   & 128  & 256  & 384   & 512   & 1024 \\
 \end{tabular}
 \end{center}
 
-\subsection{$100$-long cycle with two negative edges separated by $k$ vertex}
+\subsection{Cycle of length 100 having only two negative edges separated by
+	$k$ vertices}
 Because there is more than one negative edge, the optimal solution cost is 0.
 It is found consistently by both strategies.
 
@@ -99,7 +143,12 @@ $k$ &   0  &   1  &   25 &   50  \\
 \end{tabular}
 \end{center}
 
-\subsection{squares sharing one positive edge and containing one negative edge}
+\subsection{bad squares sharing only one (positive) edge}
+Here, the optimal solution is to create two clusters in the following ways.
+Say the shared is between vertices $0$ and $1$. Each of them is put in one
+cluster. Starting from $0$, we can follow a path on every cycle and put
+vertex we cross in $0$'s cluster, until we encounter the negative edge of the
+cycle. We do the same with $1$.
 
 \begin{center}
 \begin{tabular}{lrrrr}
@@ -112,7 +161,7 @@ number of squares &  40  &  65  &  80  &  130 \\
 \end{tabular}
 \end{center}
 
-\subsection{positive squares sharing one negative edge}
+\subsection{bad squares sharing only the (negative) edge}
 
 If we move the position of the negative edge to the shared edge, the results
 do not change.
@@ -131,6 +180,13 @@ number of squares &  40  &  65  &  80  &  130 &  170 \\
 \subsection{$\floor*{\sqrt{n}}$ bad cycles of length $\floor*{\sqrt{n}}$
 	sharing one positive edge}
 
+Since the length of the cycle does not affect the optimal solution, its cost
+is still $1$. Since it is the most challenging case, its worth mentioning at
+this point than by providing a little help to the algorithm, we can greatly
+reduce the number of mistakes. Namely, if we avoid selecting as pivot the
+endpoints of the shared edge during the first $n\log n$ iterations, the
+number of disagreements drops to $1.2$ for $n=12\times 12$.
+
 \begin{center}
 \begin{tabular}{lrrrrr}
 \toprule
@@ -145,7 +201,7 @@ cycle length &   7  &   9  &   12 &   15 &   20 \\
 \subsection{Planted clustering}
 
 We create $k$ clusters $\{C_1, \ldots, C_k\}$ of roughly the same size $n_i$
-with around $2n$ positive edges inside them and $n_1\cdot n_2$ negative edges
+with around $2n$ positive edges inside them and $n_i\cdot n_j$ negative edges
 across each others. Then we flip a fraction $p=0.07$ of edges are random,
 which us an estimation of the optimal number of disagreement, provided that
 the clustering stays the same. A similar model is considered by
@@ -172,6 +228,11 @@ nodes    & 75  & 250 & 180 & 240 & 525 & 40  & 80  & 130 & 200 \\
 
 \begin{itemize}
 	\item Which strategy is the best?
+	\item Unfortunately, although there is a optimal algorithm to detect all
+		cycles in an undirected graph \autocite{Cycles13} which we could
+		exploit to avoid choosing bad pivots, in practice we cannot afford
+		such an expensive preprocessing step. Yet we could find an heuristic
+		achieving a similar outcome.
 	\item How to incorporate the fact that edges we are adding are more
 		indirect --- especially in the latest stages ---, either in our
 		algorithm or by modifying \ccp{}?

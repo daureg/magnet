@@ -2,8 +2,15 @@
 
 In \pcc{}, we have a set of $n$ objects and a binary relationship between them
 denoting similarity $(+)$  or dissimilarity $(-)$. Such data are naturally
-associated with a signed graph. The objective is to cluster them according to
-this similarity information.
+associated with a signed graph $G=(V,E)$. The objective is to cluster them
+according to this similarity information.
+
+One advantage of this clustering method is that the number of clusters is part
+of the solution as opposed of being an input constraint, which is sometime
+desirable in unsupervised setting. Furthermore, it can be performed even when
+there is no distance defined between points (although such extra information
+can be taken into account through edges weight).
+
 Given any node partition, a \emph{disagreements edge} is a positive edge within a
 cluster or a negative edge between different clusters. A natural complexity
 measure for the edge labeling (the signs associated with edges) is the minimum
@@ -26,52 +33,50 @@ transform a graph into a clique, in order to apply the \ccp{} algorithm.
 
 \section{Method}
 
-We obtain a clique by repeatedly closing triangles according to the following
-rules:
+A \emph{triangle} is any set of three nodes, regardless of their order. One
+triangle is \emph{closeable} if it satisfies the following conditions:
 \begin{enumerate}[i]
-	\item 2 $+$ edges are closed by a $+$ edge;
-	\item 1 $+$ and 1 $-$ edges are closed by a $-$ edge;
-	\item 2 $-$ edges are not closed, as it does not provide enough
-		information.
+	\item it has exactly two edges
+	\item at least one edge is positive
 \end{enumerate}
+Such triangles have a special node called \emph{center} which is the endpoint
+of the two edges.
+\begin{center}
+\begin{tikzpicture}[scale=.2]
+	% inner sep=3pt,draw=Black,shape=circle
+	\node[] (a) at (0,0) {$a$};
+	\node[] (b) at (10,0) {$b$};
+	\node[] (p) at (5,-10) {$center$};
+	\draw[] (a) -- (p) node[midway,above] {$+$};
+	\draw[] (b) -- (p) node[midway,above] {$+$};
+\end{tikzpicture}
+\end{center}
 
-The full algorithm is presented in \autoref{alg:complete}. The crucial step is
-\textsc{PickTriangles} (\autoref{alg:pick}, for as we shall see in the
-experiments, it strongly affects the performance in terms of disagreements.
+We obtain a clique by iteratively closing these triangles; by adding to them a
+third edge whose sign is the product of the signs of the two existing edges.
 
-\begin{algorithm}
-	\caption{Forming a clique \label{alg:complete}}
-	\begin{algorithmic}[0]
-		\Let{$C$}{\textsc{FindInitialCloseableTriangles()}}
-		\Comment{$C$ is the set of all triangles in the current graph with
-			exactly 2 edges satisfying condition i. and ii. in the list above}
-		\While{$C \neq{} \emptyset$}
-			\ForAll{$triangle$ in \textsc{PickTriangles}$(C)$}
-				\State \textsc{Close}$(triangle)$
-			\EndFor
-			\State \textsc{Update}$(C)$
-		\EndWhile
-		\State set remaining edges to negative
-	\end{algorithmic}
-\end{algorithm}
-
-
-
-The first decision is whether to start by selecting a distinguished vertex
-(called \emph{pivot}) and consider only triangles involving the pivot or
-consider all possible triangles. In the second step, we can choose only one
-triangle at each iteration or all of the candidates.
+The crucial decision is how to choose the triangles to close during the
+current iteration. For that, we define a strategy as a pair of boolean
+(\pvt{}, \oaat{}). If \pvt{} is true, we first select a vertex $p$ uniformly
+at random from $V$ and we restrict candidate triangles to have $p$ as center.
+Otherwise, we consider all possible closeable triangles as candidates.  Then,
+if \oaat{} is true, we select one triangle uniformly at random from the
+candidates, otherwise we return all of them. These four strategies are given
+names in \autoref{tab:strategy} and the method discussed is formally described
+in \autoref{alg:pick}, where $C$ is the set of all currently closeable
+triangles in $G$.
 
 \begin{table}[htpb]
 	\centering
 	\caption{Short names of the different randomization strategy
 		\label{tab:strategy}}
-	\begin{tabular}{ccc}
+	\begin{tabular}{lccc}
 		\toprule
-		              & pivot & no pivot \\
+		& & \multicolumn{2}{c}{\pvt{}} \\
+		    &          & True & False \\
 		\midrule
-		one triangle  & $P_1$ & $N_1$ \\
-		all triangles & $P_*$ & $N_*$ \\
+		\multirow{2}{*}{\oaat{}} & True   & $P_1$ & $N_1$ \\
+		& False & $P_*$ & $N_*$ \\
 		\bottomrule
 	\end{tabular}
 \end{table}
@@ -79,23 +84,44 @@ triangle at each iteration or all of the candidates.
 \begin{algorithm}
 	\caption{Selecting some triangles to be closed \label{alg:pick}}
 	\begin{algorithmic}[0]
-		\Function{\textsc{PickTriangles}}{$C$}
-			\If{strategy requires a pivot}
-				\Let{$pivot$}{sample a vertex between $1$ and $n$ according to
-					some distribution
-					% over the vertices
-					$\mathcal{D}_v$}
-				\Let{$candidates$}{all triangles in $C$ to which $pivot$
-					belongs}
+		\Function{\textsc{PickTriangles}}{$G=(V,E),\,strategy,\, pivot,\, C$}
+			\If{$strategy.$\pvt{}}
+				\Let{$pivot$}{one element from $V$ selected uniformly at
+					random}
+				\Let{$candidates$}{$\{t \in C : center(t) = pivot\}$}
 			\Else
 				\Let{$candidates$}{$C$}
 			\EndIf
-			\If{strategy requires only one triangle}
-				\State \textbf{return} a element of $candidates$ sampled
-				according to some distribution $\mathcal{D}$
-			\Else \Comment{strategy requires all triangles}
+			\If{$strategy.$\oaat{}}
+				\State \textbf{return} a element of $candidates$ uniformly at
+				random 
+			\Else
 				\State \textbf{return} $candidates$
 			\EndIf
+		\EndFunction
+	\end{algorithmic}
+\end{algorithm}
+
+
+The full algorithm is presented in \autoref{alg:complete}.
+
+\begin{algorithm}
+	\caption{Forming a clique \label{alg:complete}}
+	\begin{algorithmic}[0]
+		\Function{\textsc{Complete}}{$G=(V,E),\,strategy$}
+			\Let{$C$}{$\emptyset$}
+			\ForAll{$triangle$ in $\binom{V}{3}$}
+			\If{$triangle$ is closeable}
+				\Let{$C$}{$C \cup \{triangle\}$}
+			\EndIf
+			\EndFor
+			\While{$C \neq{} \emptyset$}
+				\ForAll{$triangle$ in \textsc{PickTriangles}$(C)$}
+					\State \textsc{Close}$(triangle)$
+				\EndFor
+				\State \textsc{Update}$(C)$
+			\EndWhile
+			\State set remaining edges to negative
 		\EndFunction
 	\end{algorithmic}
 \end{algorithm}
@@ -111,6 +137,7 @@ the expected cost of the complete graph. In all the following tables, we
 report the number of disagreement edges among edges of the original graph.
 
 \subsection{One bad cycle of length $n$}
+\label{sub:cycle}
 
 The optimal solution is either one or two contiguous clusters, yielding one
 disagreement. Strategy \pat{} achieves this optimum while \pot{} number of
@@ -121,11 +148,15 @@ errors grows linearly with the length $n$ of the cycle.
 \toprule
 $n$      & 8   & 16  & 32  & 64   & 128  & 256  & 384   & 512   & 1024 \\
 \midrule
-\pot{}    & 1.4 & 3.1 & 7.3 & 17.2 & 40.0 & 86.2 & 132.7 & 179.6 & 371.0 \\
-\pat{}    & --  & --  & --  & --   & --   & 1.0  & --    & --    & -- \\
+\pot{}   & 1.4 & 3.1 & 7.3 & 17.2 & 40.0 & 86.2 & 132.7 & 179.6 & 371.0 \\
+\pat{}   & --  & --  & --  & --   & --   & 1.0  & --    & --    & -- \\
+\nnot{}  & 1.4 & 2.6 & 5.1 & 7.3  & 11.2 & 17.9 &       &       & \\
+\nat{}   & 1.0 & 1.0 & 1.0 & 1.0  & 1.0  & 1.0  &       &       & \\
 \bottomrule
 \end{tabular}
 \end{center}
+
+
 
 \subsection{Cycle of length 100 having only two negative edges separated by
 	$k$ vertices}
@@ -144,6 +175,7 @@ $k$ &   0  &   1  &   25 &   50  \\
 \end{center}
 
 \subsection{bad squares sharing only one (positive) edge}
+\label{sub:squares}
 Here, the optimal solution is to create two clusters in the following ways.
 Say the shared is between vertices $0$ and $1$. Each of them is put in one
 cluster. Starting from $0$, we can follow a path on every cycle and put
@@ -153,13 +185,16 @@ cycle. We do the same with $1$.
 \begin{center}
 \begin{tabular}{lrrrr}
 \toprule
-number of squares &  40  &  65  &  80  &  130 \\
+number of squares & 40   & 65   & 80    & 130 \\
 \midrule
-\pot{} &  2.9 &  2.6 &  2.9 &  2.9 \\
-\pat{} & 24.1 & 42.8 & 53.4 & 76.2 \\
+\pot{}            & 2.9  & 2.6  & 2.9   & 2.9 \\
+\pat{}            & 24.1 & 42.8 & 53.4  & 76.2 \\
+\nnot{}           & 49.9 & 84.8 & 108.6 & 184.2 \\
+\nat{}            & 40.0 & 65.0 & 80.0  & 130.0\\
 \bottomrule
 \end{tabular}
 \end{center}
+
 
 \subsection{bad squares sharing only the (negative) edge}
 
@@ -179,6 +214,7 @@ number of squares &  40  &  65  &  80  &  130 &  170 \\
 
 \subsection{$\floor*{\sqrt{n}}$ bad cycles of length $\floor*{\sqrt{n}}$
 	sharing one positive edge}
+\label{sub:mixed}
 
 Since the length of the cycle does not affect the optimal solution, its cost
 is still $1$. Since it is the most challenging case, its worth mentioning at
@@ -190,13 +226,16 @@ number of disagreements drops to $1.2$ for $n=12\times 12$.
 \begin{center}
 \begin{tabular}{lrrrrr}
 \toprule
-cycle length &   7  &   9  &   12 &   15 &   20 \\
+cycle length & 7    & 9    & 12   & 15   & 20 \\
 \midrule
-\pot{} & 10.6 & 14.7 & 16.3 & 32.5 & 55.1 \\
-\pat{} &  6.8 &  8.8 & 12.0 & 15.1 & 20.1 \\
+\pot{}       & 10.6 & 14.7 & 16.3 & 32.5 & 55.1 \\
+\pat{}       & 6.8  & 8.8  & 12.0 & 15.1 & 20.1 \\
+\nnot{}      & 17.2 & 23.9 & 32.2 & 41.6 & 58.7 \\
+\nat{}       & 9.1  & 12.1 & 19.8 & 19.3 & 35.3 \\
 \bottomrule
 \end{tabular}
 \end{center}
+
 
 \subsection{Planted clustering}
 
@@ -226,16 +265,50 @@ nodes    & 75  & 250 & 180 & 240 & 525 & 40  & 80  & 130 & 200 \\
 
 \section{Discussion}
 
+None of the strategy work well in all case. \pot{} is good for many squares
+whereas \pat{} is optimal for one long bad cycle, and both fail in the middle
+case of \autoref{sub:mixed}. Yet we mentioned than by avoiding selecting
+endpoints of shared edges, results are dramatically improved. One way to get
+closer to this behavior is to discard sampling uniformly at random. This can
+be done in many ways, here are two of them:
+
+\begin{description}
+	\item[Preferential attachment] We maintain for each node $p$ a count
+		$p_c$ of how many time $p$ has been selected as pivot so far. Then at
+		each iteration, pivot are choosen proportionally to $1+p_c^\alpha$.
+		In the beginning, each node is roughly selected as often as the
+		others, like in \pot{}. But at some point, a few become preeminent
+		and their triangles are closed at a much higher rate, thus
+		mimicking \pat{}.
+	\item[Degree sequence] This one is a modification of \pat{}. From the
+		original graph $G$, we create a vector $D=\{d_1, \ldots, d_k\}$
+		containing the unique elements of the sorted degree sequence of $G$. That is,
+		$d_1$ is the smallest degree, and $d_2 > d_1$ is the next larger  degree.
+	We set $i=1$ initially and in \textsc{PickTriangles}, we choose pivot
+	only among nodes with degree less or equal than $d_i$. When there is no more
+	possible choice, we increment $i$. In the long bad cycle case, all nodes
+	have degree $2$ so this is exactly \pat{}, which is optimal. When many
+	cycles share an edge, its endpoints have high degree and are thus
+	selected only at the end.
+\end{description}
+
+Other unsorted comments:
 \begin{itemize}
-	\item Which strategy is the best?
-	\item Unfortunately, although there is a optimal algorithm to detect all
-		cycles in an undirected graph \autocite{Cycles13} which we could
-		exploit to avoid choosing bad pivots, in practice we cannot afford
-		such an expensive preprocessing step. Yet we could find an heuristic
-		achieving a similar outcome.
-	\item How to incorporate the fact that edges we are adding are more
-		indirect --- especially in the latest stages ---, either in our
-		algorithm or by modifying \ccp{}?
+	\item Another way of experimenting, leaning more toward link classification,
+		is to take a subgraph of signed network (like Slashdot or Epinions
+		\autocite{Leskovec2010}), hide some edges, cluster nodes with our
+		algorithm and predict signs according to whether edge endpoints are in
+		the same cluster or not.
+	\item Once we choose one strategy, do analysis in complement to
+		experiments
+	% \item Unfortunately, although there is a optimal algorithm to detect all
+	% 	cycles in an undirected graph \autocite{Cycles13} which we could
+	% 	exploit to avoid choosing bad pivots, in practice we cannot afford
+	% 	such an expensive preprocessing step. Yet we could find an heuristic
+	% 	achieving a similar outcome.
+	% \item How to incorporate the fact that edges we are adding are more
+	% 	indirect --- especially in the latest stages ---, either in our
+	% 	algorithm or by modifying \ccp{}?
 	\item The current algorithm has $O(n^3)$ time and space complexity and
 		thus is not very scalable. Furthermore, because we are looking for a
 		complete graph, it is not immediately clear how to take advantage of a

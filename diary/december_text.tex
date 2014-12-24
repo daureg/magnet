@@ -5,11 +5,11 @@ denoting similarity $(+)$  or dissimilarity $(-)$. Such data are naturally
 associated with a signed graph $G=(V,E)$. The objective is to cluster them
 according to this similarity information.
 
-One advantage of this clustering method is that the number of clusters is part
-of the solution as opposed of being an input constraint, which is sometime
-desirable in unsupervised setting. Furthermore, it can be performed even when
-there is no distance defined between points (although such extra information
-can be taken into account through edges weight).
+In this clustering problem, the number of clusters is part of the solution as
+opposed of being an input constraint, which is sometime desirable in
+unsupervised setting. Furthermore, it does not require a distance between
+points (although such extra information can be taken into account through
+edges weight).
 
 Given any node partition, a \emph{disagreements edge} is a positive edge within a
 cluster or a negative edge between different clusters. A natural complexity
@@ -33,24 +33,27 @@ transform a graph into a clique, in order to apply the \ccp{} algorithm.
 
 \section{Method}
 
-A \emph{triangle} is any set of three nodes, regardless of their order. One
-triangle is \emph{closeable} if it satisfies the following conditions:
+A \emph{triangle} is any set of three distinct nodes, regardless of their
+order. One triangle is \emph{closeable} if it satisfies the following
+conditions:
 \begin{enumerate}[i]
 	\item it has exactly two edges
 	\item at least one edge is positive
 \end{enumerate}
 Such triangles have a special node called \emph{center} which is the endpoint
-of the two edges.
-\begin{center}
-\begin{tikzpicture}[scale=.2]
-	% inner sep=3pt,draw=Black,shape=circle
-	\node[] (a) at (0,0) {$a$};
-	\node[] (b) at (10,0) {$b$};
-	\node[] (p) at (5,-10) {$center$};
-	\draw[] (a) -- (p) node[midway,above] {$+$};
-	\draw[] (b) -- (p) node[midway,above] {$+$};
-\end{tikzpicture}
-\end{center}
+of the two edges (see \autoref{fig:triangle}).
+\begin{figure}[htpb]
+	\centering
+	\begin{tikzpicture}[scale=.2]
+		% inner sep=3pt,draw=Black,shape=circle
+		\node[] (a) at (0,0) {$a$};
+		\node[] (b) at (10,0) {$b$};
+		\node[] (p) at (5,-10) {$center$};
+		\draw[] (a) -- (p) node[midway,above] {$+$};
+		\draw[] (b) -- (p) node[midway,above] {$+$};
+	\end{tikzpicture}
+	\caption{A closeable triangle \label{fig:triangle}}
+\end{figure}
 
 We obtain a clique by iteratively closing these triangles; by adding to them a
 third edge whose sign is the product of the signs of the two existing edges.
@@ -63,7 +66,7 @@ Otherwise, we consider all possible closeable triangles as candidates.  Then,
 if \oaat{} is true, we select one triangle uniformly at random from the
 candidates, otherwise we return all of them. These four strategies are given
 names in \autoref{tab:strategy} and the method discussed is formally described
-in \autoref{alg:pick}, where $C$ is the set of all currently closeable
+in below, where $C$ is the set of all currently closeable
 triangles in $G$.
 
 \begin{table}[htpb]
@@ -81,10 +84,11 @@ triangles in $G$.
 	\end{tabular}
 \end{table}
 
-\begin{algorithm}
-	\caption{Selecting some triangles to be closed \label{alg:pick}}
+\begin{center}
+	\rule{\textwidth}{.3pt}
+	% \caption{Selecting some triangles to be closed \label{alg:pick}}
 	\begin{algorithmic}[0]
-		\Function{\textsc{PickTriangles}}{$G=(V,E),\,strategy,\, pivot,\, C$}
+		\Function{\textsc{PickTriangles}}{$G=(V,E),\,strategy,\, C$}
 			\If{$strategy.$\pvt{}}
 				\Let{$pivot$}{one element from $V$ selected uniformly at
 					random}
@@ -100,28 +104,58 @@ triangles in $G$.
 			\EndIf
 		\EndFunction
 	\end{algorithmic}
-\end{algorithm}
+	\rule{\textwidth}{.3pt}
+\end{center}
 
 
-The full algorithm is presented in \autoref{alg:complete}.
+The full algorithm is presented in \autoref{alg:complete}. Its input is a
+graph $G$ with node set $V=\{0, 1,\ldots, n-1\}$ and edge set $E$.
 
 \begin{algorithm}
 	\caption{Forming a clique \label{alg:complete}}
 	\begin{algorithmic}[0]
 		\Function{\textsc{Complete}}{$G=(V,E),\,strategy$}
 			\Let{$C$}{$\emptyset$}
-			\ForAll{$triangle$ in $\binom{V}{3}$}
-			\If{$triangle$ is closeable}
-				\Let{$C$}{$C \cup \{triangle\}$}
+			\ForAll{$triplets$ in $V$}
+			\If{$triplets$ is closeable}
+				\Let{$C$}{$C \cup \{triplets\}$}
 			\EndIf
 			\EndFor
 			\While{$C \neq{} \emptyset$}
+			\Let{$just_closed$}{$\emptyset$}
 				\ForAll{$triangle$ in \textsc{PickTriangles}$(C)$}
 					\State \textsc{Close}$(triangle)$
+					\Let{$just_closed$}{$just_closed \cup \{triangle\}$}
 				\EndFor
-				\State \textsc{Update}$(C)$
+				\ForAll{$triangle$ in $just_closed$}
+				\State \textsc{Update}$(C,\, triangle)$
+				\EndFor
 			\EndWhile
 			\State set remaining edges to negative
+		\EndFunction
+		\vspace*{\baselineskip}
+		\Function{\textsc{Close}}{$triangle$} \Comment{$triangle = (a,
+			center, b)$ as shown in \autoref{fig:triangle}}
+		\State add edge $(a, b)$
+		\Let{$sign(a, b)$}{$sign(a, center) \times sign(center, b)$}
+		\EndFunction
+		\vspace*{\baselineskip}
+		\Function{\textsc{Update}}{$C,\, triangle=(a, center, b)$}
+			\Let{$N_a$}{neighbors of $a$}
+			\Let{$N_b$}{neighbors of $b$}
+			\ForAll{$v \in \left(N_a \cap N_b\right)\setminus \{a,b\}$}
+				\Let{$C$}{$C \setminus \{(a, v, b)\}$}
+			\EndFor
+			\ForAll{$v \in N_a$}
+				\If{$(v, a, b)$ is closeable}
+					\Let{$C$}{$C \cup \{(v, a, b)\}$}
+				\EndIf
+			\EndFor
+			\ForAll{$v \in N_b$}
+				\If{$(v, b, a)$ is closeable}
+					\Let{$C$}{$C \cup \{(v, b, a)\}$}
+				\EndIf
+			\EndFor
 		\EndFunction
 	\end{algorithmic}
 \end{algorithm}
@@ -139,9 +173,10 @@ report the number of disagreement edges among edges of the original graph.
 \subsection{One bad cycle of length $n$}
 \label{sub:cycle}
 
-The optimal solution is either one or two contiguous clusters, yielding one
+The optimal solution is either one or two connected clusters, yielding one
 disagreement. Strategy \pat{} achieves this optimum while \pot{} number of
-errors grows linearly with the length $n$ of the cycle.
+errors grows linearly with the length $n$ of the cycle. (the missing number
+are due to lack of time).
 
 \begin{center}
 \begin{tabular}{lrrrrrrrrr}
@@ -149,9 +184,9 @@ errors grows linearly with the length $n$ of the cycle.
 $n$      & 8   & 16  & 32  & 64   & 128  & 256  & 384   & 512   & 1024 \\
 \midrule
 \pot{}   & 1.4 & 3.1 & 7.3 & 17.2 & 40.0 & 86.2 & 132.7 & 179.6 & 371.0 \\
-\pat{}   & --  & --  & --  & --   & --   & 1.0  & --    & --    & -- \\
-\nnot{}  & 1.4 & 2.6 & 5.1 & 7.3  & 11.2 & 17.9 &       &       & \\
-\nat{}   & 1.0 & 1.0 & 1.0 & 1.0  & 1.0  & 1.0  &       &       & \\
+\pat{}   & 1.0 & 1.0 & 1.0 & 1.0  & 1.0  & 1.0  & --    & --    & -- \\
+\nnot{}  & 1.4 & 2.6 & 5.1 & 7.3  & 11.2 & 17.9 & --    & --    & --\\
+\nat{}   & 1.0 & 1.0 & 1.0 & 1.0  & 1.0  & 1.0  & --    & --    & --\\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -217,11 +252,7 @@ number of squares &  40  &  65  &  80  &  130 &  170 \\
 \label{sub:mixed}
 
 Since the length of the cycle does not affect the optimal solution, its cost
-is still $1$. Since it is the most challenging case, its worth mentioning at
-this point than by providing a little help to the algorithm, we can greatly
-reduce the number of mistakes. Namely, if we avoid selecting as pivot the
-endpoints of the shared edge during the first $n\log n$ iterations, the
-number of disagreements drops to $1.2$ for $n=12\times 12$.
+is still $1$. But this is very challenging for all strategies.
 
 \begin{center}
 \begin{tabular}{lrrrrr}
@@ -267,22 +298,29 @@ nodes    & 75  & 250 & 180 & 240 & 525 & 40  & 80  & 130 & 200 \\
 
 None of the strategy work well in all case. \pot{} is good for many squares
 whereas \pat{} is optimal for one long bad cycle, and both fail in the middle
-case of \autoref{sub:mixed}. Yet we mentioned than by avoiding selecting
-endpoints of shared edges, results are dramatically improved. One way to get
-closer to this behavior is to discard sampling uniformly at random. This can
-be done in many ways, here are two of them:
+case of \autoref{sub:mixed}.
+
+Yet by providing a little help to the algorithm, we can greatly reduce the
+number of mistakes. Namely, if we avoid selecting as pivot the endpoints of
+the shared edge during the first $n\log n$ iterations (or some other arbitrary
+threshold), the number of disagreements is vastly reduced, for instance, it
+drops to $1.2$ for $n=12\times 12$ in the case of \autoref{sub:mixed}.  One
+way to get closer to this behavior is to discard sampling uniformly at random.
+This can be done in many ways, here are three of them:
 
 \begin{description}
 	\item[Preferential attachment] We maintain for each node $p$ a count
 		$p_c$ of how many time $p$ has been selected as pivot so far. Then at
-		each iteration, pivot are choosen proportionally to $1+p_c^\alpha$.
+		each iteration, pivot are chosen proportionally to $1+p_c^\alpha$ for
+		some parameters $\alpha$.
 		In the beginning, each node is roughly selected as often as the
 		others, like in \pot{}. But at some point, a few become preeminent
 		and their triangles are closed at a much higher rate, thus
 		mimicking \pat{}.
 	\item[Degree sequence] This one is a modification of \pat{}. From the
 		original graph $G$, we create a vector $D=\{d_1, \ldots, d_k\}$
-		containing the unique elements of the sorted degree sequence of $G$. That is,
+		containing the unique elements of the sorted degree sequence of $G$.
+		That is,
 		$d_1$ is the smallest degree, and $d_2 > d_1$ is the next larger  degree.
 	We set $i=1$ initially and in \textsc{PickTriangles}, we choose pivot
 	only among nodes with degree less or equal than $d_i$. When there is no more
@@ -290,6 +328,34 @@ be done in many ways, here are two of them:
 	have degree $2$ so this is exactly \pat{}, which is optimal. When many
 	cycles share an edge, its endpoints have high degree and are thus
 	selected only at the end.
+
+	Note that although it should work well in these two situations, we may
+	devise graph for which it is not the case. 
+	Consider an input graph formed by generating $\Theta(\sqrt{n})$ bad
+	squares sharing the same edge $(i,j)$ and adding, for each node $k$
+	(different from $i$ and $j$) belonging to a bad square, $\Theta(\sqrt n)$
+	new nodes having degree 1 and adjacent only to node $k$, such that a)
+	$|V|=\Theta(n)$ and b) the degree of each nodes belonging to a bad square is
+	the same: $\Theta(\sqrt(n))$.
+
+	For this input graph, this strategy turns out to be similar to \pat{}.
+	Thus, according to our experiments on $\Theta(\sqrt n)$ bad squares
+	sharing one edge, we conjecture to have a number of disagreements linear
+	in the number of bad cycles sharing the same edge, i.e.
+	$\Omega(\sqrt{n})$. However, if the input graph as a (expected) bounded
+	degree (e.g. preferential attachment models), then this strategy should
+	achieve good performance in practice.
+
+	\item[Phase] The previous strategy strategy can be generalized by
+		aggregating node in different \emph{phases} that are not based on the
+		degree of the nodes in the original input graph.
+
+		In the phase 1, we are allowed to close triangles having two edges
+		belonging to the original input graph. In each phase $K>1$ we are
+		allowed to close triangles with two edges belonging to the current
+		graph built using all phases $1,2, \ldots, K-1$. The final constraint
+		is that we can start each phase $K$ only after all closable triangles
+		in phase $K-1$ had been closed.
 \end{description}
 
 Other unsorted comments:

@@ -14,6 +14,12 @@
 \newcommand{\pvt}{\texttt{pivot}}
 \newcommand{\oaat}{\texttt{one\_at\_a\_time}}
 \usepackage{setspace}
+\usepackage{caption}
+
+\makeatletter
+\DeclareCaptionLabelFormat{numberless}{\ALG@name#1}
+\captionsetup[algorithm]{labelformat=numberless} 
+\makeatother
 \title{Combinatorial \pcc{} on general unweighted graphs}
 \author{Géraud Le Falher}
 \begin{document}

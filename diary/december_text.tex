@@ -112,30 +112,30 @@ The full algorithm is presented in \autoref{alg:complete}. Its input is a
 graph $G$ with node set $V=\{0, 1,\ldots, n-1\}$ and edge set $E$.
 
 \begin{algorithm}
-	\caption{Forming a clique \label{alg:complete}}
+	\caption{\textsc{Complete}($G=(V,E),\,strategy$) \label{alg:complete}}
 	\begin{algorithmic}[0]
-		\Function{\textsc{Complete}}{$G=(V,E),\,strategy$}
-			\Let{$C$}{$\emptyset$}
-			\ForAll{$triplets$ in $V$}
-			\If{$triplets$ is closeable}
-				\Let{$C$}{$C \cup \{triplets\}$}
-			\EndIf
+		\State \emph{Note:} in the following, $triangle = (a, center, b)$, as
+			shown in \autoref{fig:triangle}
+		\Let{$C$}{$\emptyset$}
+		\ForAll{$triplets$ of distinct nodes $(a,v,b)$ in $V^3$}
+		\If{$(a,v,b)$ is a closeable triangle}
+			\Let{$C$}{$C \cup \{(a,v,b)\}$}
+		\EndIf
+		\EndFor
+		\While{$C \neq{} \emptyset$}
+		\Let{$just\_closed$}{$\emptyset$}
+			\ForAll{$triangle$ in \textsc{PickTriangles}$(C)$}
+				\State \textsc{Close}$(triangle)$
+				\Let{$just\_closed$}{$just\_closed \cup \{triangle\}$}
 			\EndFor
-			\While{$C \neq{} \emptyset$}
-			\Let{$just_closed$}{$\emptyset$}
-				\ForAll{$triangle$ in \textsc{PickTriangles}$(C)$}
-					\State \textsc{Close}$(triangle)$
-					\Let{$just_closed$}{$just_closed \cup \{triangle\}$}
-				\EndFor
-				\ForAll{$triangle$ in $just_closed$}
-				\State \textsc{Update}$(C,\, triangle)$
-				\EndFor
-			\EndWhile
-			\State set remaining edges to negative
-		\EndFunction
+			\ForAll{$triangle$ in $just\_closed$}
+			\State \textsc{Update}$(C,\, triangle)$
+			\EndFor
+		\EndWhile
+		\State set remaining edges to negative
+		% \EndFunction
 		\vspace*{\baselineskip}
-		\Function{\textsc{Close}}{$triangle$} \Comment{$triangle = (a,
-			center, b)$ as shown in \autoref{fig:triangle}}
+		\Function{\textsc{Close}}{$triangle$} 
 		\State add edge $(a, b)$
 		\Let{$sign(a, b)$}{$sign(a, center) \times sign(center, b)$}
 		\EndFunction

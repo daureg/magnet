@@ -1,9 +1,9 @@
 \section{Problem}
 
-In \pcc{}, we have a set of $n$ objects and a binary relationship between them
-denoting similarity $(+)$  or dissimilarity $(-)$. Such data are naturally
-associated with a signed graph $G=(V,E)$. The objective is to cluster them
-according to this similarity information.
+In \pcc{}, we have a set of $n$ objects and a binary relationship denoting
+similarity $(+)$  or dissimilarity $(-)$ between these objects. Such data are
+naturally associated with a signed graph $G=(V,E)$. The objective is to
+cluster them according to this similarity information.
 
 In this clustering problem, the number of clusters is part of the solution as
 opposed of being an input constraint, which is sometime desirable in
@@ -17,18 +17,20 @@ measure for the edge labeling (the signs associated with edges) is the minimum
 number of disagreement edges over \textbf{all} possible node partitions of the node
 set.
 
+\medskip
+
 The problem of finding a partition minimizing the number of disagreements
 edges was showed to be NP-hard even on complete graph \autocite{Bansal2002},
 although there exists an elegant algorithm by \textcite{Ailon2008} (referred
-later as \ccp{}) running in $O(n\left|\mathcal{P}_{\text{\ccp{}}}\right|)$
+later as \ccp{}) that runs in $O(n\left|\mathcal{P}_{\text{\ccp{}}}\right|)$,
 where $\left|\mathcal{P}_{\text{\ccp{}}}\right| \le |V|$ is the number of
-cluster found with this strategy. It is a randomized algorithm with an
+clusters found with this strategy. It is a randomized algorithm with an
 expected approximation ratio of $3$.
 
-When the input is a general graph, it becomes APX-hard
-\autocites{Charikar2003}{Demaine2006} and these two papers provide polynomial
-algorithm achieving $O(\log n)$ approximation. Yet they resort to expensive
-semi definite program so we are seeking a combinatorial approach that would
+When the input is a general graph, the problem becomes APX-hard
+\autocites{Charikar2003}{Demaine2006}, and these two papers provide polynomial
+algorithms achieving $O(\log n)$ approximation. Yet they resort to expensive
+semi definite programs so we are seeking a combinatorial approach that would
 transform a graph into a clique, in order to apply the \ccp{} algorithm.
 
 \section{Method}
@@ -36,7 +38,7 @@ transform a graph into a clique, in order to apply the \ccp{} algorithm.
 A \emph{triangle} is any set of three distinct nodes, regardless of their
 order. One triangle is \emph{closeable} if it satisfies the following
 conditions:
-\begin{enumerate}[i]
+\begin{enumerate}
 	\item it has exactly two edges
 	\item at least one edge is positive
 \end{enumerate}
@@ -64,25 +66,10 @@ current iteration. For that, we define a strategy as a pair of boolean
 at random from $V$ and we restrict candidate triangles to have $p$ as center.
 Otherwise, we consider all possible closeable triangles as candidates.  Then,
 if \oaat{} is true, we select one triangle uniformly at random from the
-candidates, otherwise we return all of them. These four strategies are given
-names in \autoref{tab:strategy} and the method discussed is formally described
-in below, where $C$ is the set of all currently closeable
-triangles in $G$.
-
-\begin{table}[htpb]
-	\centering
-	\caption{Short names of the different randomization strategy
-		\label{tab:strategy}}
-	\begin{tabular}{lccc}
-		\toprule
-		& & \multicolumn{2}{c}{\pvt{}} \\
-		    &          & True & False \\
-		\midrule
-		\multirow{2}{*}{\oaat{}} & True   & $P_1$ & $N_1$ \\
-		& False & $P_*$ & $N_*$ \\
-		\bottomrule
-	\end{tabular}
-\end{table}
+candidates, otherwise we select all of them. These four strategies are named
+in \autoref{tab:strategy} and the procedure just discussed is formally
+described below as \textsc{PickTriangles}, where $C$ is the set of all
+currently closeable triangles in $G$.
 
 \begin{center}
 	\rule{\textwidth}{.3pt}
@@ -107,6 +94,20 @@ triangles in $G$.
 	\rule{\textwidth}{.3pt}
 \end{center}
 
+\begin{table}[hptb]
+	\centering
+	\caption{Short names of the different randomization strategy
+		\label{tab:strategy}}
+	\begin{tabular}{lccc}
+		\toprule
+		& & \multicolumn{2}{c}{\pvt{}} \\
+		    &          & True & False \\
+		\midrule
+		\multirow{2}{*}{\oaat{}} & True   & $P_1$ & $N_1$ \\
+		& False & $P_*$ & $N_*$ \\
+		\bottomrule
+	\end{tabular}
+\end{table}
 
 The full algorithm is presented in \autoref{alg:complete}. Its input is a
 graph $G$ with node set $V=\{0, 1,\ldots, n-1\}$ and edge set $E$.
@@ -134,7 +135,12 @@ graph $G$ with node set $V=\{0, 1,\ldots, n-1\}$ and edge set $E$.
 		\EndWhile
 		\State set remaining edges to negative
 		% \EndFunction
-		\vspace*{\baselineskip}
+		\vspace*{0.5\baselineskip}
+		\begin{center}
+			\rule{0.5\textwidth}{.2pt}
+		\end{center}
+		\vspace*{0.5\baselineskip}
+
 		\Function{\textsc{Close}}{$triangle$} 
 		\State add edge $(a, b)$
 		\Let{$sign(a, b)$}{$sign(a, center) \times sign(center, b)$}
@@ -162,21 +168,22 @@ graph $G$ with node set $V=\{0, 1,\ldots, n-1\}$ and edge set $E$.
 
 \section{Experiment}
 
-We try our implementation on different controlled geometry to see how it
+We try our implementation on different controlled geometries to see how it
 behaves. Most of them involve \emph{bad cycle}, that is cycle with exactly one
 negative edge that will necessarily incurs at least one disagreement.  Because
 our algorithm is randomized, we complete each graph 50 times.  On each
-completed graph, we run \ccp{} algorithm 100 times, to obtain an estimation of
-the expected cost of the complete graph. In all the following tables, we
-report the number of disagreement edges among edges of the original graph.
+completed graph, we run the \ccp{} algorithm 100 times, to obtain an
+estimation of the expected cost of the complete graph. In all the following
+tables, we report the number of disagreement edges among edges of the original
+graph.
 
 \subsection{One bad cycle of length $n$}
 \label{sub:cycle}
 
 The optimal solution is either one or two connected clusters, yielding one
 disagreement. Strategy \pat{} achieves this optimum while \pot{} number of
-errors grows linearly with the length $n$ of the cycle. (the missing number
-are due to lack of time).
+errors grows linearly with the length $n$ of the cycle. The same is true when
+we do not select pivot. (the missing number are due to lack of time).
 
 \begin{center}
 \begin{tabular}{lrrrrrrrrr}
@@ -209,13 +216,13 @@ $k$ &   0  &   1  &   25 &   50  \\
 \end{tabular}
 \end{center}
 
-\subsection{bad squares sharing only one (positive) edge}
+\subsection{Bad squares sharing only one (positive) edge}
 \label{sub:squares}
 Here, the optimal solution is to create two clusters in the following ways.
-Say the shared is between vertices $0$ and $1$. Each of them is put in one
-cluster. Starting from $0$, we can follow a path on every cycle and put
-vertex we cross in $0$'s cluster, until we encounter the negative edge of the
-cycle. We do the same with $1$.
+Say the shared edge is between vertices $0$ and $1$. Each of these two
+vertices is put in one cluster. Starting from $0$, we can follow a path on
+every cycle and put vertices we cross in $0$'s cluster, until we encounter the
+negative edge of the cycle. We do the same with $1$.
 
 \begin{center}
 \begin{tabular}{lrrrr}
@@ -230,8 +237,11 @@ number of squares & 40   & 65   & 80    & 130 \\
 \end{tabular}
 \end{center}
 
+Unfortunately, all but the \pot{} strategy fail to achieve this solution,
+instead committing a number of errors linear with the number of bad cycles.
 
-\subsection{bad squares sharing only the (negative) edge}
+
+\subsection{Bad squares sharing only the (negative) edge}
 
 If we move the position of the negative edge to the shared edge, the results
 do not change.
@@ -252,7 +262,7 @@ number of squares &  40  &  65  &  80  &  130 &  170 \\
 \label{sub:mixed}
 
 Since the length of the cycle does not affect the optimal solution, its cost
-is still $1$. But this is very challenging for all strategies.
+is still $1$. But this case is challenging for all strategies.
 
 \begin{center}
 \begin{tabular}{lrrrrr}
@@ -273,8 +283,8 @@ cycle length & 7    & 9    & 12   & 15   & 20 \\
 We create $k$ clusters $\{C_1, \ldots, C_k\}$ of roughly the same size $n_i$
 with around $2n$ positive edges inside them and $n_i\cdot n_j$ negative edges
 across each others. Then we flip a fraction $p=0.07$ of edges are random,
-which us an estimation of the optimal number of disagreement, provided that
-the clustering stays the same. A similar model is considered by
+which give us an estimation of the optimal number of disagreement, provided
+that the clustering stays the same. A similar model is considered by
 \textcite{Makarychev2014}.
 
 In the table below, we report the number of disagreement divided by the
@@ -311,8 +321,8 @@ This can be done in many ways, here are three of them:
 \begin{description}
 	\item[Preferential attachment] We maintain for each node $p$ a count
 		$p_c$ of how many time $p$ has been selected as pivot so far. Then at
-		each iteration, pivot are chosen proportionally to $1+p_c^\alpha$ for
-		some parameters $\alpha$.
+		each iteration, the pivot is chosen proportionally to $1+p_c^\alpha$ for
+		some parameter $\alpha$.
 		In the beginning, each node is roughly selected as often as the
 		others, like in \pot{}. But at some point, a few become preeminent
 		and their triangles are closed at a much higher rate, thus
@@ -330,13 +340,13 @@ This can be done in many ways, here are three of them:
 	selected only at the end.
 
 	Note that although it should work well in these two situations, we may
-	devise graph for which it is not the case. 
+	devise graphs for which it is not the case. 
 	Consider an input graph formed by generating $\Theta(\sqrt{n})$ bad
 	squares sharing the same edge $(i,j)$ and adding, for each node $k$
 	(different from $i$ and $j$) belonging to a bad square, $\Theta(\sqrt n)$
 	new nodes having degree 1 and adjacent only to node $k$, such that a)
 	$|V|=\Theta(n)$ and b) the degree of each nodes belonging to a bad square is
-	the same: $\Theta(\sqrt(n))$.
+	the same: $\Theta(\sqrt{n})$.
 
 	For this input graph, this strategy turns out to be similar to \pat{}.
 	Thus, according to our experiments on $\Theta(\sqrt n)$ bad squares

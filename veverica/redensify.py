@@ -200,6 +200,7 @@ def complete_graph(one_at_a_time=True):
     no_pivot = bool(os.environ.get('NO_PIVOT', False))
     if PIVOT_SELECTION is PivotSelection.ByDegree and one_at_a_time:
         warnings.warn('ByDegree strategy do not work with one_at_a_time')
+        one_at_a_time = False
     compute_original_degree()
     from math import log
     # r.seed(800)

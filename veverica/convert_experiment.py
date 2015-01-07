@@ -336,6 +336,6 @@ def savefile_name(geometry, params, one_at_a_time):
              redensify.PivotSelection.Preferential:
              'ppre'}[redensify.PIVOT_SELECTION]
     heuristic = 'ONE' if one_at_a_time else 'ALL'
-    return '{}_{:04d}_{:03d}_{}_{}_{}'.format(geometry, params[0], params[1],
-                                              heuristic, strat,
-                                              int(time.time()))
+    return '{}_{:04d}_{:03d}_{}_{}_{}.my'.format(geometry, params[0],
+                                                 params[1], heuristic, strat,
+                                                 int(time.time()))

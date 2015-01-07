@@ -190,8 +190,7 @@ def run_rings_experiment(size, nb_rings, shared_sign, rigged, one_at_a_time,
         runs = [process_rings(_) for _ in args]
     res = {'time': list(map(itemgetter(0), runs)),
            'nb_error': list(map(itemgetter(2), runs))}
-    p.save_var('rings_new_{:04d}_{:03d}_{}.my'.format(size, nb_rings,
-                                                      int(time.time())),
+    p.save_var(savefile_name('rings', [size, nb_rings], one_at_a_time),
                res)
 
 
@@ -212,8 +211,7 @@ def run_circle_experiment(size, one_at_a_time, rigged=False, n_rep=100,
         runs = list(map(process_circle, args))
     res = {'time': list(map(itemgetter(0), runs)),
            'nb_error': list(map(itemgetter(2), runs))}
-    p.save_var('circle_new_{:04d}_{}.my'.format(size, int(time.time())),
-               res)
+    p.save_var(savefile_name('circle', [size, 0], one_at_a_time), res)
 
 
 def run_one_experiment(cc_run, one_at_a_time):
@@ -327,8 +325,17 @@ def run_planted_experiment(ball_size, nb_balls, one_at_a_time=True, n_rep=100,
     res = {'time': list(map(itemgetter(0), runs)),
            'delta': list(map(itemgetter(1), runs)),
            'nb_error': list(map(itemgetter(2), runs))}
-    heuristic = 'ONE' if one_at_a_time else 'ALL'
-    p.save_var('planted_{:04d}_{:02d}_{}_{}.my'.format(ball_size, nb_balls,
-                                                       heuristic,
-                                                       int(time.time())),
+    p.save_var(savefile_name('planted', [ball_size, nb_balls], one_at_a_time),
                res)
+
+
+def savefile_name(geometry, params, one_at_a_time):
+    """Create suitable filename to save results"""
+    strat = {redensify.PivotSelection.Uniform: 'puni',
+             redensify.PivotSelection.ByDegree: 'pdeg',
+             redensify.PivotSelection.Preferential:
+             'ppre'}[redensify.PIVOT_SELECTION]
+    heuristic = 'ONE' if one_at_a_time else 'ALL'
+    return '{}_{:04d}_{:03d}_{}_{}_{}'.format(geometry, params[0], params[1],
+                                              heuristic, strat,
+                                              int(time.time()))

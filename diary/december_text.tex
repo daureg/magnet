@@ -15,13 +15,14 @@ Given any node partition, a \emph{disagreements edge} is a positive edge within 
 cluster or a negative edge between different clusters. A natural complexity
 measure for the edge labeling (the signs associated with edges) is the minimum
 number of disagreement edges over \textbf{all} possible node partitions of the node
-set.
+set. The number of disagreements created by a given clustering is called its
+cost.
 
 \medskip
 
 The problem of finding a partition minimizing the number of disagreements
-edges was showed to be NP-hard even on complete graph \autocite{Bansal2002},
-although there exists an elegant algorithm by \textcite{Ailon2008} (referred
+edges was showed to be NP-hard, even on complete graph \autocite{Bansal2002}.
+Yetthere exists an elegant algorithm by \textcite{Ailon2008} (referred
 later as \ccp{}) that runs in $O(n\left|\mathcal{P}_{\text{\ccp{}}}\right|)$,
 where $\left|\mathcal{P}_{\text{\ccp{}}}\right| \le |V|$ is the number of
 clusters found with this strategy. It is a randomized algorithm with an
@@ -222,7 +223,8 @@ Here, the optimal solution is to create two clusters in the following ways.
 Say the shared edge is between vertices $0$ and $1$. Each of these two
 vertices is put in one cluster. Starting from $0$, we can follow a path on
 every cycle and put vertices we cross in $0$'s cluster, until we encounter the
-negative edge of the cycle. We do the same with $1$.
+negative edge of the cycle. We do the same with $1$. The only disagreement is
+the positive edge between $0$ and $1$, therefore the optimal cost is 1.
 
 \begin{center}
 \begin{tabular}{lrrrr}
@@ -282,14 +284,16 @@ cycle length & 7    & 9    & 12   & 15   & 20 \\
 
 We create $k$ clusters $\{C_1, \ldots, C_k\}$ of roughly the same size $n_i$
 with around $2n$ positive edges inside them and $n_i\cdot n_j$ negative edges
-across each others. Then we flip a fraction $p=0.07$ of edges are random,
-which give us an estimation of the optimal number of disagreement, provided
-that the clustering stays the same. A similar model is considered by
-\textcite{Makarychev2014}.
+across each others. Then we flip a fraction $p=0.07$ of edges at random.
+Since $p$ is \enquote{small}, this give us an estimation of the optimal number
+of disagreements, provided that the clustering stays the same. A similar model
+is considered by \textcite{Makarychev2014}.
 
-In the table below, we report the number of disagreement divided by the
-number of flipped edges, that is an estimation of the approximation ratio of
-our method.
+In the table below, we report the number of disagreements divided by the
+number of flipped edges (because being random, all the graphs do not have the
+same number of edges, making comparison unfair). If the original clustering
+was not too much perturbed, this is an estimation of the approximation ratio
+of our method.
 
 \begin{center}
 \begin{tabular}{lrrrrrrrrr}

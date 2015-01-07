@@ -174,13 +174,15 @@ def count_disagreements(cluster):
 def process_rings(kwargs):
     make_rings(kwargs['size'], kwargs['nb_rings'], kwargs['shared_sign'],
                kwargs['rigged'])
+    redensify.PIVOT_SELECTION = kwargs['pivot']
     return run_one_experiment(100, kwargs['one_at_a_time'])
 
 
 def run_rings_experiment(size, nb_rings, shared_sign, rigged, one_at_a_time,
-                         n_rep=100, pool=None):
+                         pivot=redensify.PivotSelection.Uniform, n_rep=100,
+                         pool=None):
     args = repeat({"size": size, "nb_rings": nb_rings, "rigged": rigged,
-                   "shared_sign": shared_sign,
+                   "shared_sign": shared_sign, "pivot": pivot,
                    "one_at_a_time": one_at_a_time}, n_rep)
 
     if pool:
@@ -196,11 +198,12 @@ def run_rings_experiment(size, nb_rings, shared_sign, rigged, one_at_a_time,
 
 def process_circle(kwargs):
     make_circle(kwargs['circle_size'], kwargs['rigged'])
+    redensify.PIVOT_SELECTION = kwargs['pivot']
     return run_one_experiment(100, kwargs['one_at_a_time'])
 
 
 def run_circle_experiment(size, one_at_a_time, rigged=False, n_rep=100,
-                          pool=None):
+                          pivot=redensify.PivotSelection.Uniform, pool=None):
     args = repeat({"circle_size": size, "rigged": rigged,
                    "one_at_a_time": one_at_a_time}, n_rep)
 
@@ -307,15 +310,16 @@ def flip_random_edges(fraction=0.07):
 
 def process_planted(kwargs):
     true_cluster, _ = planted_clusters(kwargs['ball_size'], kwargs['nb_balls'])
+    redensify.PIVOT_SELECTION = kwargs['pivot']
     delta = sum(count_disagreements(true_cluster))
     times, _, errors = run_one_experiment(100, kwargs['one_at_a_time'])
     return [times, delta, errors]
 
 
 def run_planted_experiment(ball_size, nb_balls, one_at_a_time=True, n_rep=100,
-                           pool=None):
+                           pivot=redensify.PivotSelection.Uniform, pool=None):
     args = repeat({"ball_size": ball_size, "nb_balls": nb_balls,
-                   "one_at_a_time": one_at_a_time}, n_rep)
+                   "pivot": pivot, "one_at_a_time": one_at_a_time}, n_rep)
 
     if pool:
         runs = list(pool.imap_unordered(process_planted, args,

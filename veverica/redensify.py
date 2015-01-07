@@ -12,7 +12,7 @@ EDGES_ORIG = {}
 EDGES_DEPTH = {}
 NODE_DEPTH = {}
 NODE_PIVOT_COUNT = []
-ALPHA = 1
+ALPHA = 3
 DEGREES = []
 DEGREES_SEQUENCE = []
 DEGREE_THRESHOLD_INDEX = 0
@@ -206,7 +206,7 @@ def complete_graph(one_at_a_time=True):
     # r.seed(800)
     global N_CLOSEABLE, NODE_PIVOT_COUNT
     N_CLOSEABLE = 0
-    NODE_PIVOT_COUNT = [0 for node in G.keys()]
+    NODE_PIVOT_COUNT = {node: 0 for node in G.keys()}
     find_initial_closeable()
     threshold = int(N*N*log(N))
     nb_iter = 0

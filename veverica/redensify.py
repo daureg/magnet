@@ -11,6 +11,11 @@ EDGES_SIGN = {}
 EDGES_ORIG = {}
 EDGES_DEPTH = {}
 NODE_DEPTH = {}
+NODE_PIVOT_COUNT = []
+ALPHA = 1
+DEGREES = []
+DEGREES_SEQUENCE = []
+DEGREE_THRESHOLD_INDEX = 0
 DEPTH_METHOD = 'constant'
 DEPTH_COMPUTATION = {'constant': lambda a, b: 1,
                      'sum': lambda a, b: 1 + a + b,
@@ -20,6 +25,21 @@ import random as r
 import gc
 import os
 from itertools import combinations
+from enum import Enum, unique
+import warnings
+
+
+@unique
+class PivotSelection(Enum):
+    """How to choose the pivot at each iteration"""
+    Uniform = 1
+    Preferential = 2
+    ByDegree = 3
+    FromEdge = 4
+    NoPivot = 5
+
+
+PIVOT_SELECTION = PivotSelection.Uniform
 
 
 def profile(func):
@@ -36,6 +56,18 @@ def memodict(func):
             self[key] = ret = func(key)
             return ret
     return memodict().__getitem__
+
+
+# http://eli.thegreenplace.net/2010/01/22/weighted-random-generation-in-python
+@profile
+def weighted_choice(objects, weights):
+    """Return an element from `objects` with probability defined by the list
+    of `weights`."""
+    rnd = r.random() * sum(weights)
+    for obj, weight in zip(objects, weights):
+        rnd -= weight
+        if rnd < 0:
+            return obj
 
 
 @memodict
@@ -68,9 +100,48 @@ def triangle_edges(hash_):
 
 
 @profile
+def compute_original_degree():
+    """Fill global variables related to degree in the original graph"""
+    global DEGREES, DEGREES_SEQUENCE, DEGREE_THRESHOLD_INDEX
+    DEGREES = [len(G[n]) for n in range(len(G))]
+    DEGREES_SEQUENCE = sorted(set(DEGREES))
+    DEGREE_THRESHOLD_INDEX = 0
+
+
+@profile
+def get_potential_pivot(dictionary):
+    """Return a list of (nodes, attached closeable triangle) of not too high
+    degree"""
+    global DEGREE_THRESHOLD_INDEX
+    max_degree = DEGREES_SEQUENCE[DEGREE_THRESHOLD_INDEX]
+    res = [(n, t) for n, t in dictionary.items()
+           if DEGREES[n] <= max_degree]
+    if res:
+        return res
+    assert DEGREE_THRESHOLD_INDEX+1 < len(DEGREES_SEQUENCE)
+    DEGREE_THRESHOLD_INDEX += 1
+    return get_potential_pivot(dictionary)
+
+
+@profile
 def sample_key(dictionary):
     """Return a key, value tuple at random from dictionary"""
-    return r.choice(list(dictionary.items()))
+    if PIVOT_SELECTION is PivotSelection.NoPivot:
+        raise ValueError
+    if PIVOT_SELECTION is PivotSelection.Uniform:
+        return r.choice(list(dictionary.items()))
+    if PIVOT_SELECTION is PivotSelection.ByDegree:
+        return r.choice(get_potential_pivot(dictionary))
+    objects = []
+    weights = []
+    for n, t in dictionary.items():
+        objects.append((n, t))
+        if PIVOT_SELECTION is PivotSelection.FromEdge:
+            weight = NODE_DEPTH[n]
+        if PIVOT_SELECTION is PivotSelection.Preferential:
+            weight = 1+NODE_PIVOT_COUNT[n]**ALPHA
+        weights.append(weight)
+    return weighted_choice(objects, weights)
 
 
 @profile
@@ -127,10 +198,14 @@ def find_initial_closeable():
 @profile
 def complete_graph(one_at_a_time=True):
     no_pivot = bool(os.environ.get('NO_PIVOT', False))
+    if PIVOT_SELECTION is PivotSelection.ByDegree and one_at_a_time:
+        warnings.warn('ByDegree strategy do not work with one_at_a_time')
+    compute_original_degree()
     from math import log
     # r.seed(800)
-    global N_CLOSEABLE
+    global N_CLOSEABLE, NODE_PIVOT_COUNT
     N_CLOSEABLE = 0
+    NODE_PIVOT_COUNT = [0 for node in G.keys()]
     find_initial_closeable()
     threshold = int(N*N*log(N))
     nb_iter = 0
@@ -143,6 +218,7 @@ def complete_graph(one_at_a_time=True):
             closeables = [t for s in CLOSEABLE_TRIANGLES.values() for t in s]
         else:
             pivot, closeables = sample_key(CLOSEABLE_TRIANGLES)
+            NODE_PIVOT_COUNT[pivot] += 1
         # if (nb_iter % 1) == 0:
         #     VALS.append([NODE_DEPTH[i] for i in range(N)])
         # if pivot < 2 and nb_iter < threshold//N:

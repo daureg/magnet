@@ -192,7 +192,7 @@ def run_rings_experiment(size, nb_rings, shared_sign, rigged, one_at_a_time,
         runs = [process_rings(_) for _ in args]
     res = {'time': list(map(itemgetter(0), runs)),
            'nb_error': list(map(itemgetter(2), runs))}
-    p.save_var(savefile_name('rings', [size, nb_rings], one_at_a_time),
+    p.save_var(savefile_name('rings', [size, nb_rings], pivot, one_at_a_time),
                res)
 
 
@@ -204,7 +204,7 @@ def process_circle(kwargs):
 
 def run_circle_experiment(size, one_at_a_time, rigged=False, n_rep=100,
                           pivot=redensify.PivotSelection.Uniform, pool=None):
-    args = repeat({"circle_size": size, "rigged": rigged,
+    args = repeat({"circle_size": size, "rigged": rigged, "pivot": pivot,
                    "one_at_a_time": one_at_a_time}, n_rep)
 
     if pool:
@@ -214,7 +214,7 @@ def run_circle_experiment(size, one_at_a_time, rigged=False, n_rep=100,
         runs = list(map(process_circle, args))
     res = {'time': list(map(itemgetter(0), runs)),
            'nb_error': list(map(itemgetter(2), runs))}
-    p.save_var(savefile_name('circle', [size, 0], one_at_a_time), res)
+    p.save_var(savefile_name('circle', [size, 0], pivot, one_at_a_time), res)
 
 
 def run_one_experiment(cc_run, one_at_a_time):

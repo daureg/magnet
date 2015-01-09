@@ -6,7 +6,7 @@ import redensify
 import random as r
 from collections import Counter
 from timeit import default_timer
-from itertools import repeat, combinations, product
+from itertools import repeat, combinations, product, starmap
 from operator import itemgetter
 import persistent as p
 import time
@@ -329,17 +329,74 @@ def run_planted_experiment(ball_size, nb_balls, one_at_a_time=True, n_rep=100,
     res = {'time': list(map(itemgetter(0), runs)),
            'delta': list(map(itemgetter(1), runs)),
            'nb_error': list(map(itemgetter(2), runs))}
-    p.save_var(savefile_name('planted', [ball_size, nb_balls], one_at_a_time),
-               res)
+    p.save_var(savefile_name('planted', [ball_size, nb_balls], pivot,
+                             one_at_a_time), res)
 
 
-def savefile_name(geometry, params, one_at_a_time):
+def savefile_name(geometry, params, pivot, one_at_a_time):
     """Create suitable filename to save results"""
     strat = {redensify.PivotSelection.Uniform: 'puni',
              redensify.PivotSelection.ByDegree: 'pdeg',
              redensify.PivotSelection.Preferential:
-             'ppre'}[redensify.PIVOT_SELECTION]
+             'ppre'}[pivot]
     heuristic = 'ONE' if one_at_a_time else 'ALL'
     return '{}_{:04d}_{:03d}_{}_{}_{}.my'.format(geometry, params[0],
                                                  params[1], heuristic, strat,
                                                  int(time.time()))
+
+
+def random_signed_communities(n_communities, size_communities, degree, p_in,
+                              p_pos, p_neg):
+    """Create `n_communities` whose number of node is defined by the list
+    `size_communities` (or a single integer). Each positive edge within
+    communities is created with probability `p_in`. Negative edges are added
+    between communities so that the degree of each node is `degree`. Finally
+    noise is added. Each positive edge is turned into negative with
+    probability `p_neg` and conversely for negative edges and `p_pos`.
+    Based on:
+    - section 3.3 of Yang, B., Cheung, W., & Liu, J. (2007). Community Mining
+    from Signed Social Networks. IEEE Transactions on Knowledge and Data
+    Engineering, 19(10), 1333–1348. doi:10.1109/TKDE.2007.1061
+    - section IV.A of Jiang, J. Q. (2015). Stochastic Blockmodel and
+    Exploratory Analysis in Signed Networks, 12. Physics and Society.
+    http://arxiv.org/abs/1501.00594
+    """
+    if not isinstance(size_communities, list):
+        size_communities = n_communities*[size_communities]
+    new_graph()
+
+    boundaries = [0]
+    clustering = []
+    for cluster_id, size in enumerate(size_communities):
+        for node in range(size):
+            redensify.G[boundaries[-1] + node] = set()
+            clustering.append(cluster_id)
+        boundaries.append(size + boundaries[-1])
+
+    for nodes in starmap(range, zip(boundaries, boundaries[1:])):
+        for i, j in combinations(nodes, 2):
+            if r.random() <= p_in:
+                add_signed_edge(i, j, True)
+    # finalize_graph()
+    # g = to_graph_tool()
+    # pos = xp.cc.gtdraw.sfdp_layout(g)
+    all_nodes = set(range(len(redensify.G)))
+    for nodes in starmap(range, zip(boundaries, boundaries[1:])):
+        others = list(all_nodes.difference(set(nodes)))
+        for u in nodes:
+            missing = degree - len(redensify.G[u])
+            if missing > 0:
+                for v in r.sample(others, missing):
+                    add_signed_edge(u, v, False)
+
+    for (i, j), sign in redensify.EDGES_SIGN.items():
+        if sign:
+            if p_neg > 0 and r.random() <= p_neg:
+                redensify.EDGES_SIGN[(i, j)] = False
+        else:
+            if p_pos > 0 and r.random() <= p_pos:
+                redensify.EDGES_SIGN[(i, j)] = True
+
+    finalize_graph()
+    return None, clustering
+    # return pos.get_2d_array([0, 1]), clustering

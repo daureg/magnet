@@ -4,7 +4,7 @@
 module."""
 import redensify
 import random as r
-from collections import Counter
+from collections import Counter, deque
 from timeit import default_timer
 from itertools import repeat, combinations, product, starmap
 from operator import itemgetter
@@ -40,17 +40,15 @@ def negative_pattern(n, quantity=None, distance=None, dash_length=None):
 
 def to_python_graph(graph):
     """populate redensify global variables with a representation of `graph`"""
+    new_graph()
     redensify.N = graph.num_vertices()
-    redensify.G.clear()
-    redensify.CLOSEABLE_TRIANGLES.clear()
-    redensify.TMP_SET.clear()
     for node in graph.vertices():
         redensify.G[int(node)] = set(map(int, node.out_neighbours()))
     redensify.EDGES_SIGN.clear()
     for edge in graph.edges():
         src, dst = (min(map(int, edge)), max(map(int, edge)))
         redensify.EDGES_SIGN[(src, dst)] = bool(graph.ep['sign'][edge])
-    redensify.EDGES_ORIG = list(redensify.EDGES_SIGN.keys())
+    finalize_graph()
 
 
 def make_rings(size, nb_rings, shared_sign=True, rigged=False):
@@ -389,6 +387,53 @@ def random_signed_communities(n_communities, size_communities, degree, p_in,
                 for v in r.sample(others, missing):
                     add_signed_edge(u, v, False)
 
+    add_noise(p_pos, p_neg)
+    finalize_graph()
+    return None, clustering
+    # return pos.get_2d_array([0, 1]), clustering
+
+
+def turn_into_signed_graph_at_random(num_cluster=5):
+    """Randomly create `num_cluster` clusters in the redensify graph and set
+    edges so that there is no disagreements."""
+    cluster = [r.randint(0, num_cluster-1) for _ in range(redensify.N)]
+    for i, j in redensify.EDGES_SIGN.keys():
+        redensify.EDGES_SIGN[(i, j)] = cluster[i] == cluster[j]
+    return cluster
+
+
+def turn_into_signed_graph_by_propagation(num_cluster=5):
+    """Set the `num_cluster` nodes with highest as cluster centers and
+    propagate their label through edges"""
+    degrees = {node: len(adj) for node, adj in redensify.G.items()}
+    centers = [_[0] for _ in (sorted(degrees.items(), key=itemgetter(1),
+                                     reverse=True)[:num_cluster])]
+    unclustered_nodes = set(range(len(degrees)))
+    cluster_idx = len(unclustered_nodes)*[0, ]
+    for node, degree in degrees.items():
+        if degree == 0:
+            cluster_idx[node] = r.randint(0, num_cluster-1)
+            unclustered_nodes.remove(node)
+    for idx, node in enumerate(centers):
+        cluster_idx[node] = idx
+        unclustered_nodes.remove(node)
+    to_cluster = deque(reversed(centers), maxlen=len(degrees))
+    while to_cluster:
+        u = to_cluster.popleft()
+        idx = cluster_idx[u]
+        for neighbor in redensify.G[u].intersection(unclustered_nodes):
+            cluster_idx[neighbor] = idx
+            unclustered_nodes.remove(neighbor)
+            to_cluster.append(neighbor)
+
+    for i, j in redensify.EDGES_SIGN.keys():
+        redensify.EDGES_SIGN[(i, j)] = cluster_idx[i] == cluster_idx[j]
+    return cluster_idx
+
+
+def add_noise(p_pos, p_neg):
+    """Each positive edge is turned into a negative one with probability
+    `p_neg` and conversely for negative edges and `p_pos`"""
     for (i, j), sign in redensify.EDGES_SIGN.items():
         if sign:
             if p_neg > 0 and r.random() <= p_neg:
@@ -397,6 +442,37 @@ def random_signed_communities(n_communities, size_communities, degree, p_in,
             if p_pos > 0 and r.random() <= p_pos:
                 redensify.EDGES_SIGN[(i, j)] = True
 
+
+def generate_random_graph(n, pr=0.1):
+    """Create an undirected graph of `n` nodes according to Erdős–Rényi model
+    with probability of each edge being `pr`."""
+    new_graph()
+    for node in range(n):
+        redensify.G[node] = set()
+    for i, j in combinations(range(n), 2):
+        if r.random() < pr:
+            add_signed_edge(i, j, sign=True)
     finalize_graph()
-    return None, clustering
-    # return pos.get_2d_array([0, 1]), clustering
+
+
+def preferential_attachment(n, m=1, c=0, gamma=1):
+    """Create an undirected graph of `n` nodes according to Barabási–Albert
+    model where each newly added nodes is connected to `m` previous with
+    probability proportional to k**gamma + c (k being degree of the node
+    considered).
+    http://en.wikipedia.org/wiki/Barabási–Albert_model#Algorithm
+    """
+    new_graph()
+    for node in range(1, m+1):
+        add_signed_edge(node-1, node, True)
+    degrees = [1, ] + (m-1)*[2, ] + [1, ]
+    for new_node in range(m+1, n):
+        weights = [_**gamma + c for _ in degrees]
+        objects = range(len(degrees))
+        neighbors = [redensify.weighted_choice(objects, weights)
+                     for _ in range(m)]
+        for n in neighbors:
+            add_signed_edge(n, new_node, True)
+            degrees[n] += 1
+        degrees.append(m)
+    finalize_graph()

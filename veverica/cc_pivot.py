@@ -116,7 +116,7 @@ def lined_up_cluster(graph, cluster_index_name):
     for c in graph.vp[cluster_index_name].a:
         coord.append((5*c+.5*r.choice(np.linspace(-3, 3, 6)), counter[c]))
         counter[c] += 2
-    pos.set_2d_array(np.array(list(zip(*tmp))))
+    pos.set_2d_array(np.array(list(zip(*coord))))
     return pos
 
 

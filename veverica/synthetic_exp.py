@@ -19,21 +19,25 @@ def process_communities(kwargs):
     return [times, delta, errors]
 
 
+def run_experiment(pool, process_function, savefile, process_args, n_rep):
+    if pool:
+        runs = list(pool.imap_unordered(process_function, process_args,
+                                        chunksize=n_rep//NUM_THREADS))
+    else:
+        runs = [process_communities(_) for _ in process_args]
+    res = {'time': list(map(itemgetter(0), runs)),
+           'delta': list(map(itemgetter(1), runs)),
+           'nb_error': list(map(itemgetter(2), runs))}
+    p.save_var(savefile, res)
+
+
 def run_communities_experiment(size, one_at_a_time, pool=None, n_rep=100,
                                pivot=cexp.redensify.PivotSelection.Uniform):
     args = repeat({"size": size, "pivot": pivot,
                    "one_at_a_time": one_at_a_time}, n_rep)
-
-    if pool:
-        runs = list(pool.imap_unordered(process_communities, args,
-                                        chunksize=n_rep//NUM_THREADS))
-    else:
-        runs = [process_communities(_) for _ in args]
-    res = {'time': list(map(itemgetter(0), runs)),
-           'delta': list(map(itemgetter(1), runs)),
-           'nb_error': list(map(itemgetter(2), runs))}
-    p.save_var(cexp.savefile_name('communities', [size, 0], pivot,
-                                  one_at_a_time), res)
+    savefile_name = cexp.savefile_name('communities', [size, 0], pivot,
+                                       one_at_a_time)
+    run_experiment(pool, process_communities, savefile_name, args, n_rep)
 
 
 def process_random(kwargs):
@@ -50,17 +54,9 @@ def run_random_experiment(size, one_at_a_time, pool=None, n_rep=100,
                           pivot=cexp.redensify.PivotSelection.Uniform):
     args = repeat({"size": size, "pivot": pivot,
                    "one_at_a_time": one_at_a_time}, n_rep)
-
-    if pool:
-        runs = list(pool.imap_unordered(process_random, args,
-                                        chunksize=n_rep//NUM_THREADS))
-    else:
-        runs = [process_random(_) for _ in args]
-    res = {'time': list(map(itemgetter(0), runs)),
-           'delta': list(map(itemgetter(1), runs)),
-           'nb_error': list(map(itemgetter(2), runs))}
-    p.save_var(cexp.savefile_name('random', [size, 0], pivot, one_at_a_time),
-               res)
+    savefile_name = cexp.savefile_name('random', [size, 0], pivot,
+                                       one_at_a_time)
+    run_experiment(pool, process_random, savefile_name, args, n_rep)
 
 
 def process_preferential(kwargs):
@@ -75,20 +71,11 @@ def process_preferential(kwargs):
 
 def run_preferential_experiment(size, one_at_a_time, pool=None, n_rep=100,
                                 pivot=cexp.redensify.PivotSelection.Uniform):
-    #  TODO refactor run code
     args = repeat({"size": size, "pivot": pivot,
                    "one_at_a_time": one_at_a_time}, n_rep)
-
-    if pool:
-        runs = list(pool.imap_unordered(process_preferential, args,
-                                        chunksize=n_rep//NUM_THREADS))
-    else:
-        runs = [process_preferential(_) for _ in args]
-    res = {'time': list(map(itemgetter(0), runs)),
-           'delta': list(map(itemgetter(1), runs)),
-           'nb_error': list(map(itemgetter(2), runs))}
-    p.save_var(cexp.savefile_name('pref', [size, 0], pivot, one_at_a_time),
-               res)
+    savefile_name = cexp.savefile_name('pref', [size, 0], pivot,
+                                       one_at_a_time)
+    run_experiment(pool, process_preferential, savefile_name, args, n_rep)
 
 if __name__ == '__main__':
     # pylint: disable=C0103

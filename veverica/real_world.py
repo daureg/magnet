@@ -2,7 +2,11 @@
 # vim: set fileencoding=utf-8
 """Read signed network from SNAP file and try to predict sign on small
 subgraph."""
+import sys
+import os
+sys.path.append(os.path.expanduser('~/venvs/34/lib/python3.4/site-packages/'))
 import random as r
+RND_NBS = [r.random() for _ in range(10000)]
 import convert_experiment as cexp
 import redensify
 G = {}
@@ -88,24 +92,25 @@ def find_removable_edges():
     return can_be_removed
 
 
-def generate_subgraph_with_test_set():
+def generate_subgraph_with_test_set(root=37233, random_numbers=None):
     """Extract a subgraph from the big one and remove some edges, that are to
     be predicted."""
-    nodes = get_ego_nodes(37224)
+    nodes = get_ego_nodes(root)
     create_subgraph(nodes)
     can_be_removed = find_removable_edges()
     indeed_removed = {}
+    edge_idx = 0
     for i, j in can_be_removed:
         edge = (i, j)
-        if r.random() < .3:
+        proba = r.random() if not random_numbers else random_numbers[edge_idx]
+        edge_idx += 1
+        if proba < .3:
             indeed_removed[edge] = redensify.EDGES_SIGN[edge]
             del redensify.EDGES_SIGN[edge]
             redensify.G[i].remove(j)
             redensify.G[j].remove(i)
     cexp.finalize_graph()
     return indeed_removed
-
-
 
 
 def make_prediction(edges_to_be_predicted, cc_run=150):
@@ -135,7 +140,7 @@ def binary_score(gold, pred):
 
 
 def process_real(kwargs):
-    removed = generate_subgraph_with_test_set()
+    removed = generate_subgraph_with_test_set(random_numbers=RND_NBS)
     redensify.PIVOT_SELECTION = kwargs['pivot']
     start = cexp.default_timer()
     redensify.complete_graph(one_at_a_time=kwargs['one_at_a_time'])
@@ -157,3 +162,8 @@ def run_real(one_at_a_time, pool=None,
            'nb_error': list(map(cexp.itemgetter(1), runs))}
     cexp.p.save_var(cexp.savefile_name('real', [0, 0], pivot, one_at_a_time),
                     res)
+
+if __name__ == '__main__':
+    exp_per_thread = 4
+    read_original_graph('soc-sign-Slashdot090221.txt')
+    run_real(one_at_a_time=True, n_rep=exp_per_thread*cexp.NUM_THREADS)

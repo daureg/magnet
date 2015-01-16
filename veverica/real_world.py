@@ -94,9 +94,11 @@ def find_removable_edges():
     return can_be_removed
 
 
-def generate_subgraph_with_test_set(root=37233, random_numbers=None):
+def generate_subgraph_with_test_set(root=100015, random_numbers=None):
     """Extract a subgraph from the big one and remove some edges, that are to
     be predicted."""
+    # Slashdot root 37233 (graph size 198?)
+    # Epinion root 100015 (graph size 194)
     nodes = get_ego_nodes(root)
     create_subgraph(nodes)
     can_be_removed = find_removable_edges()
@@ -166,7 +168,19 @@ def run_real(one_at_a_time, pool=None,
                     res)
 
 if __name__ == '__main__':
+    from multiprocessing import Pool
+    NUM_THREADS = 14
+    cexp.NUM_THREADS = NUM_THREADS
+    pool = Pool(NUM_THREADS)
     exp_per_thread = 4
     read_original_graph('soc-sign-epinions.txt')
     for i in range(99990,100020):
         print(i, len(get_ego_nodes(i)))
+    run_real(one_at_a_time=True, n_rep=exp_per_thread*cexp.NUM_THREADS, pool=None)
+    run_real(one_at_a_time=False, n_rep=exp_per_thread*cexp.NUM_THREADS, pool=None)
+    run_real(pivot=redensify.PivotSelection.Preferential, one_at_a_time=True,
+            n_rep=exp_per_thread*cexp.NUM_THREADS, pool=None)
+    run_real(pivot=redensify.PivotSelection.ByDegree, one_at_a_time=False,
+            n_rep=exp_per_thread*cexp.NUM_THREADS, pool=None)
+    pool.close()
+    pool.join()

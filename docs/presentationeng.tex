@@ -1,28 +1,25 @@
-\documentclass[xcolor=svgnames,slideopt,A4,handout]{beamer}
+\documentclass[final,xcolor=svgnames,A4]{beamer}
 \usepackage[english]{babel}
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
 \usepackage{microtype}
+\usepackage[noend]{algpseudocode}
+\newcommand*\Let[2]{\State #1 $\gets$ #2}
 \usetheme{default}
-
+\setbeamercovered{invisible}
 \useoutertheme{infolines}
 \usepackage{eso-pic}
-\usepackage{monster2e}
+% \usepackage{monster2e}
 \usepackage{tikz}
 \usepackage{layout}
 \usepackage{xcolor}
 \usepackage{amsmath,amssymb}
 \usepackage{fancybox}
 \usepackage{graphicx}
-% \usepackage{titling}
 \usepackage[absolute,showboxes,overlay]{textpos}
 \TPshowboxesfalse
 \textblockorigin{0mm}{0mm}
 \usepackage{appendixnumberbeamer}
-
-\definecolor{rouge2}{RGB}{230,68,57}  % red S
-
-
 
 \setbeamertemplate{navigation symbols}{}
 
@@ -35,6 +32,7 @@
 \setlength{\parskip}{6pt plus 2pt minus 1pt}
 \setlength{\emergencystretch}{3em}  % prevent overfull lines
 \setcounter{secnumdepth}{0}
+\newcommand{\pcc}{\textsc{Correlation Clustering}}
 \usepackage[citestyle=authoryear-comp,bibstyle=ieee,isbn=false,maxnames=1,minnames=1,sorting=nyt,backend=biber,defernumbers=true]{biblatex}
 
 \AtEveryBibitem{
@@ -60,79 +58,36 @@
 }
 \addbibresource{../../../biblio/magnet.bib}
 
-\title{Correlation Clustering}
-\author{Géraud Le Falher --- MAGNET}
-\date{January 22, 2015}
+% \title{Correlation Clustering}
+% \author{Géraud Le Falher --- MAGNET}
+% \date{January 22, 2015}
 \renewcommand{\theauthor}{Géraud Le Falher}
-\newcommand{\shorttitle}{Clustering in signed graphs}
+\newcommand{\shorttitle}{Signed graphs: clustering and link prediction}
+\newcommand{\mydate}{January 22, 2015}
 
 \begin{document}
 
-
-%%%%%%%%%%%%%%%%%%%%%PREMIERE PAGE FOND INRIA
-
-\setbeamertemplate{background canvas}{\includegraphics[width=\paperwidth,height=\paperheight]{premiere-sc-en}} 
-
-\setbeamertemplate{footline}{ \hspace{5em} \textcolor{white} {\theauthor{} \hfill\today}\hspace{2em}\null \vspace*{3pt}}
-
+\setbeamertemplate{background canvas}{\includegraphics[width=\paperwidth,height=\paperheight]{fond_inria}} 
+\setbeamertemplate{footline}{ \hspace{5em} \raisebox{2em}{\textcolor{white}%
+	{\large \theauthor{} --- MAGNET\hspace{5em}\mydate{}}}\hspace{2em} }
 
 \begin{frame}
 
 \begin{textblock*}{7cm}(13mm,50mm)
 	{\textcolor{white} {
-			{\huge Clustering and sign prediction in signed graphs}%\\[2mm]
-			% { \huge 2 LIGNES MAXIMUM}\\[3mm]
-			% {\Large Sous-titre facultatif}%
+			{\huge \shorttitle{}}
 		}
 	}
 	\end{textblock*}
 
 \vspace*{-4pt}
 \end{frame}
-
-
-% \setbeamertemplate{background canvas}{\includegraphics[width=\paperwidth,height=\paperheight]{fondrouge}} 
-% \setbeamertemplate{footline}{
-% \hspace{2cm} 
-% \raisebox{2.5ex}
-%   {\textcolor{white}{\theauthor{} -- \shorttitle{}}}\hfill 
-%   \raisebox{2.5ex}
-%   {\textcolor{white}{\insertframenumber~/~\inserttotalframenumber \hspace{1em}}}}
-%
-% \setbeamercolor{frametitle}{fg=White}
-% \begin{frame}{Introduction}
-%
-% \begin{textblock*}{10cm}(20mm,20mm)
-% \textcolor{white}
-% 	{Your text with scientific results or what ever... Your text with
-% scientific results or what ever... Your text with scientific results or
-% what ever... Your text with scientific results or what ever... Your
-% text with scientific results or what ever... Your text with scientific
-% results or what ever... Your text with scientific results or what
-% ever... Your text with scientific results or what ever... Your text
-% with scientific results or what ever...}
-%
-% \textcolor{white}{Your text with scientific results or what ever... Your text with
-% scientific results or what ever... Your text with scientific results or
-% what ever... Your text with scientific results or what ever... Your
-% text with scientific results or what ever... Your text with scientific
-% results or what ever... Your text with scientific results or what
-% ever.}
-%
-% \end{textblock*}
-%
-%
-% \end{frame}
-%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-
-
-\setbeamertemplate{background canvas}{\includegraphics[width=\paperwidth,height=\paperheight]{basrouge}} 
+\setbeamertemplate{background canvas}{\includegraphics[width=\paperwidth,height=\paperheight]{fond_bas}} 
 \setbeamertemplate{footline}{
 \hspace{2cm} 
-\raisebox{2.5ex}
-  {\textcolor{white}{\theauthor{} -- \shorttitle{}}}\hfill 
-  \raisebox{2.5ex}
+\raisebox{2.0ex}
+{\textcolor{white}{\theauthor{} --- \shorttitle{}}}\hfill 
+  \raisebox{2.0ex}
   {\textcolor{white}{\insertframenumber~/~\inserttotalframenumber \hspace{1em}}}}
 
 
@@ -140,116 +95,25 @@
 \tableofcontents
 \end{frame}
 
-
-
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-% \setbeamertemplate{background canvas}{\includegraphics[width=\paperwidth,height=\paperheight]{fondrouge+tab}} 
-%
-% \setbeamertemplate{footline}{
-% \hspace{2cm} 
-% \raisebox{2.5ex}
-%   {{\theauthor{} -- \shorttitle{}}}\hfill 
-%   \raisebox{2.5ex}
-%   {{\today - \insertframenumber \hspace{5mm} \null }}}
-%
-% \begin{frame}
-%
-%
-%
-% \begin{textblock*}{7cm}(13mm,40mm)
-% {\textcolor{white} {
-% {\monster 1}\\[2mm]
-%    { \huge PREMIER CHAPITRE}\\[3mm]
-%    	{\Large Sous-titre facultatif}}
-% 	}
-% 	\end{textblock*}
-%
-% \vspace*{-4pt}
-% \end{frame}
-
-%%%%%%%%%%%%%%%%%%%%%
-
-
-\setbeamertemplate{background canvas}{\includegraphics[width=\paperwidth,height=\paperheight]{basrouge}} 
-
-% \setbeamertemplate{footline}{
-% \hspace{2cm} 
-% \raisebox{2.5ex}
-%   {\textcolor{white}{\theauthor{} -- \shorttitle{}}}\hfill 
-%   \raisebox{2.5ex}
-%   {\textcolor{white}{\today - \insertframenumber \hspace{5mm} \null }}}
-
-
-\begin{frame}{Problem}
-\section{Problem}
-
-\begin{block}{input}
-
-\begin{itemize}
-\itemsep1pt\parskip0pt\parsep0pt
-\item
-  \(n\) objects
-\item
-  partial pairwise binary information
-\end{itemize}
-
-\end{block}
-
-\begin{block}{output}
-
-clustering
-
-\end{block}
-
-\begin{block}{measure of quality}
-
-\begin{itemize}
-\itemsep1pt\parskip0pt\parsep0pt
-\item
-  disagreement edges
-\item
-  minimize their number
-\end{itemize}
-
-\end{block}
-
-\end{frame}
-
-\begin{frame}
-		\includegraphics[height=0.8\textheight]{signed_network.pdf}
-\end{frame}
-\begin{frame}{Comparison with other clustering problems}
-
-\begin{itemize}
-\itemsep1pt\parskip0pt\parsep0pt
-\item
-  the number of clusters is part of the solution. If $k$ is fixed, PTAS in
-  $n^{O(\frac{9^k}{\epsilon^2})}\log(n)$ \autocite{Giotis2006}
-\item
-  it does not require a distance between objects
-\end{itemize}
-
-\end{frame}
-
 \begin{frame}{Applications}
-\section{Applications}
-
-	2 keys applications in social graphs:
-	\begin{itemize}
-		\itemsep1pt\parskip0pt\parsep0pt
-		\item find antagonistic groups in signed graphs or in users/items
-			bipartite graph \autocite{Bipartite12}
-		\item predict sign of unknown link \autocite{Leskovec2010} (why?)
-	\end{itemize}
+	\section{Applications}
+	A major source of signed graphs are graphs of social interactions, in
+	which we want to:
+		\begin{itemize}
+			\item find antagonistic groups in signed graphs or in users/items
+				bipartite graphs (Youtube, Amazon, etc) \autocite{Bipartite12}
+			\item predict sign of unknown links \autocite{Leskovec2010}, for
+				instance to improve recommendation relevance
+		\end{itemize}
 \end{frame}
 
 \begin{frame}
 	\begin{figure}[h]
 		\centering
-		\includegraphics[width=0.8\linewidth]{tribes.png}
-		\caption{Tribes \autocite{Luca10}}
+		\includegraphics[width=0.75\linewidth]{tribes.png}
+		\caption{Friendly and antagonistic relations between 16 New Guinean
+			tribes, belonging to three higher order groups found by
+			ethnological observations \autocite{Luca10}}
 	\end{figure}
 \end{frame}
 
@@ -257,7 +121,7 @@ clustering
 	\begin{figure}[h]
 		\centering
 		\includegraphics[width=0.8\linewidth]{europe.png}
-		\caption{Military alliances before WW1 \autocite{Antal2006a}}
+		\caption{Military alliances between European states before WW1 \autocite{Antal2006a}}
 	\end{figure}
 \end{frame}
 
@@ -265,83 +129,161 @@ clustering
 	\begin{figure}[h]
 		\centering
 		\includegraphics[width=0.8\linewidth]{world.png}
-		\caption{Correlates of war between 1993 and 2001 \autocite{Traag2009}}
+		\caption{Correlates of war between 1993 and 2001, somehow reflect
+			Huntington blocks \autocite{Traag2009}}
 	\end{figure}
 \end{frame}
 
-\begin{frame}{Applications}
-		In other domains:
+\section[]{Problem}
+\begin{frame}{The \pcc{} problem \autocite{Bansal2002}}
+
+\only<1-1>{\begin{textblock*}{80mm}[0,0](45mm,3.6em)
+\includegraphics[width=80mm]{nobjects.pdf}
+\end{textblock*}}
+\only<2-2>{\begin{textblock*}{80mm}[0,0](45mm,3.6em)
+\includegraphics[width=80mm]{brelations.pdf}
+\end{textblock*}}
+\only<3-3>{\begin{textblock*}{80mm}[0,0](45mm,3.6em)
+\includegraphics[width=80mm]{tclusters.pdf}
+\end{textblock*}}
+\only<4->{\begin{textblock*}{80mm}[0,0](45mm,3.6em)
+\includegraphics[width=80mm]{edisa.pdf}
+\end{textblock*}}
+
+\uncover<1->{
+\begin{block}{input}
+	\vspace{-1\baselineskip}
 	\begin{itemize}
 		\itemsep1pt\parskip0pt\parsep0pt
-		\item
-			Biology: Functional analysis of signed co-expression networks of genes
-			\autocite{Mason2009}
-		\item
-			NLP: coreference \autocite{graphicalCoreference04}
-		\item
-			Web: Entity resolution \autocite{DeDup09}
+		\item $n$ objects
+		\uncover<2->{\item binary relation \\ between \\ (some of) them}
 	\end{itemize}
+\end{block}
+}
+
+\uncover<3->{
+\begin{block}{output}
+	\vspace{-1\baselineskip}
+	clustering
+\end{block}
+}
+
+\uncover<4->{
+\begin{block}{measure of quality}
+	\vspace{-1\baselineskip}
+	\begin{itemize}
+		\itemsep1pt\parskip0pt\parsep0pt
+		\item Some edges are disagreeing
+		\item we want to minimize their number
+	\end{itemize}
+\end{block}
+}
+
 \end{frame}
+
+\section[]{State of the art}
 \begin{frame}{State of the art}
-	\section{State of the art}
-	
-	\begin{block}{Complete graph}
-		Easiest because information on all pairs. Yet it is NP-complete by
-		reduction from multicut \autocite{Demaine2006}.
+	Two main approaches, depending of the input
+	\begin{columns}[t]
+		\begin{column}{0.5\linewidth}
+			\uncover<1->{
+			\begin{block}{Complete graph}
+				\begin{itemize}
+					\item NP-complete by reduction from the multicut problem \autocite{Demaine2006}
+					\uncover<1->{\item There is a quadratic combinatorial randomized
+						approximation whose expected cost is at most 3 times
+						the optimal one \autocite{Ailon2008}}
+				\end{itemize}
+			\end{block} 
+		}
+		\end{column}
+		\begin{column}{0.5\linewidth}
+			\uncover<2->{
+			\begin{block}{General graph}
+				\begin{itemize}
+					\item There is a polynomial approximation (of ratio
+						$O(\log n)$) that solves a large linear program \autocite{Demaine2006}.
+					\uncover<2->{\item But less information so for any constant $c$,
+						getting a $O(c)$ approximation is NP-Hard.}
+				\end{itemize}
+			\end{block}   
+		}
+		\end{column}
+	\end{columns}  
+\end{frame}
 
-		There is a quadratic combinatorial randomized approximation with expected
-		cost at most 3 times the optimal \autocite{Ailon2008}.
+\begin{frame}{State of the art}
+	% \begin{columns}[t]
+	% 	\begin{column}{0.7\linewidth}
+	% 		\uncover<1->{
+				\begin{block}{Complete graph}
+					\begin{algorithmic}[0]
+						\Function{\textsc{CC-Pivot}}{$G=(V,\,E)$}
+						\While{not all nodes are clustered}
+							\Let{$pivot$}{pick a node in $V$ at random}
+							\State put $pivot$ in its own cluster
+							\State add all its positive neighbors
+							\State remove them from $G$
+						\EndWhile
+						\EndFunction
+					\end{algorithmic}
+					\vspace*{3\baselineskip}
+					\only<1-1>{\begin{textblock*}{55mm}[0,0](65mm,45mm)
+							\includegraphics[width=55mm]{brelations.pdf}
+						\end{textblock*}}
+					\only<2-2>{\begin{textblock*}{55mm}[0,0](65mm,45mm)
+							\includegraphics[width=55mm]{c1.pdf}
+						\end{textblock*}}
+					\only<3-3>{\begin{textblock*}{55mm}[0,0](65mm,45mm)
+							\includegraphics[width=55mm]{c2.pdf}
+						\end{textblock*}}
+					\only<4->{\begin{textblock*}{55mm}[0,0](65mm,45mm)
+							\includegraphics[width=55mm]{tclusters.pdf}
+						\end{textblock*}}
+					\uncover<5->{Solving the linear program \\ brings a $2.5$ approximation}
+				\end{block}   
+	% 		}
+	% 	\end{column}
+	% \end{columns}  
+\end{frame}
 
-		while not all nodes are clustered
+\section[]{Our method (so far)}
+\begin{frame}{Our method for general graph}
+	\begin{block}{idea}
 		\begin{itemize}
-			\itemsep1pt\parskip0pt\parsep0pt
-			\item
-				choose a node at random
-			\item
-				put it in a new cluster along with its positive neighborhood and remove
-				them from the original graph
+			\item complete the graph in a combinatorial fashion
+			\item run \textsc{CC-Pivot}
+			\item keep the clustering induced on the original graph
 		\end{itemize}
+		\centering
+		\includegraphics[width=.7\linewidth]{triangles.pdf}
+	\end{block}
 
+	% \only<1->{\begin{textblock*}{30mm}[0,0](92mm,6mm)
+			% \includegraphics[height=65mm]{triangles.pdf}
+		% \end{textblock*}}
+\end{frame}
+
+\begin{frame}[t]{Ongoing work}
+	\begin{block}{goals}
+		\begin{itemize}
+				\item reasonable polynomial complexity
+				\item $O(\log n)$ approximation in the worst case
+				\item better for \enquote{realistic average-case}
+					\autocite{Makarychev2014}
+		\end{itemize}
+	\end{block}
+	\begin{block}{means}
+	\begin{itemize}
+		\item A crucial point is how to choose the pivot for completing
+		\item Experimental evaluation of several strategies
+		\item Analysis on simple cases
+		% \item Identification of which subclasses of graphs lead to constant or
+		% 	$O(\log n)$ approximation in polynomial time
+	\end{itemize}
 	\end{block}
 \end{frame}
 
-\begin{frame}{State of the art}
-	\begin{block}{General graph}
-		More ambiguous, thus more difficult: There is a polynomial
-		approximation (with ratio $O(\log n)$) that solve the following linear
-		program \autocite{Demaine2006}, but for any constant $c$, getting a
-		$O(c)$ approximation is NP-Hard.
-
-		\begin{align*}
-			\min \sum_{(i,\, j)\in E^+} (1-x_{ij}) w_{ij} +
-			\sum_{(i,\, j)\in E^-} x_{ij} w_{ij} \\
-			x_{ij} =   \begin{cases}
-				1 & \text{if $i$ and $j$ are in the same cluster} \\
-				0       & \text{otherwise}
-			\end{cases} \\
-			x_{ij} \in [0,\,1]
-		\end{align*}
-	\end{block}
-
-\end{frame}
-\begin{frame}{State of the art}
-	\begin{block}{General graph}
-Other approaches include spectral clustering \autocite{Luca10} and communities
-detection \autocite{Yang2007} tailored to signed graphs.
-	\end{block}
-\end{frame}
-
-\begin{frame}{Our solution for general graph}
-	\section{Our method (so far)}
-	first complete the graph in a combinatorial fashion, run Ailon algorithm
-	and keep the clustering induced on the original graph.
-
-	Our hope is to get $O(\log n)$ approximation in worst case and better for
-	\enquote{realistic average-case} \autocite{Makarychev2014} with a
-	reasonably polynomial complexity.
-
-	mildly satisfying experimental results
-\end{frame}
 \appendix
 \begin{frame}[t,allowframebreaks]
 	\frametitle{References}
@@ -349,8 +291,6 @@ detection \autocite{Yang2007} tailored to signed graphs.
 \end{frame}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-
 \setbeamertemplate{background canvas}{\includegraphics[width=\paperwidth,height=\paperheight]{derniere-sc-en}} 
 \setbeamertemplate{footline}{}
 
@@ -363,17 +303,19 @@ detection \autocite{Yang2007} tailored to signed graphs.
 \begin{center} 
 \textcolor{white} {\Large Questions?}
 \end{center} 
+\end{frame}
 
-% \begin{textblock*}{7cm}(60mm,76mm)
-% {\textcolor{white} {
-% {LIEU}\\[1mm]
-%    {LOCALISATION}\\[2mm]
-%    	{www.nomdedomaine.com}}
-% 	}
-% 	\end{textblock*}
-%
-%
-% \vspace*{-4pt}
+\setbeamertemplate{background canvas}{\includegraphics[width=\paperwidth,height=\paperheight]{basrouge}} 
+\begin{frame}[t]{Linear Program}
+	\begin{align*}
+		\min \sum_{(i,\, j)\in E^+} (1-x_{ij}) w_{ij} +
+		\sum_{(i,\, j)\in E^-} x_{ij} w_{ij} \\
+		x_{ij} =   \begin{cases}
+			1 & \text{if $i$ and $j$ are in the same cluster} \\
+			0       & \text{otherwise}
+		\end{cases} \\
+		x_{ij} \in [0,\,1]
+	\end{align*}
 \end{frame}
 \end{document}
 

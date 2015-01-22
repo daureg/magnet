@@ -83,7 +83,7 @@ if __name__ == '__main__':
     cexp.NUM_THREADS = NUM_THREADS
     pool = Pool(NUM_THREADS)
     kind, n = int(sys.argv[1]), int(sys.argv[2])
-    exp_per_thread = 1
+    exp_per_thread = 5
     strategies = [cexp.redensify.PivotSelection.Uniform,
                   cexp.redensify.PivotSelection.Preferential,
                   cexp.redensify.PivotSelection.ByDegree]

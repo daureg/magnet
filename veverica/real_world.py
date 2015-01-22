@@ -39,6 +39,8 @@ def read_original_graph(filename):
             if line.startswith('#'):
                 continue
             i, j, sign = [int(_) for _ in line.split()]
+            if i == j:
+                continue
             add_signed_edge(i, j, sign > 0)
     DEGREES = sorted(((node, len(adj)) for node, adj in G.items()),
                      key=lambda x: x[1])
@@ -165,5 +167,6 @@ def run_real(one_at_a_time, pool=None,
 
 if __name__ == '__main__':
     exp_per_thread = 4
-    read_original_graph('soc-sign-Slashdot090221.txt')
-    run_real(one_at_a_time=True, n_rep=exp_per_thread*cexp.NUM_THREADS)
+    read_original_graph('soc-sign-epinions.txt')
+    for i in range(99990,100020):
+        print(i, len(get_ego_nodes(i)))

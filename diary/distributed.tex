@@ -73,10 +73,12 @@ Outside the Pregel family (\emph{is it?}), we can cite:
 		using SSD disks instead of memory to store large graph without
 		compromising too much performance.
 	\item Using GPU like MapGraph\footnote{\href{http://mapgraph.io/}{http://mapgraph.io/}}
-		\autocite{Fu2014} or
+		\autocite{Fu2014},
 		\textsc{Totem}\footnote{\href{http://netsyslab.ece.ubc.ca/wiki/index.php/Totem}%
 			{http://netsyslab.ece.ubc.ca/wiki/index.php/Totem}}
-		\autocite{Gharaibeh2013}.
+		\autocite{Gharaibeh2013} or
+		Gunrock\footnote{\href{http://gunrock.github.io/gunrock/}%
+			{http://gunrock.github.io/gunrock/}} \autocite{Gunrock15}
 	\item Asynchronous \autocite{Wang2013}
 	\item TinkerPop \footnote{\href{http://www.tinkerpop.com/docs/3.0.0.M5/}%
 			{http://www.tinkerpop.com/docs/3.0.0.M5/}}
@@ -84,6 +86,19 @@ Outside the Pregel family (\emph{is it?}), we can cite:
 		smaller memory footprint andn message overhead than approaches above,
 		for instance \textsc{NScale} \autocite{Quamar2014}
 \end{itemize}
+
+As hinted by a paper submitted to
+HotOS15\footnote{\href{http://www.frankmcsherry.org/graph/scalability/cost/2015/01/15/COST.html}%
+	{http://www.frankmcsherry.org/graph/scalability/cost/2015/01/15/COST.html}}
+and another
+blogpost\footnote{\href{http://aadrake.com/command-line-tools-can-be-235x-faster-than-your-hadoop-cluster.html}%
+	{http://aadrake.com/command-line-tools-can-be-235x-faster-than-your-hadoop-cluster.html}},
+one must make sure that graph's size require distributed computation, as it
+comes with a non negligible overhead. Otherwise, it possible to use single
+machine, parallelized algorithms.
+Ligra\footnote{\href{https://github.com/jshun/ligra}%
+	{https://github.com/jshun/ligra}} \autocite{Ligra13} (and its compressed
+version \autocite{Ligra15}) successfully illustrates this approach.
 
 Then talk about related problem like edges partition \autocite{Bourse2014a} or
 algorithms optimization \autocites{Salihoglu14}{Salihoglu2014b} (for instance

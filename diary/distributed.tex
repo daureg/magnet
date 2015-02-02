@@ -67,7 +67,13 @@ Outside the Pregel family (\emph{is it?}), we can cite:
 		\autocite{Kyrola2012}.
 	\item
 		Spark \autocite{Zaharia2010} and its GraphX
-		extension\footnote{\href{https://spark.apache.org/graphx}{https://spark.apache.org/graphx}}
+		extension\footnote{\href{https://spark.apache.org/graphx}{https://spark.apache.org/graphx}}.
+		Yet another execution engine from Apache is Flink,  which feature a
+		graph
+		API\footnote{\href{http://flink.apache.org/docs/0.8/spargel_guide.html}%
+			{http://flink.apache.org/docs/0.8/spargel\_guide.html}} and is the
+		results of the Stratoshere\footnote{\href{http://stratosphere.eu/project/publications/}%
+			{http://stratosphere.eu/project/publications/}} research project.
 	\item FlashGraph\footnote{\href{http://www.cs.jhu.edu/~zhengda/\#FlashGraph}%
 			{\url{http://www.cs.jhu.edu/~zhengda}}} \autocite{FlashGraph14}:
 		using SSD disks instead of memory to store large graph without
@@ -99,6 +105,11 @@ machine, parallelized algorithms.
 Ligra\footnote{\href{https://github.com/jshun/ligra}%
 	{https://github.com/jshun/ligra}} \autocite{Ligra13} (and its compressed
 version \autocite{Ligra15}) illustrates this approach.
+
+In other cases, plain MapReduce\autocite{MapReduce04}, although it's not
+specialized in graph handling can also offer competitive performances, for
+instances to find Connected Components
+\autocites{Kardes2014}{Qin2014}{Kiveris2014}
 
 Then talk about related problem like edges partition \autocite{Bourse2014a} or
 algorithms optimization \autocites{Salihoglu14}{Salihoglu2014b} (for instance

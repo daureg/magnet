@@ -57,6 +57,11 @@ described, with various modifications
 usability\footnote{Along with GraphLab} on four tasks: PageRank, Single Source
 Shortest Paths, Weakly Connected Components and Minimum Spanning Tree.
 
+Another evaluation was conducted recently by \textcite{Lu2015}: \enquote{We
+evaluated the performance of Giraph, GraphLab, GPS, and Pregel+. Our results
+show that Pregel+ and GPS have better overall performance than Giraph and
+GraphLab.}
+
 Outside the Pregel family (\emph{is it?}), we can cite:
 
 \begin{itemize}
@@ -91,7 +96,16 @@ Outside the Pregel family (\emph{is it?}), we can cite:
 	\item Focusing not on vertex but on neighborhood allow some algorithms to
 		have smaller memory footprint and message overhead than the approaches
 		above. See for instance \textsc{NScale} \autocite{Quamar2014}.
+	\item Likewise, in Giraph+ \autocite{Tian2013} \enquote{instead of
+		exposing the view of a single vertex to the programmers, this
+		model opens up the entire subgraph of each partition to be
+		programmed against}
 \end{itemize}
+
+Stinger http://www.stingergraph.com/index.php?id=publications
+
+More system in session graph processing of HPDC'14 The 23rd International
+Symposium on High-Performance Parallel and Distributed Computing 
 
 As hinted by a paper submitted to
 HotOS15\footnote{\href{http://www.frankmcsherry.org/graph/scalability/cost/2015/01/15/COST.html}%
@@ -106,14 +120,24 @@ Ligra\footnote{\href{https://github.com/jshun/ligra}%
 	{https://github.com/jshun/ligra}} \autocite{Ligra13} (and its compressed
 version \autocite{Ligra15}) illustrates this approach.
 
+On the same topic, \textcite{NativeBenchmark14} compare GraphLab, CombBLAS,
+SociaLite, Galois (single node) and Giraph on the following tasks: PageRank,
+Breadth First Search, Collaborative Filtering, Triangle Counting. They
+quantify the overhead introduced by these framework by implementing hand tuned
+native solution.  These abstraction makes the tasks slower by a factor $1.1$
+to $568$ in some Giraph cases.
+
 In other cases, plain MapReduce\autocite{MapReduce04}, although it's not
 specialized in graph handling can also offer competitive performances, for
 instances to find Connected Components
 \autocites{Kardes2014}{Qin2014}{Kiveris2014}
 
-Then talk about related problem like edges partition \autocite{Bourse2014a} or
+Then talk about related problem like edges partition \autocite{Bourse2014a},
+graph partition \autocites{Partition13}{Tsourakakis2014}{Partition14},
+approximating the top-$k$ PageRank vertices \autocite{Mitliagkas2015} or
 algorithms optimization \autocites{Salihoglu14}{Salihoglu2014b} (for instance
-using algebrisation \autocite{Kaski2014}) and complexity \autocite{Klauck2013}.
+using algebrisation \autocite{Kaski2014}) and complexity
+\autocite{ComputationBounds14}.
 
 Also show some recent applications, for instance in \pcc{}
 \autocites{Bonchi2012}{Chierichetti2014}.

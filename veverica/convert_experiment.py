@@ -158,6 +158,48 @@ def cc_pivot():
     return cluster
 
 
+def cc_general_pivot():
+    """Fill g's cluster_index according to a tweaked version of Ailon
+    algorithm working (?) on general graph"""
+    N = redensify.N
+    clustered = set()
+    unclustered = set(range(N))
+    cluster = {}
+    current_cluster_index = 0
+
+    def add_to_current_cluster(node):
+        cluster[node] = current_cluster_index
+        clustered.add(node)
+        unclustered.remove(node)
+
+    def get_neighbors_with_sign(src):
+        """return a list of (neighbor, sign of src->neighbor)"""
+        res = []
+        for n in [_ for _ in redensify.G[src] if _ in unclustered]:
+            edge = (n, src) if n < src else (src, n)
+            sign = redensify.EDGES_SIGN[edge]
+            res.append((n, sign))
+        return res
+
+    while unclustered:
+        pivot = r.choice(list(unclustered))
+        add_to_current_cluster(pivot)
+        positive_neighbors = deque([_[0]
+                                    for _ in get_neighbors_with_sign(pivot)
+                                    if _[1]])
+        while positive_neighbors:
+            u = positive_neighbors.popleft()
+            add_to_current_cluster(u)
+            neighbors_of_neighbor = get_neighbors_with_sign(u)
+            signs = [_[1] for _ in neighbors_of_neighbor]
+            if all(signs):
+                neighbors_index = [_[0] for _ in neighbors_of_neighbor
+                                   if _[0] not in positive_neighbors]
+                positive_neighbors.extend(neighbors_index)
+        current_cluster_index += 1
+    return cluster
+
+
 def count_disagreements(cluster):
     """Return a boolean edge map of disagreement with current clustering"""
 
@@ -229,7 +271,7 @@ def run_one_experiment(cc_run, one_at_a_time):
     return elapsed, nb_cluster, mean
 
 
-def planted_clusters(ball_size=12, nb_balls=5, pos=False):
+def planted_clusters(ball_size=12, nb_balls=5, pos=False, p=0.07):
     new_graph()
     true_cluster = {}
     balls = [make_ball(true_cluster, ball_size) for _ in range(nb_balls-1)]
@@ -244,7 +286,7 @@ def planted_clusters(ball_size=12, nb_balls=5, pos=False):
         pos = gtdraw.sfdp_layout(k).get_2d_array([0, 1])
     for b1, b2 in combinations(balls, 2):
         link_balls(b1, b2)
-    flip_random_edges()
+    flip_random_edges(p)
     finalize_graph()
     return true_cluster, pos
 

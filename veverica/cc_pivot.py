@@ -121,13 +121,11 @@ def lined_up_cluster(graph, cluster_index_name):
 
 
 def draw_clustering(graph, filename=None, pos=None, vmore=None,
-                    emore=None, show_filling=False,
-                    cluster_index_name='cluster'):
-    graph.set_edge_filter(graph.ep['fake'], inverted=True)
+                    emore=None, show_filling=False, curved=False,
+                    cluster_index_name='cluster', osize=800):
+    # graph.set_edge_filter(graph.ep['fake'], inverted=True)
     pos = pos or gtdraw.sfdp_layout(graph)
     vertex_options = {'pen_width': 0}
-    if vmore:
-        vertex_options.update(vmore)
     vertex_options.update(add_cluster_name_and_color(graph,
                                                      cluster_index_name))
     name = graph.new_vertex_property('string')
@@ -135,10 +133,12 @@ def draw_clustering(graph, filename=None, pos=None, vmore=None,
         name[v] = str(i)
     if np.unique(graph.vp[cluster_index_name].a).size < 2:
         vertex_options['text'] = name
-    d = count_disagreements(graph, alt_index=cluster_index_name)
-    if not show_filling:
-        graph.set_edge_filter(graph.ep['fake'], inverted=True)
-    print(str(d.a.sum().ravel()[0]) + ' disagreements')
+    if vmore:
+        vertex_options.update(vmore)
+    # d = count_disagreements(graph, alt_index=cluster_index_name)
+    # if not show_filling:
+    #     graph.set_edge_filter(graph.ep['fake'], inverted=True)
+    # print(str(d.a.sum().ravel()[0]) + ' disagreements')
     if not show_filling:
         edge_options = {'pen_width': 2}
     else:
@@ -153,11 +153,19 @@ def draw_clustering(graph, filename=None, pos=None, vmore=None,
     # edge_options.update(add_edge_disagreement_size(graph, d))
     if emore:
         edge_options.update(emore)
-
+    more_opts = {}
+    if curved:
+        from math import sqrt
+        control = graph.new_edge_property("vector<double>")
+        for e in graph.edges():
+            d = sqrt(sum((pos[e.source()].a - pos[e.target()].a) ** 2)) / 5
+            control[e] = [0.3, d, 0.7, .5*d]
+        more_opts['edge_control_points'] = control
     gtdraw.graph_draw(graph, pos=pos, vprops=vertex_options,
                       eprops=edge_options, output=filename, fit_view=True,
-                      output_size=(600, 600))
-    graph.set_edge_filter(None)
+                      output_size=(osize, int(0.7*osize)), inline=True,
+                      **more_opts)
+    # graph.set_edge_filter(None)
 
 if __name__ == '__main__':
     N = 10

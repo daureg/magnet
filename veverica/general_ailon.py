@@ -169,10 +169,8 @@ def run_general_experiment():
 
 if __name__ == '__main__':
     # pylint: disable=C0103,E0611
-    import sys
     from multiprocessing import Pool
     pool = Pool(NUM_THREADS)
-    n = int(sys.argv[1])
     for params in [(15, 5), (25, 10), (6, 30), (12, 20), (35, 15), (20, 2),
                    (40, 2), (65, 2), (100, 2)]:
         run_planted_experiment(params[0], params[1], n_rep=3*NUM_THREADS)

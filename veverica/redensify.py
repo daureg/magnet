@@ -1,6 +1,9 @@
 #! /usr/bin/env python
 # vim: set fileencoding=utf-8
 """Complete a graph (again)."""
+import sys
+import os
+sys.path.append(os.path.expanduser('~/venvs/34/lib/python3.4/site-packages/'))
 
 G = {}
 N = None
@@ -23,7 +26,6 @@ DEPTH_COMPUTATION = {'constant': lambda a, b: 1,
 VALS = []
 import random as r
 import gc
-import os
 from itertools import combinations
 from enum import Enum, unique
 import warnings

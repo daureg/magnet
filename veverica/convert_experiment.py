@@ -455,6 +455,28 @@ def generate_random_graph(n, pr=0.1):
     finalize_graph()
 
 
+def fast_random_graph(n, pr=0.1):
+    """Create an undirected graph of `n` nodes according to Erdős–Rényi model
+    with probability of each edge being `pr`. Use algorithm described in
+    Batagelj, Vladimir, and Ulrik Brandes. "Efficient generation of large
+    random networks." Physical Review E 71.3 (2005)"""
+    import math
+    new_graph()
+    for node in range(n):
+        redensify.G[node] = set()
+
+    v, w = 1, -1
+    cst = math.log(1-pr)
+    while v < n:
+        rnd = r.random()
+        w += 1 + int(math.log(1-rnd) / cst)
+        while w >= v and v < n:
+            w, v = w-v, v+1
+        if v < n:
+            add_signed_edge(v, w, sign=True)
+    finalize_graph()
+
+
 def preferential_attachment(n, m=1, c=0, gamma=1):
     """Create an undirected graph of `n` nodes according to Barabási–Albert
     model where each newly added nodes is connected to `m` previous with

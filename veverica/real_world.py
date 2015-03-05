@@ -26,9 +26,15 @@ def add_signed_edge(a, b, sign):
     """Add a `sign`ed edge between `a` and `b`"""
     if a > b:
         a, b = b, a
+    e = (a, b)
+    if e in EDGE_SIGN and sign != EDGE_SIGN[e]:
+        del EDGE_SIGN[e]
+        G[a].remove(b)
+        G[b].remove(a)
+        return
     add_neighbor(a, b)
     add_neighbor(b, a)
-    EDGE_SIGN[(a, b)] = sign
+    EDGE_SIGN[e] = sign
 
 
 def read_original_graph(filename, missing=None):
@@ -59,8 +65,8 @@ def read_original_graph(filename, missing=None):
             #         if j >= missing_index:
             #             j -= 1
             add_signed_edge(mapping(i), mapping(j), sign > 0)
-    # DEGREES = sorted(((node, len(adj)) for node, adj in G.items()),
-    #                  key=lambda x: x[1])
+    DEGREES = sorted(((node, len(adj)) for node, adj in G.items()),
+                     key=lambda x: x[1])
 
 
 def get_ego_nodes(root, hops=3):

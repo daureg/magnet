@@ -39,18 +39,7 @@ def add_signed_edge(a, b, sign):
 
 def read_original_graph(filename, missing=None):
     """Read a signed graph from `filename` and compute its degree sequence"""
-    global DEGREES
-    def mapping(node):
-        if node <= 11680:
-            return node
-        if node <= 73373:
-            return node-1
-        if node <= 78482:
-            return node-2
-        if node <= 79625:
-            return node-3
-        return node-4
-
+    global DEGREES, G, EDGE_SIGN
     with open(filename) as source:
         for line in source:
             if line.startswith('#'):
@@ -58,13 +47,20 @@ def read_original_graph(filename, missing=None):
             i, j, sign = [int(_) for _ in line.split()]
             if i == j:
                 continue
-            # if missing:
-            #     for missing_index in missing:
-            #         if i >= missing_index:
-            #             i -= 1
-            #         if j >= missing_index:
-            #             j -= 1
             add_signed_edge(mapping(i), mapping(j), sign > 0)
+    # reindex nodes so they are sequential
+    mapping = {}
+    for i, v in enumerate(sorted(G.keys())):
+        mapping[v] = i
+    new_G = {}
+    for n, adj in G.items():
+        new_G[mapping[n]] = {mapping[v] for v in adj}
+    new_E = {}
+    for e, s in EDGE_SIGN.items():
+        u, v = e
+        new_E[(mapping[u], mapping[v])] = s
+    G = new_G
+    EDGE_SIGN = new_E
     DEGREES = sorted(((node, len(adj)) for node, adj in G.items()),
                      key=lambda x: x[1])
 

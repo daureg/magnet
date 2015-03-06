@@ -47,7 +47,7 @@ def read_original_graph(filename, missing=None):
             i, j, sign = [int(_) for _ in line.split()]
             if i == j:
                 continue
-            add_signed_edge(mapping(i), mapping(j), sign > 0)
+            add_signed_edge(i, j, sign > 0)
     # reindex nodes so they are sequential
     mapping = {}
     for i, v in enumerate(sorted(G.keys())):

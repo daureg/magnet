@@ -12,6 +12,7 @@ import redensify
 G = {}
 EDGE_SIGN = {}
 DEGREES = None
+INCONSISTENT = 0
 
 
 def add_neighbor(node, neighbor):
@@ -24,13 +25,16 @@ def add_neighbor(node, neighbor):
 
 def add_signed_edge(a, b, sign):
     """Add a `sign`ed edge between `a` and `b`"""
+    global INCONSISTENT
     if a > b:
         a, b = b, a
     e = (a, b)
-    if e in EDGE_SIGN and sign != EDGE_SIGN[e]:
-        del EDGE_SIGN[e]
-        G[a].remove(b)
-        G[b].remove(a)
+    if e in EDGE_SIGN:
+        if sign != EDGE_SIGN[e]:
+            del EDGE_SIGN[e]
+            G[a].remove(b)
+            G[b].remove(a)
+            INCONSISTENT += 1
         return
     add_neighbor(a, b)
     add_neighbor(b, a)
@@ -39,7 +43,8 @@ def add_signed_edge(a, b, sign):
 
 def read_original_graph(filename, missing=None):
     """Read a signed graph from `filename` and compute its degree sequence"""
-    global DEGREES, G, EDGE_SIGN
+    global DEGREES, G, EDGE_SIGN, INCONSISTENT
+    DEGREES, G, EDGE_SIGN, INCONSISTENT = None, {}, {}, 0
     with open(filename) as source:
         for line in source:
             if line.startswith('#'):

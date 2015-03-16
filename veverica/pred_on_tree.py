@@ -6,6 +6,19 @@ from graph_tool.topology import random_spanning_tree, label_largest_component
 from graph_tool.topology import min_spanning_tree
 from sklearn.metrics import f1_score, matthews_corrcoef
 import real_world as rw
+from graph_tool.search import bfs_search, BFSVisitor
+from collections import deque
+import numpy as np
+
+
+class BFSTree(BFSVisitor):
+    tree = None
+
+    def __init__(self):
+        self.tree = []
+
+    def tree_edge(self, e):
+        self.tree.append((int(e.source()), int(e.target())))
 
 
 def read_tree(filename):
@@ -82,6 +95,22 @@ def assess_tree_fitness(tree):
     gold, pred = make_pred(tree, tags)
     return f1_score(gold, pred), matthews_corrcoef(gold, pred)
 
+
+def get_bfs_tree(G, root):
+    tree = []
+    q = deque()
+    discovered = [False for _ in range(len(G))]
+    q.append(root)
+    discovered[root] = True
+    while q:
+        v = q.popleft()
+        for w in G[v]:
+            if not discovered[w]:
+                q.append(w)
+                discovered[w] = True
+                e = v, w if v < w else w, v
+                tree.append(e)
+    return tree
 if __name__ == '__main__':
     # pylint: disable=C0103
     import sys
@@ -117,17 +146,38 @@ if __name__ == '__main__':
     print_diag('Predict with galaxy tree')
     print('{}{:.3f}'.format('F1-score'.ljust(60), f1))
     print('{}{:.3f}'.format('Matthews correlation coefficient'.ljust(60), mc))
-    rst = random_spanning_tree(k)
-    rtree = read_in_memory_tree(k, rst)
-    print_diag('Make random spanning tree')
-    f1, mc = assess_tree_fitness(rtree)
-    print_diag('Predict with random spanning tree')
-    print('{}{:.3f}'.format('F1-score'.ljust(60), f1))
-    print('{}{:.3f}'.format('Matthews correlation coefficient'.ljust(60), mc))
-    mst = min_spanning_tree(k)
-    mtree = read_in_memory_tree(k, mst)
-    print_diag('Make minimum spanning tree')
-    f1, mc = assess_tree_fitness(mtree)
-    print_diag('Predict with MS tree')
-    print('{}{:.3f}'.format('F1-score'.ljust(60), f1))
-    print('{}{:.3f}'.format('Matthews correlation coefficient'.ljust(60), mc))
+    lcc_nodes = list(np.where(lcc.a)[0])
+    import random
+    import persistent
+    f1s, mcs = [], []
+    roots = random.sample(lcc_nodes, 100) + [_[0] for _ in rw.DEGREES[-100:]]
+    roots = list(set(roots))
+    print(len(roots))
+    for root in roots:
+        bfst = get_bfs_tree(rw.G, root)
+        with open('__.dat', 'w') as f:
+            f.write('\n'.join(('{}, {}'.format(*e) for e in bfst)))
+        tree = read_tree('__.dat')
+        f1, mc = assess_tree_fitness(tree)
+        print_diag('Predict with BFS {}'.format(root))
+        print('{}{:.3f}'.format('F1-score'.ljust(60), f1))
+        print('{}{:.3f}'.format('Matthews correlation coefficient'.ljust(60), mc))
+        f1s.append(f1)
+        mcs.append(mc)
+    persistent.save_var('epi_f1', f1s)
+    persistent.save_var('epi_mc', mcs)
+    persistent.save_var('epi_roots', roots)
+    # rst = random_spanning_tree(k)
+    # rtree = read_in_memory_tree(k, rst)
+    # print_diag('Make random spanning tree')
+    # f1, mc = assess_tree_fitness(rtree)
+    # print_diag('Predict with random spanning tree')
+    # print('{}{:.3f}'.format('F1-score'.ljust(60), f1))
+    # print('{}{:.3f}'.format('Matthews correlation coefficient'.ljust(60), mc))
+    # mst = min_spanning_tree(k)
+    # mtree = read_in_memory_tree(k, mst)
+    # print_diag('Make minimum spanning tree')
+    # f1, mc = assess_tree_fitness(mtree)
+    # print_diag('Predict with MS tree')
+    # print('{}{:.3f}'.format('F1-score'.ljust(60), f1))
+    # print('{}{:.3f}'.format('Matthews correlation coefficient'.ljust(60), mc))

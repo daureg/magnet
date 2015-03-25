@@ -85,40 +85,59 @@ def collapse_stars(G, stars):
     # TODO it turns out that n_mapping is used only for visualization. On the
     # other it doesn't waste so much time
     n_mapping = {}
+    # at the end, each node of G will be key, whose value is the star it
+    # belongs to
+    star_membership = {}
     e_mapping = {}
     for i, s in enumerate(stars):
         n_mapping[i] = s.center
+        star_membership[s.center] = i
+        for p in s.points:
+            star_membership[p] = i
         for j, t in enumerate(stars[i+1:]):
             between = edge_between(G, s, t)
             if between:
                 Gprime[i].add(j+i+1)
                 Gprime[j+i+1].add(i)
                 e_mapping[(i, i+1+j)] = between
-    return Gprime, n_mapping, e_mapping
+    return Gprime, n_mapping, e_mapping, star_membership
 
 
 @profile
-def galaxy_maker_clean(G, k):
+def galaxy_maker_clean(G, k, outname=None, export_every_iteration=False):
     """same as galaxy_maker with no visualization and unnecessary variables"""
     current_graph, ems, all_stars = G, [], []
+    star_membership = {}
     for i in range(k):
         start = clock()
         stars, stars_edges = stars_maker(current_graph)
         all_stars.append(stars_edges)
-        collapsed_graph, _, em = collapse_stars(current_graph, stars)
+        collapsed_graph, _, em, sm = collapse_stars(current_graph, stars)
+        if i == 0:
+            star_membership = sm
+            a, b = set(G.keys()), set(star_membership.keys())
+            assert a == b, a - b
+        else:
+            for orig_nodes, previous_star in star_membership.items():
+                star_membership[orig_nodes] = sm[previous_star]
         duration = clock() - start
         print('iteration {} in {:.3f} seconds'.format(str(i).ljust(3),
                                                       duration))
         ems.append(em)
+        if export_every_iteration:
+            assert outname, 'provide a base filename to save results'
+            filename = '{}_{}'.format(outname, i)
+            export_spanner(all_stars, ems, star_membership, filename)
         if len(em) == 0 or len(collapsed_graph) == len(current_graph):
             break
         current_graph = collapsed_graph
-    return None, None, ems, all_stars
+    return None, None, ems, all_stars, star_membership
 
 
 @profile
 def extract_tree_edges(stars_edges, interstellar_edges):
     res = []
+    something_to_remove = False
     if len(interstellar_edges[-1]) != 0:
         # In this case, galaxy_maker didn't collapse the graph all the way down
         # to one node per connected component. Thus we need an extra step.
@@ -129,13 +148,35 @@ def extract_tree_edges(stars_edges, interstellar_edges):
         # early returns more edges but with a lower stretch)
         stars_edges.append([list(interstellar_edges[-1].keys())])
         interstellar_edges.append([])
+        something_to_remove = True
     data = zip(reversed(stars_edges), reversed(interstellar_edges[:-1]))
     for current_level_edges, translation_to_lower_level in data:
         res.extend((e for one_star_edges in current_level_edges
                     for e in one_star_edges))
         for i, e in enumerate(res):
             res[i] = translation_to_lower_level[e]
+    if something_to_remove:
+        stars_edges.pop()
+        interstellar_edges.pop()
     return res+[e for star in stars_edges[0] for e in star]
+
+
+def export_spanner(stars_edges, interstellar_edges, star_membership,
+                   filename):
+    """Write the active set of edges defined by the arguments in `filename`"""
+    size_of_top_graph = len(interstellar_edges[-1])
+    final = extract_tree_edges(stars_edges, interstellar_edges)
+    with open(filename+'.edges', 'w') as f:
+        f.write('\n'.join(('{}, {}'.format(*e) for e in final)))
+    with open(filename+'.sm', 'w') as f:
+        f.write('\n'.join(('{}\t{}'.format(k, v)
+                           for k, v in star_membership.items())))
+    edges_mapping = zip(interstellar_edges[-1], final[:size_of_top_graph])
+    low_level_edges = [(top_edge, orig_edge)
+                       for top_edge, orig_edge in edges_mapping]
+    with open(filename+'.lle', 'w') as f:
+        f.write('\n'.join(('{}, {}\t{}, {}'.format(*(e0+ek))
+                           for e0, ek in low_level_edges)))
 
 
 def compute_tree_stretch(graph, tree_maps):
@@ -316,7 +357,7 @@ def _full_pipeline(G, pos_array, vizu=True, nb_iter=15):
     if vizu:
         _, _, ems, sedge = galaxy_maker(G, nb_iter, vizu, pos_array)
     else:
-        _, _, ems, sedge = galaxy_maker_clean(G, nb_iter)
+        _, _, ems, sedge, sm = galaxy_maker_clean(G, nb_iter)
     final = extract_tree_edges(sedge, ems)
     print('Find a tree in {:.3f} seconds'.format(clock()-start))
     kk = cexp.to_graph_tool()
@@ -361,7 +402,7 @@ if __name__ == '__main__':
     redensify.EDGES_SIGN = rw.EDGE_SIGN
     redensify.N = len(rw.G)
     start = clock()
-    _, _, ems, sedge = galaxy_maker_clean(redensify.G, 2)
+    _, _, ems, sedge, sm = galaxy_maker_clean(redensify.G, 2)
     final = extract_tree_edges(sedge, ems)
     print('Computed tree in {:.3f} seconds'.format(clock()-start))
     with open('tree_slash_early2.dat', 'w') as f:

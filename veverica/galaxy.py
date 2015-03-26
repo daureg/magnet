@@ -104,7 +104,7 @@ def collapse_stars(G, stars):
 
 
 @profile
-def galaxy_maker_clean(G, k, outname=None, export_every_iteration=False):
+def galaxy_maker_clean(G, k, outname=None):
     """same as galaxy_maker with no visualization and unnecessary variables"""
     current_graph, ems, all_stars = G, [], []
     star_membership = {}
@@ -124,8 +124,7 @@ def galaxy_maker_clean(G, k, outname=None, export_every_iteration=False):
         print('iteration {} in {:.3f} seconds'.format(str(i).ljust(3),
                                                       duration))
         ems.append(em)
-        if export_every_iteration:
-            assert outname, 'provide a base filename to save results'
+        if outname:
             filename = '{}_{}'.format(outname, i)
             export_spanner(all_stars, ems, star_membership, filename)
         if len(em) == 0 or len(collapsed_graph) == len(current_graph):

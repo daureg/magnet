@@ -377,6 +377,7 @@ def random_signed_communities(n_communities, size_communities, degree, p_in,
                 add_signed_edge(i, j, True)
     # finalize_graph()
     # g = to_graph_tool()
+    # import experiments as xp
     # pos = xp.cc.gtdraw.sfdp_layout(g)
     all_nodes = set(range(len(redensify.G)))
     for nodes in starmap(range, zip(boundaries, boundaries[1:])):

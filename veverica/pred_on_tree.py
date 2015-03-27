@@ -4,7 +4,7 @@
 from collections import defaultdict
 from graph_tool.topology import random_spanning_tree, label_largest_component
 from graph_tool.topology import min_spanning_tree
-from sklearn.metrics import f1_score, matthews_corrcoef
+from sklearn.metrics import f1_score, matthews_corrcoef, accuracy_score
 import real_world as rw
 from graph_tool.search import bfs_search, BFSVisitor
 from collections import deque
@@ -50,11 +50,12 @@ def dfs_tagging(tree, edges, root):
     return tags
 
 
-def make_pred(tree, tags):
+def make_pred(tree, tags, edge_signs=None):
     """predict sign of all edges not in tree according to nodes tags"""
     gold, pred = [], []
     vertices = set(tree.keys())
-    for e, s in rw.EDGE_SIGN.items():
+    edge_signs = edge_signs or rw.EDGE_SIGN
+    for e, s in edge_signs.items():
         u, v = e
         if u not in vertices or v not in vertices or e[1] in tree[e[0]]:
             continue
@@ -94,7 +95,8 @@ def assess_tree_fitness(tree):
     highest_degree_node = rw.DEGREES[-1][0]
     tags = dfs_tagging(tree, rw.EDGE_SIGN, highest_degree_node)
     gold, pred = make_pred(tree, tags)
-    return f1_score(gold, pred), matthews_corrcoef(gold, pred)
+    acc = accuracy_score(gold, pred)
+    return acc, f1_score(gold, pred), matthews_corrcoef(gold, pred)
 
 
 def get_bfs_tree(G, root):
@@ -109,7 +111,7 @@ def get_bfs_tree(G, root):
             if not discovered[w]:
                 q.append(w)
                 discovered[w] = True
-                e = v, w if v < w else w, v
+                e = (v, w) if v < w else (w, v)
                 tree.append(e)
     return tree
 
@@ -211,7 +213,7 @@ def shortest_path(graph, src, dst):#vertices):
     """Return a shortest_path between vertices[0] and vertices[1]"""
     # src, dst = vertices
     q = deque()
-    discovered = [False for _ in range(len(graph))]
+    discovered = {_: False for _ in graph.keys()}
     q.append(src)
     discovered[src] = True
     predecessor = {}
@@ -235,18 +237,23 @@ def shortest_path(graph, src, dst):#vertices):
     return list(reversed(path))
 
 
-def predict_edges(basename):
-    import redensify
+def predict_edges(basename, all_signs=None, lcc_nodes=None, use_brute=False):
+    # import redensify
     edge_signs = {}
-    for e, s in redensify.EDGES_SIGN.items():
+    # all_signs = all_signs or redensify.EDGES_SIGN
+    for e, s in all_signs.items():
         edge_signs[e] = 1 if s else -1
     _ = read_spanner_from_file(basename)
     spanner, star_membership, low_level_edges, low_level_graph = _
+    # if not lcc_nodes:
+    #     lcc_nodes = set(star_membership.keys())
     top_graph = {}
     for u, v in low_level_edges.keys():
         add_edge_to_tree(top_graph, u, v)
-    test_edges = set(edge_signs.keys()) - set(spanner)
-    trees = split_into_trees(spanner, star_membership)
+    train_edges = {(u, v) for u, v in spanner
+                   if not lcc_nodes or u in lcc_nodes}
+    test_edges = set(edge_signs.keys()) - train_edges
+    trees = split_into_trees(train_edges, star_membership)
     tags = {}
     for star, tree in trees.items():
         tags[star] = dfs_tagging(tree, edge_signs,
@@ -256,7 +263,7 @@ def predict_edges(basename):
     # structure manually
     for node in top_graph.keys():
         if node not in tags:
-            tags[node] = defaultdict(lambda : 1)
+            tags[node] = defaultdict(lambda: 1)
     gold, pred, brute_pred = [], [], []
     for e in test_edges:
         s = edge_signs[e]
@@ -265,7 +272,8 @@ def predict_edges(basename):
         uv_sign = parity(u, v, top_graph, edge_signs, tags, star_membership,
                          low_level_edges)
         pred.append(uv_sign)
-        brute_pred.append(brute_parity(u, v, low_level_graph, edge_signs))
+        if use_brute:
+            brute_pred.append(brute_parity(u, v, low_level_graph, edge_signs))
     return gold, pred, brute_pred
 
 if __name__ == '__main__':
@@ -278,6 +286,7 @@ if __name__ == '__main__':
     full_graph, tree_edges = args[1], args[2]
     gt_graph = {'soc-sign-Slashdot090221.txt': 'slashdot_simple.gt',
                 'soc-sign-epinions.txt': 'epinion.gt'}[full_graph]
+    SLA = full_graph == 'soc-sign-Slashdot090221.txt'
     start = clock()
 
     def print_diag(msg):
@@ -299,31 +308,36 @@ if __name__ == '__main__':
     print_diag('Extract largest component')
     tree, _ = read_tree(tree_edges)
     print_diag('Read galaxy tree')
-    f1, mc = assess_tree_fitness(tree)
+    acc, f1, mc = assess_tree_fitness(tree)
     print_diag('Predict with galaxy tree')
+    print('{}{:.3f}'.format('Accuracy'.ljust(60), acc))
     print('{}{:.3f}'.format('F1-score'.ljust(60), f1))
     print('{}{:.3f}'.format('Matthews correlation coefficient'.ljust(60), mc))
     lcc_nodes = list(np.where(lcc.a)[0])
+    print('LCC: {}'.format(len(set(lcc_nodes))))
     import random
     import persistent
-    f1s, mcs = [], []
+    accs, f1s, mcs = [], [], []
     roots = random.sample(lcc_nodes, 100) + [_[0] for _ in rw.DEGREES[-100:]]
     roots = list(set(roots))
+    roots = [_[0] for _ in rw.DEGREES[-150:]]
     print(len(roots))
     for root in roots:
         bfst = get_bfs_tree(rw.G, root)
         with open('__.dat', 'w') as f:
             f.write('\n'.join(('{}, {}'.format(*e) for e in bfst)))
         tree, _ = read_tree('__.dat')
-        f1, mc = assess_tree_fitness(tree)
+        acc, f1, mc = assess_tree_fitness(tree)
         print_diag('Predict with BFS {}'.format(root))
         print('{}{:.3f}'.format('F1-score'.ljust(60), f1))
         print('{}{:.3f}'.format('Matthews correlation coefficient'.ljust(60), mc))
+        accs.append(acc)
         f1s.append(f1)
         mcs.append(mc)
-    persistent.save_var('epi_f1', f1s)
-    persistent.save_var('epi_mc', mcs)
-    persistent.save_var('epi_roots', roots)
+    persistent.save_var('{}_acc'.format('sla' if SLA else 'epi'), accs)
+    persistent.save_var('{}_f1'.format('sla' if SLA else 'epi'), f1s)
+    persistent.save_var('{}_mc'.format('sla' if SLA else 'epi'), mcs)
+    persistent.save_var('{}_roots'.format('sla' if SLA else 'epi'), roots)
     # rst = random_spanning_tree(k)
     # rtree = read_in_memory_tree(k, rst)
     # print_diag('Make random spanning tree')

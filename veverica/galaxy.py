@@ -391,9 +391,13 @@ def _full_pipeline(G, pos_array, vizu=True, nb_iter=15):
 
 if __name__ == '__main__':
     import real_world as rw
+    # import graph_tool as gt
+    # import convert_experiment as cexp
     start = clock()
-    rw.read_original_graph('soc-sign-Slashdot090221.txt')
-    # rw.read_original_graph('soc-sign-epinions.txt')
+    # k=gt.load_graph('slashdot_simple.gt')
+    # cexp.to_python_graph(k)
+    # rw.read_original_graph('soc-sign-Slashdot090221.txt')
+    rw.read_original_graph('soc-sign-epinions.txt')
     # cexp.generate_random_graph(600, .12)
     # redensify.G, redensify.N, redensify.EDGES_SIGN = cexp.p.load_var('rng22k.my')
     print('Generate graph in {:.3f} seconds'.format(clock()-start))
@@ -401,8 +405,9 @@ if __name__ == '__main__':
     redensify.EDGES_SIGN = rw.EDGE_SIGN
     redensify.N = len(rw.G)
     start = clock()
-    _, _, ems, sedge, sm = galaxy_maker_clean(redensify.G, 2)
-    final = extract_tree_edges(sedge, ems)
+    _, _, ems, sedge, sm = galaxy_maker_clean(redensify.G, 8,
+                                              outname='universe/epinion')
+    # final = extract_tree_edges(sedge, ems)
     print('Computed tree in {:.3f} seconds'.format(clock()-start))
-    with open('tree_slash_early2.dat', 'w') as f:
-        f.write('\n'.join(('{}, {}'.format(*e) for e in final)))
+    # with open('tree_slash_early2.dat', 'w') as f:
+    #     f.write('\n'.join(('{}, {}'.format(*e) for e in final)))

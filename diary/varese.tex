@@ -1,0 +1,183 @@
+\section{Problem definition}
+
+We observe users and their similarities along different known directions. We
+assume that these links arise from users' hidden profile and our goal is to
+recover these profiles to answer queries like: are users $i$ and $j$ similar
+along direction $x$? To better model real situations, we introduce a further
+bias: along all (\comment{relevant?}) directions, there are only a small number
+of users clusters.
+
+Formally, there are $n$ users $u_1, \ldots, u_n \in \mathbb{R}^d$ (\comment{and
+$||u_i|| = \;1 \forall i$ ?}). Directions are also unit vector of
+$\mathbb{R}^d$. Thus, $u_i\cdot x$ literally measures the alignment of $u_i$
+with the direction $x$. For instance, $x$ may be the features of an item and
+$u_i\cdot x$ a rating. The similarity between $u_i$ and $u_j$ along $x$ is
+$sim(u_i, u_j) = \left( |u_i\cdot x - u_j\cdot x| < t \right) \in \{0, 1\}$,
+where $t \in \mathbb{R}^+$ is a threshold.
+
+As input, we are given a set of positive examples $\{(u_{i_k}, u_{j_k},
+x_k)\}_{k=1\ldots D}$ that we represent as a multigraph: nodes are users, edges
+are labelled by the direction along which they represent similarity.
+
+
+\section{Settings}
+
+In the following we consider batch setting, with a fully observed graph as test
+set. Yet for the sake of scalability, online setting may be more appropriate:
+either we see the whole graph but edge labels are given one by one or, more
+challenging, both edges and their labels are revealed at each time step.
+
+\section{Applications, use cases}
+
+As defined, the problem is rather general. Here we provide two concrete
+examples of application. The first is recommender systems. Say we observe a
+ratings matrix, where rows are users and columns items. Items are characterised
+by a known vector of $d$ features. Users react to these features according to
+their hidden profile. We build the train set from the observed entries of the
+rating matrix and later fill missing entries by answering similarity queries
+(although if ratings from both users are missing, then we can only say whether
+they are equal or not, but not their value)
+
+The second is social networks. Here users have also features (some of them are
+known, like demographics) and they like contents. \comment(and then what?)
+
+\section{Related work}
+
+\begin{itemize}
+	\item bandits \autocites{ClusterBandit14}{Li2015}
+	\item Online matrix completion \autocite{OnlineMatrix15}
+	\item label propagation \autocite{LabelPropa03}
+	\item multilabel classification \autocite{Madjarov2012}
+	\item Recovering $d$ different metric spaces whose intersection form the
+		observed social multiplex in almost linear time with bounded distortion
+		\autocite{Abraham2012a}. Assume there are $K$ social categories
+		modelled by Euclidean spaces $\mathcal{D}_i$. Users in there are near
+		uniformly distributed and categories have small local correlation: \[
+			\forall i\neq i', \; \forall r, r' = O(polylog(n)),\, \forall u,
+			u',\, |\mathcal{B}_i(u, r) \cap \mathcal{B}_{i'}(u', r')| \leq O(\log n) \]
+		These spaces give rise to small world networks $\mathcal{G}_i$ with
+		edge probability $\propto \mathcal{D}_i(u, v)^{-d}$ and we observe the
+		real network $\mathcal{G} =\bigcup_i \mathcal{G}_i$. From
+		$\mathcal{G}$, the proposed algorithm recovers in $n \mathrm{polylog} n$ time
+		a bounded approximation $\mathcal{D}'_i$ of all $\mathcal{D}_i$ \[
+			\sigma \mathcal{D}_i(u, v) \leq \mathcal{D}'_i(u, v) \leq \delta
+			\mathcal{D}_i(u, v) + \Delta \]
+	\item online similarity/dissimilarity prediction on graph \autocite{Gentile2013}
+	\item coclustering \autocite{Dhillon2001} (except there's no notion of
+		user/item features there)
+\end{itemize}
+
+\section{Approaches}
+
+\subsection{Baselines}
+A natural way to recover the $u$ vectors is to solve the following
+optimization problem:
+\begin{equation}
+	\min \sum_{k=1}^D \left( (u_{i_k} - u_{j_k} ) \cdot x_k \right )^2
+	\label{eq:optim}
+\end{equation}
+which can also be expressed as a quadratic program, denoting by $\tilde{u}$ the
+concatenation of all users vectors:
+\begin{equation*}
+	\tilde{u}^T \mathbf{Q} \tilde{u} + c^T \tilde{u}
+\end{equation*}
+A caveat of this method is lack of scalability. Furthermore, we need to impose
+constraints to avoid the trivial solution $\tilde{u} = 0$. If we constrain $u$
+to be unit norm, the problem is not convex. An alternative is to fix some
+values: either we already know some user profiles or some dimension.
+
+Another immediate idea is to solve $d$ separate problems, one across each
+dimension, and somehow combine the results. Yet this is also not very
+satisfactory, as it looses all cross dimension information.
+
+\subsection{Approximation}
+
+To simplify the problem, we could transform it from vector to scalar by using
+random projection. Indeed, let $a \in \{-1,1\}^d$ be a vector drawn uniformly
+at random. Then $\mathbf{E}_{a \in \{-1,1\}^d}\left[(u\cdot a)\times (x \cdot
+a)\right] = u\cdot x$ and we get a weighted version of \eqref{eq:optim}:
+\begin{equation*}
+	\min \sum_{k=1}^D (x_k\cdot a)^2 \left( (u_{i_k} - u_{j_k} ) \cdot a \right )^2
+	\label{eq:random-optim}
+\end{equation*}
+
+Then we would like to take advantage of the graph structure as well (which is
+implicit in \eqref{eq:optim}, as each edge contributes one term to the sum).
+For instance by sparsifying the graph with relevant trees. Yet one should keep
+in mind that the input is a multigraph, whose edges labels are vectors and not
+mere weights. One idea could be to cluster the set of all directions of the
+training set using $k$-means and work on these $k$ induced graphs.
+
+\section{First practical steps}
+
+\comment{This part is quite messy…}
+
+\subsection{datasets}
+
+\subsubsection{real}
+
+MovieLens 1M
+\href{http://files.grouplens.org/datasets/movielens/ml-1m-README.txt}%
+{http://files.grouplens.org/datasets/movielens/ml-1m-README.txt} contains
+demographics information about 6040 users, namely age bracket, job (converted
+to median income), gender and ZIP code (converted to population density),
+whereas hetrec2011-movielens-2k
+\href{http://ir.ii.uam.es/hetrec2011/datasets/movielens/readme.txt}%
+{http://ir.ii.uam.es/hetrec2011/datasets/movielens/readme.txt} contains the
+following information on a subset of movies: release year, nationality
+(converted to 0: US,UK,CA,AUS; 1: EU; 2: others), number of critics ratings on
+rottentomatoes\footnote{\href{http://www.rottentomatoes.com/}{rottentomatoes.com}},
+average critics ratings, number of audience ratings, average ratings. In
+addition, for some of the pair (user, movie), we have a integer rating between
+1 and 5.
+
+To match the dimension between users and movies features, I later ditched
+demographics attributes and instead fit to each user ratings a linear
+model\footnote{\href{http://scikit-learn.org/stable/modules/generated/sklearn.linear_model.Ridge.html}%
+{\texttt{sklearn.linear\_model.Ridge}}}, which add a dimension to store the
+intercept parameter.
+
+R6A - Yahoo! Front Page Today Module User Click Log Dataset
+\href{http://webscope.sandbox.yahoo.com/catalog.php?datatype=r}%
+{\url{http://webscope.sandbox.yahoo.com/catalog.php?datatype=r}}.
+While it was originally very rich, we only observe the result of a heavy pre
+processing described in \autocite{YahooNews09}. Users and articles are
+described by 6 features and there is also binary feedback: article cliked or
+not.
+
+Unfortunately, being real data, they don't fit well our assumptions.
+Specifically, computing dot products between all possible user/items pairs,
+there is no threshold that discriminate between similar ratings or not. Thus
+we turn to synthetic data.
+
+\subsubsection{synthetic}
+
+We generate $n$ users and $m$ items as uniform random unit vectors. Then we
+discretize all $u_i\cdot x_j$ to get ratings between 1 and 5 and finally we
+set a proportion $t$ of ratings to 0 (unobserved). \comment{This doesn't take
+the clustering assumption into account}.
+
+We then sample 50\% of the non zero entries. Items hit by this process are in
+the train set while the others will be used for test. Users hit will later be
+divided into train and test set, while the others are excluded (since we
+didn't observe anything about them, we can't learn anything about them either).
+Then we infer user profiles from available data (\comment{this time I use a
+noisy version of the original $u$ vectors, which is admittedly an easier
+setting}).
+
+Now we can build the input multigraph, where there is an edge between two users
+along an item if they gave it the same rating. As there are many possible such
+edges and we initially want to iterate fast, I decided to discard some of them.
+Basically I consider only edges between users that are close, as measured by
+the distance between their common ratings vector. \comment{A more principled
+way would be to consider all edges and discard those whose dot product
+difference is above a given threshold}.
+
+Finally we solve \eqref{eq:optim} and get the results shown in
+\autoref{fig:syn_accuracy}.
+
+\begin{figure}[hb]
+	\centering
+	\includegraphics[width=1.0\linewidth]{syn_accuracy.png}
+	\caption{.\label{fig:syn_accuracy}}
+\end{figure}

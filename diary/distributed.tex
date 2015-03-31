@@ -39,7 +39,7 @@ Reviewer: Ronald J. Watro
 \end{quotation}
 
 Closer to us, the increasing size of available data has pushed companies to
-innovate and Google introduce the Pregel model \autocite{Pregel10}.
+innovate and Google introduced the Pregel model \autocite{Pregel10}.
 
 While Pregel is not publicly available, several open implementation have been
 described, with various modifications
@@ -59,8 +59,10 @@ Shortest Paths, Weakly Connected Components and Minimum Spanning Tree.
 
 Another evaluation was conducted recently by \textcite{Lu2015}: \enquote{We
 evaluated the performance of Giraph, GraphLab, GPS, and Pregel+. Our results
-show that Pregel+ and GPS have better overall performance than Giraph and
-GraphLab.}
+show that
+Pregel+\footnote{\href{http://www.cse.cuhk.edu.hk/pregelplus/index.html}%
+{http://www.cse.cuhk.edu.hk/pregelplus}} \autocite{Yan2015} and GPS have
+better overall performance than Giraph and GraphLab.}
 
 Outside the Pregel family (\emph{is it?}), we can cite:
 
@@ -104,7 +106,7 @@ Outside the Pregel family (\emph{is it?}), we can cite:
 
 Stinger http://www.stingergraph.com/index.php?id=publications
 
-More system in session graph processing of HPDC'14 The 23rd International
+More system in session \emph{graph processing} of HPDC'14 The 23rd International
 Symposium on High-Performance Parallel and Distributed Computing 
 
 As hinted by a paper submitted to
@@ -118,14 +120,18 @@ comes with a non negligible overhead. Otherwise, it possible to use single
 machine, parallelized algorithms.
 Ligra\footnote{\href{https://github.com/jshun/ligra}%
 	{https://github.com/jshun/ligra}} \autocite{Ligra13} (and its compressed
-version \autocite{Ligra15}) illustrates this approach.
+version \autocite{Ligra15}) illustrates this approach. Another approach based
+on Stanford SNAP software is called Ringo\footnote{\href{http://snap.stanford.edu/ringo/}%
+	{http://snap.stanford.edu/ringo/}}\autocite{Ringo15}.
 
 On the same topic, \textcite{NativeBenchmark14} compare GraphLab, CombBLAS,
 SociaLite, Galois (single node) and Giraph on the following tasks: PageRank,
-Breadth First Search, Collaborative Filtering, Triangle Counting. They
-quantify the overhead introduced by these framework by implementing hand tuned
-native solution.  These abstraction makes the tasks slower by a factor $1.1$
-to $568$ in some Giraph cases.
+Breadth First Search, Collaborative Filtering, Triangle Counting. They quantify
+the overhead introduced by these framework by implementing hand tuned native
+solution. These abstractions make the tasks slower by a factor of $1.1$ to
+$568$ in some Giraph cases. They also propose their own framework, based on
+sparse linear algebra, which alleviate these slowness by taking advantage of
+processors parallelism, GraphMat \autocite{GraphMat15}.
 
 In other cases, plain MapReduce\autocite{MapReduce04}, although it's not
 specialized in graph handling can also offer competitive performances, for
@@ -136,8 +142,8 @@ Then talk about related problem like edges partition \autocite{Bourse2014a},
 graph partition \autocites{Partition13}{Tsourakakis2014}{Partition14},
 approximating the top-$k$ PageRank vertices \autocite{Mitliagkas2015} or
 algorithms optimization \autocites{Salihoglu14}{Salihoglu2014b} (for instance
-using algebrisation \autocite{Kaski2014}) and complexity
-\autocite{ComputationBounds14}.
+using algebrisation \autocite{Kaski2015}) and complexity
+\autocite{ComputationBounds14,Pandurangan2015}.
 
 Also show some recent applications, for instance in \pcc{}
 \autocites{Bonchi2012}{Chierichetti2014}.

@@ -48,12 +48,12 @@ def reindex_nodes(old_G, old_E, mapping):
         new_G[mapping[n]] = {mapping[v] for v in adj}
     new_E = {}
     for e, s in old_E.items():
-        u, v = e
-        new_E[(mapping[u], mapping[v])] = s
+        u, v = mapping[e[0]], mapping[e[1]]
+        new_E[(u, v) if u < v else (v, u)] = s
     return new_G, new_E
 
 
-def read_original_graph(filename, shuffle=False):
+def read_original_graph(filename, seed=None):
     """Read a signed graph from `filename` and compute its degree sequence.
     Optionally `shuffle` nodes ids"""
     global DEGREES, G, EDGE_SIGN, INCONSISTENT
@@ -69,7 +69,8 @@ def read_original_graph(filename, shuffle=False):
     # reindex nodes so they are sequential
     mapping = {v: i for i, v in enumerate(sorted(G.keys()))}
     G, EDGE_SIGN = reindex_nodes(G, EDGE_SIGN, mapping)
-    if shuffle:
+    if isinstance(seed, int):
+        r.seed(seed)
         rperm = list(G.keys())
         r.shuffle(rperm)
         rperm = {i: v for i, v in enumerate(rperm)}

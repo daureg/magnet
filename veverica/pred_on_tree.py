@@ -157,17 +157,11 @@ def parity_in_star(star_idx, i, j, tags, star_membership):
 def orient_path(stars_path, low_level_edges, star_membership):
     """Given a connected list of stars, return a list of edges in the original
     graph, each oriented from one star to the next one in the path."""
-    def orient_edge(edge, start):
-        """return `edge` with first vertex belonging to `start` star"""
-        if star_membership[edge[0]] == start:
-            return edge
-        return (edge[1], edge[0])
-
-    new_path = []
-    for i, j in zip(stars_path, stars_path[1:]):
-        real_edge = low_level_edges[(i, j) if i < j else (j, i)]
-        new_path.append(orient_edge(real_edge, i))
-    return new_path
+    i, j = stars_path
+    real_edge = low_level_edges[(i, j) if i < j else (j, i)]
+    if star_membership[real_edge[0]] == i:
+        return [real_edge]
+    return [(real_edge[1], real_edge[0])]
 
 
 def parity(i, j, spanner, edge_sign, tags, star_membership, low_level_edges):
@@ -179,18 +173,8 @@ def parity(i, j, spanner, edge_sign, tags, star_membership, low_level_edges):
     if i_star > j_star:
         i, j = j, i
         i_star, j_star = j_star, i_star
-    star_path = orient_path(shortest_path(spanner, i_star, j_star),
-                            low_level_edges, star_membership)
-    # print(i, j, i_star, j_star, star_path)
-    # TODO actually I could also cache the parity computation between i_star
-    # and j_star
+    star_path = orient_path([i_star, j_star], low_level_edges, star_membership)
     parity = parity_in_star(i_star, i, star_path[0][0], tags, star_membership)
-    for edge, next_edge in zip(star_path, star_path[1:]):
-        u, v = edge
-        canonical_edge = (u, v) if u < v else (v, u)
-        parity *= edge_sign[canonical_edge]
-        parity *= parity_in_star(star_membership[edge[1]],
-                                 edge[1], next_edge[0])
     u, v = star_path[-1]
     canonical_edge = (u, v) if u < v else (v, u)
     parity *= edge_sign[canonical_edge]

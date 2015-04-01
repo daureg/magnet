@@ -10,24 +10,37 @@ import sys
 from graph_tool.topology import label_largest_component, shortest_distance
 from sklearn.metrics import accuracy_score, f1_score, matthews_corrcoef
 start = clock()
-SLASH = False
-if SLASH:
+GRAPH = 'slash'
+if GRAPH == 'slash':
+    SLASH = True
     graph_file = 'slashdot_simple.gt'
     ds_file = 'slashdot_dst.npy'
     orig_file = 'soc-sign-Slashdot090221.txt'
     basename = 'universe/slashdot_'
     prefix = 'sla_gtx'
     size = 82140
-else:
+elif GRAPH == 'epinion':
+    SLASH = False
     graph_file = 'epinion.gt'
     ds_file = 'epi_graph_dst.npy'
     basename = 'universe/epinion_'
     orig_file = 'soc-sign-epinions.txt'
     prefix = 'epi_gtx'
     size = 131580
+elif GRAPH == 'wiki':
+    SLASH = False
+    graph_file = 'wiki_simple.gt'
+    ds_file = 'wiki_dst.npy'
+    basename = 'universe/wiki_'
+    orig_file = 'soc-wiki.txt'
+    prefix = 'wik_gtx'
+    size = 7115
 
 n = size
 idx = int(sys.argv[1])
+seed = None if len(sys.argv) <= 2 else int(sys.argv[2])
+if seed is not None:
+    basename += str(seed) + '_'
 
 
 def print_diag(msg):
@@ -37,28 +50,31 @@ def print_diag(msg):
         f.write(info(msg.ljust(60), clock() - start))
     start = clock()
 
-k = gt.load_graph(graph_file)
-dst_mat = np.load(ds_file)
-lcc = label_largest_component(k)
-k.set_vertex_filter(lcc)
-lcc_nodes = np.where(lcc.a)[0]
-slcc = set(lcc_nodes)
+# k = gt.load_graph(graph_file)
+# dst_mat = np.load(ds_file)
+# lcc = label_largest_component(k)
+# k.set_vertex_filter(lcc)
+# lcc_nodes = np.where(lcc.a)[0]
+# slcc = set(lcc_nodes)
 all_lcc_edges = {}
-rw.read_original_graph(orig_file)
+rw.read_original_graph(orig_file, seed=seed)
+lcc_tree = pot.get_bfs_tree(rw.G, rw.DEGREES[-1][0])
+heads, tails = zip(*lcc_tree)
+slcc = set(heads).union(set(tails))
 for e, s in rw.EDGE_SIGN.items():
     u, v = e
     if u not in slcc:
         continue
     all_lcc_edges[(u, v)] = s
 print_diag('load graph')
-# gold, pred, _ = pot.predict_edges(basename+str(idx), all_lcc_edges, slcc)
-# print(accuracy_score(gold, pred), f1_score(gold, pred),
-#       matthews_corrcoef(gold, pred))
+gold, pred, _ = pot.predict_edges(basename+str(idx), all_lcc_edges, slcc)
+print(accuracy_score(gold, pred), f1_score(gold, pred),
+      matthews_corrcoef(gold, pred))
 _ = pot.read_spanner_from_file(basename+str(idx))
 spanner, star_membership, low_level_edges, low_level_graph = _
 train_edges = {(u, v) for u, v in spanner if u in slcc}
-print('Active set size {}, {:.1f}'.format(len(train_edges),
-                                          100*len(train_edges)/len(all_lcc_edges)))
+# print('Active set size {}, {:.1f}'.format(len(train_edges),
+#                                           100*len(train_edges)/len(all_lcc_edges)))
 sys.exit()
 bfs_tree = train_edges
 test_edges = set(all_lcc_edges.keys()) - bfs_tree

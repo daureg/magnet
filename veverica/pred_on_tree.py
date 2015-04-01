@@ -267,9 +267,11 @@ if __name__ == '__main__':
     from timeit import default_timer as clock
     import galaxy as gx
     args = sys.argv
-    full_graph, tree_edges = args[1], args[2]
-    gt_graph = {'soc-sign-Slashdot090221.txt': 'slashdot_simple.gt',
-                'soc-sign-epinions.txt': 'epinion.gt'}[full_graph]
+    full_graph, tree_edges, seed = args[1], args[2], int(args[3])
+    gt_graph = 'xx'
+    # gt_graph = {'soc-sign-Slashdot090221.txt': 'slashdot_simple.gt',
+    #             'soc-wiki.txt': 'wiki_simple.gt',
+    #             'soc-sign-epinions.txt': 'epinion.gt'}[full_graph]
     SLA = full_graph == 'soc-sign-Slashdot090221.txt'
     start = clock()
 
@@ -278,18 +280,20 @@ if __name__ == '__main__':
         info = '{}{:.2f} seconds'.format
         print(info(msg.ljust(60), clock() - start))
         start = clock()
-    rw.read_original_graph(full_graph)
+    rw.read_original_graph(full_graph, seed=seed)
     for e, s in rw.EDGE_SIGN.items():
         rw.EDGE_SIGN[e] = 1 if s else -1
-    print_diag('Read graph')
-    try:
-        k = gt.load_graph(gt_graph)
-    except:
-        k = gx.to_graph_tool_simple(rw.G)
-    print_diag('Convert graph')
-    lcc = label_largest_component(k)
-    k.set_vertex_filter(lcc)
-    print_diag('Extract largest component')
+    # print_diag('Read graph')
+    # try:
+    #     k = gt.load_graph(gt_graph)
+    # except:
+    #     k = gx.to_graph_tool_simple(rw.G)
+    # print_diag('Convert graph')
+    # lcc = label_largest_component(k)
+    # lcc_nodes = list(np.where(lcc.a)[0])
+    # print('LCC: {}'.format(len(set(lcc_nodes))))
+    # k.set_vertex_filter(lcc)
+    # print_diag('Extract largest component')
     tree, _ = read_tree(tree_edges)
     print_diag('Read galaxy tree')
     acc, f1, mc = assess_tree_fitness(tree)
@@ -297,8 +301,9 @@ if __name__ == '__main__':
     print('{}{:.3f}'.format('Accuracy'.ljust(60), acc))
     print('{}{:.3f}'.format('F1-score'.ljust(60), f1))
     print('{}{:.3f}'.format('Matthews correlation coefficient'.ljust(60), mc))
-    lcc_nodes = list(np.where(lcc.a)[0])
-    print('LCC: {}'.format(len(set(lcc_nodes))))
+    with open('wiki_res.dat', 'a') as f:
+        f.write('\t'.join(map(str, [acc, f1, mc])))
+    sys.exit()
     import random
     import persistent
     accs, f1s, mcs = [], [], []
@@ -318,10 +323,11 @@ if __name__ == '__main__':
         accs.append(acc)
         f1s.append(f1)
         mcs.append(mc)
-    persistent.save_var('{}_acc'.format('sla' if SLA else 'epi'), accs)
-    persistent.save_var('{}_f1'.format('sla' if SLA else 'epi'), f1s)
-    persistent.save_var('{}_mc'.format('sla' if SLA else 'epi'), mcs)
-    persistent.save_var('{}_roots'.format('sla' if SLA else 'epi'), roots)
+    prefix = 'wik'
+    persistent.save_var('{}_acc'.format(prefix), accs)
+    persistent.save_var('{}_f1'.format(prefix), f1s)
+    persistent.save_var('{}_mc'.format(prefix), mcs)
+    persistent.save_var('{}_roots'.format(prefix), roots)
     # rst = random_spanning_tree(k)
     # rtree = read_in_memory_tree(k, rst)
     # print_diag('Make random spanning tree')

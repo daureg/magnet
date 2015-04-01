@@ -391,22 +391,27 @@ def _full_pipeline(G, pos_array, vizu=True, nb_iter=15):
 
 if __name__ == '__main__':
     import real_world as rw
+    from copy import deepcopy
+    import sys
     # import graph_tool as gt
     # import convert_experiment as cexp
     start = clock()
     # k=gt.load_graph('slashdot_simple.gt')
     # cexp.to_python_graph(k)
-    # rw.read_original_graph('soc-sign-Slashdot090221.txt')
-    rw.read_original_graph('soc-sign-epinions.txt')
+    seed = int(sys.argv[1])
+    graph_txt = ['soc-sign-Slashdot090221.txt', 'soc-wiki.txt',
+                 'soc-sign-epinions.txt'][1]
+    rw.read_original_graph(graph_txt, seed=seed)
     # cexp.generate_random_graph(600, .12)
     # redensify.G, redensify.N, redensify.EDGES_SIGN = cexp.p.load_var('rng22k.my')
     print('Generate graph in {:.3f} seconds'.format(clock()-start))
-    redensify.G = rw.G
-    redensify.EDGES_SIGN = rw.EDGE_SIGN
+    redensify.G = deepcopy(rw.G)
+    redensify.EDGES_SIGN = deepcopy(rw.EDGE_SIGN)
     redensify.N = len(rw.G)
     start = clock()
+    outname = 'universe/wiki_{}'.format(seed)
     _, _, ems, sedge, sm = galaxy_maker_clean(redensify.G, 8,
-                                              outname='universe/epinion')
+                                              outname=outname)
     # final = extract_tree_edges(sedge, ems)
     print('Computed tree in {:.3f} seconds'.format(clock()-start))
     # with open('tree_slash_early2.dat', 'w') as f:

@@ -375,10 +375,10 @@ def random_signed_communities(n_communities, size_communities, degree, p_in,
         for i, j in combinations(nodes, 2):
             if r.random() <= p_in:
                 add_signed_edge(i, j, True)
-    # finalize_graph()
-    # g = to_graph_tool()
-    # import experiments as xp
-    # pos = xp.cc.gtdraw.sfdp_layout(g)
+    finalize_graph()
+    g = to_graph_tool()
+    import experiments as xp
+    pos = xp.cc.gtdraw.sfdp_layout(g)
     all_nodes = set(range(len(redensify.G)))
     for nodes in starmap(range, zip(boundaries, boundaries[1:])):
         others = list(all_nodes.difference(set(nodes)))
@@ -390,8 +390,8 @@ def random_signed_communities(n_communities, size_communities, degree, p_in,
 
     add_noise(p_pos, p_neg)
     finalize_graph()
-    return None, clustering
-    # return pos.get_2d_array([0, 1]), clustering
+    # return None, clustering
+    return pos.get_2d_array([0, 1]), clustering
 
 
 def turn_into_signed_graph_at_random(num_cluster=5):

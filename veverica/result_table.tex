@@ -1,0 +1,168 @@
+\documentclass[a4paper,final,notitlepage,11pt,svgnames]{scrartcl}
+\input{../../diary/preambule}
+\usepackage[hmargin=1cm,vmargin=2cm]{geometry}
+\begin{document}
+\begin{table}[htpb]
+	\centering
+	\caption{\textsc{Slashdot} ($82052$ nodes) \label{tab:slash}}
+	\begin{tabular}{lllllll}
+		\toprule
+			& edges          & accuracy     & $F_1$        & Matthews     & path-stretch & test edge-stretch \\
+		\midrule
+		BFS      & 82051, 16.5\%  & .619 (0.06) & .720 (0.06) & .145 (0.08) & 1.362 (.036) & 4.007 (.122)\\
+		$k=0$    & 180863, 36.3\% & .699         & .797         & .216         & 1.288        & 3.559 \\
+		$k=1$    & 82058, 16.5\%  & .683         & .782         & .199         & 1.826        & 5.967 \\
+		$k=2$    &                &              &              &              &              & \\
+		$k=3$    & 82051, 16.5\%  & .683         & .782         & .199         & 1.826        & 5.967 \\
+		\bottomrule
+	\end{tabular}
+\end{table}
+% 0 80  1.34248466116 3.94492906039
+% 1 47  1.3413958948  3.93894079202
+% 2 636 1.31810350793 3.85968387513
+% 3 191 1.41901184333 4.19879176711
+% 4 41  1.389387887   4.0916811533
+% 0.682531526426 0.782438854224 0.199444522133
+% 3 3 1.82554985847 5.96880732623
+% 0.682530992703 0.782437849259 0.199446514659
+% 1 1 1.82545458657 5.96863391993
+% time python gtx_tree_stretch.py 0
+% 0.699251410295 0.797430161675 0.215772802986
+% 0 0 1.28821346702 3.55943386723
+
+\begin{table}[htpb]
+	\centering
+	\caption{\textsc{Epinion} ($119070$ nodes) \label{tab:epinion}}
+	\begin{tabular}{lllllll}
+		\toprule
+			 & edges          & accuracy    & $F_1$       & Matthews    & path-stretch & test edge-stretch \\
+		\midrule
+		BFS      & 119069, 17.0\% & .706 (0.10) & .803 (0.08) & .240 (0.13) & 1.310 (.033) & 3.594 (.011)\\
+		$k=0$    & 190274, 27.1\% & .706        & .809        & .215        & 1.333        & 3.298\\
+		$k=1$    & 119071         & .651        & .764        & .161        &              & \\
+		$k=2$    & 119069         & .651        & .764        & .161        &              & \\
+		$k=3$    & 119069         & .651        & .764        & .161        & 1.686        & 4.861\\
+		\bottomrule
+	\end{tabular}
+\end{table}
+% time python gtx_tree_stretch.py 0
+% 0.706232214279 0.809418314884 0.215570303366
+% Active set size 190274
+% 0 0 1.33321136916 3.29844610254
+% time python gtx_tree_stretch.py 3
+% Active set size 119069
+% 3 3 1.68577008016 4.86112961373
+% time python gtx_tree_stretch.py 3
+% 0.651222317597 0.764365916374 0.160948939455
+% Active set size 119069
+% time python gtx_tree_stretch.py 2
+% 0.651222317597 0.764365916374 0.160948939455
+% Active set size 119069
+% time python gtx_tree_stretch.py 1
+% 0.651221120073 0.764364823189 0.160948026837
+% Active set size 119071
+% time python bfs_tree_stretch.py 0
+% 0 25 1.25311157385 3.41369613734
+% real    45m24.898s
+% time python bfs_tree_stretch.py 1
+% 1 1652 1.32416257802 3.59375793991
+% real    45m9.892s
+% time python bfs_tree_stretch.py 2
+% 2 12168 1.33136148043 3.68492017167
+% time python bfs_tree_stretch.py 3
+% 3 68213 1.33266134993 3.68479828326
+% real    45m41.246s
+
+Matthews Correlation Coefficient \[
+	\text{MCC} = \frac{ TP \times TN - FP \times FN } {\sqrt{ (TP + FP) ( TP + FN ) (
+			TN + FP ) ( TN + FN ) } } = \pm \sqrt{\frac{\chi^2}{n}}
+\]
+Predicting all edges but one to be positive on Slashdot gives $.764$ accuracy,
+$.886$ $F_1$ score but $-0.0007$ MCC.
+
+\begin{table}[htpb]
+	\centering
+	\caption{\textsc{Wikipedia} ($7065$ nodes) \label{tab:wiki}}
+	\begin{tabular}{lllllll}
+		\toprule
+		& edges       & accuracy      & $F_1$         & Matthews      & path-stretch & test edge-stretch \\
+		\midrule
+		BFS      & 7064, 7.1\% & 0.662 (0.067) & 0.764 (0.059) & 0.185 (0.081) &              & \\
+		$k=1$    & 10839, 10.8\%          & 0.671 (0.029) & 0.777 (0.025) & 0.173 (0.032) &              & \\
+		$k=2$    & \%          &               &               &               &              & \\
+		$k=3$    & 7064, 7.1\%          & 0.654 (0.041) & 0.761 (0.035) & 0.157 (0.047) &              & \\
+		\bottomrule
+	\end{tabular}
+\end{table}
+
+While on average, $k=1$ give better results with a smaller variance, for
+individual labeling, the situation is rather surprising since in 24\% of the
+cases, $k=3$ is actually better, as showed in Figures~\ref{fig:mcc0} and
+\ref{fig:violin}.
+
+\begin{figure}[htpb]
+	\centering
+	\includegraphics[width=1.0\linewidth]{wiki_mcc0.png}
+	\caption{All points should be below the diagonal \label{fig:mcc0}}
+\end{figure}
+
+\begin{figure}[htpb]
+	\centering
+	\includegraphics[width=1.0\linewidth]{wiki_mcc_violin.png}
+	\caption{Yet there is some mixing \label{fig:violin}}
+\end{figure}
+\begin{table}[htpb]
+	\centering
+	\caption{\textsc{2 synthetic clusters} ($1000$ nodes, 5731 positive edges, 1686 negative ones) \label{tab:synth}}
+	\begin{tabular}{llllllll}
+		\toprule
+		noise           & method & edges        & accuracy      & $F_1$         & Matthews            & path-stretch & test edge-stretch \\
+		\midrule
+		\multirow{4}{*}{0} & BFS    & 999, 13.5\%  & 1.000 (0.000) & 1.000 (0.000) & 1.000 (0.000)     & 2.004 (0.023)  & 5.597 (0.068) \\
+		                & $k=0$  & 4174, 56.3\% & 1.000         & 1.000         & 1.000         & 1.243 & 3.497 \\
+		                & $k=1$  & 1012, 13.6\% & 1.000         & 1.000         & 1.000         & 2.638 & 7.303 \\
+		                & $k=2$  & 999, 13.5\%  & 1.000         & 1.000         & 1.000         & 2.678 & 7.417 \\
+						\midrule
+\multirow{4}{*}{0.02} & BFS & & 0.872 (0.070) & 0.912 (0.052) & 0.681 (0.147)  & & \\
+& $k=0$ & & 0.913         & 0.944         & 0.744  & & \\
+& $k=1$ & & 0.876         & 0.915         & 0.689  & & \\
+& $k=2$ & & 0.876         & 0.915         & 0.689  & & \\
+\multirow{4}{*}{0.04} & BFS & & 0.762 (0.063) & 0.830 (0.051) & 0.448 (0.117)  & & \\
+& $k=0$ & & 0.799         & 0.865         & 0.486  & & \\
+& $k=1$ & & 0.730         & 0.803         & 0.393  & & \\
+& $k=2$ & & 0.729         & 0.803         & 0.392  & & \\
+\multirow{4}{*}{0.07} & BFS & & 0.664 (0.061) & 0.749 (0.053) & 0.265 (0.106)  & & \\
+& $k=0$ & & 0.739         & 0.817         & 0.374  & & \\
+& $k=1$ & & 0.532         & 0.621         & 0.059  & & \\
+& $k=2$ & & 0.532         & 0.622         & 0.060  & & \\
+\multirow{4}{*}{0.1} & BFS & & 0.614 (0.053) & 0.702 (0.049) & 0.179 (0.087)  & & \\
+& $k=0$ & & 0.677         & 0.766         & 0.260  & & \\
+& $k=1$ & & 0.643         & 0.728         & 0.232  & & \\
+& $k=2$ & & 0.643         & 0.728         & 0.231  & & \\
+\multirow{4}{*}{0.15} & BFS & & 0.552 (0.032) & 0.635 (0.033) & 0.077 (0.049)  & & \\
+& $k=0$ & & 0.583         & 0.680         & 0.096  & & \\
+& $k=1$ & & 0.523         & 0.603         & 0.035  & & \\
+& $k=2$ & & 0.524         & 0.604         & 0.036  & & \\
+\multirow{4}{*}{0.2} & BFS & & 0.521 (0.019) & 0.596 (0.021) & 0.029 (0.029)  & & \\
+& $k=0$ & & 0.540         & 0.627         & 0.050  & & \\
+& $k=1$ & & 0.503         & 0.579         & -0.007  & & \\
+& $k=2$ & & 0.503         & 0.579         & -0.007  & & \\
+\multirow{4}{*}{0.3} & BFS & & 0.503 (0.005) & 0.551 (0.006) & 0.006 (0.010)  & & \\
+& $k=0$ & & 0.510         & 0.565         & 0.013  & & \\
+& $k=1$ & & 0.511         & 0.553         & 0.023  & & \\
+& $k=2$ & & 0.510         & 0.553         & 0.022  & & \\
+\multirow{4}{*}{0.4} & BFS & & 0.499 (0.006) & 0.529 (0.007) & -0.001 (0.013)  & & \\
+& $k=0$ & & 0.492         & 0.518         & -0.014  & & \\
+& $k=1$ & & 0.500         & 0.523         & 0.002  & & \\
+& $k=2$ & & 0.500         & 0.523         & 0.002  & & \\
+		\bottomrule
+	\end{tabular}
+\end{table}
+
+\begin{figure}[htpb]
+	\centering
+	\includegraphics[width=1.0\linewidth]{mcc.png}
+	\caption{Matthews Correlation Coefficient as noise increase (above 0 means better than random).
+	\label{fig:mcc}}
+\end{figure}
+\end{document}

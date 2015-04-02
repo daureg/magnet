@@ -301,8 +301,8 @@ if __name__ == '__main__':
     print('{}{:.3f}'.format('Accuracy'.ljust(60), acc))
     print('{}{:.3f}'.format('F1-score'.ljust(60), f1))
     print('{}{:.3f}'.format('Matthews correlation coefficient'.ljust(60), mc))
-    with open('wiki_res.dat', 'a') as f:
-        f.write('\t'.join(map(str, [acc, f1, mc])))
+    with open('sla_res.dat', 'a') as f:
+        f.write('\t'.join(map(str, [acc, f1, mc]))+'\n')
     sys.exit()
     import random
     import persistent

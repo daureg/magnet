@@ -46,15 +46,36 @@ def predict_edges(adjacency, nb_dim, mapping, test_edges):
 
 if __name__ == '__main__':
     # pylint: disable=C0103
-    rw.read_original_graph('soc-wiki.txt')
+    import sys
+    import graph_tool as gt
+    import redensify
+    import convert_experiment as cexp
+    from copy import deepcopy
+    # rw.read_original_graph('soc-sign-Slashdot090221.txt')
+    noise = int(sys.argv[1])
+    assert noise == 0 or noise > 1, 'give noise as a percentage'
+    k = gt.load_graph('universe/noise.gt')
+    cexp.to_python_graph(k)
+    cexp.add_noise(noise/100, noise/100)
+    rw.G = deepcopy(redensify.G)
+    rw.EDGE_SIGN = deepcopy(redensify.EDGES_SIGN)
+    rw.DEGREES = sorted(((node, len(adj)) for node, adj in rw.G.items()),
+                        key=lambda x: x[1])
+
+    # TODO load universe/noise.gt, add noise, convert to redensify and
+    # transfer to rw
     lcc_tree = pot.get_bfs_tree(rw.G, rw.DEGREES[-1][0])
     heads, tails = zip(*lcc_tree)
     slcc = sorted(set(heads).union(set(tails)))
     # a mapping between original vertex indices and indices in the largest
     # component
     mapping = {v: i for i, v in enumerate(slcc)}
-    nb_dims = [5, 10, 15, 25]
-    training_fraction = [5, 7, 10, 15, 37, 50]
+    # nb_dims = [5, 10, 15, 25]
+    n_rep = 10
+    nb_dims = n_rep*[15,]
+    # training_fraction = [5, 7.5, 11, 17, 27.1, 50]
+    # training_fraction = [16.5, 36.1]
+    training_fraction = [13.5, 56.3]
     acc = np.zeros((len(nb_dims), len(training_fraction)))
     f1 = np.zeros((len(nb_dims), len(training_fraction)))
     mcc = np.zeros((len(nb_dims), len(training_fraction)))
@@ -68,6 +89,7 @@ if __name__ == '__main__':
             acc[i, j] = res[0]
             f1[i, j] = res[1]
             mcc[i, j] = res[2]
-    np.save('asym_wiki_acc', acc)
-    np.save('asym_wiki_f1', f1)
-    np.save('asym_wiki_mcc', mcc)
+    out_name = 'asym_{}_{}_{}'.format
+    np.save(out_name('noise', int(noise), 'acc'), acc)
+    np.save(out_name('noise', int(noise), 'f1'), f1)
+    np.save(out_name('noise', int(noise), 'mcc'), mcc)

@@ -32,9 +32,12 @@ def get_graph():
     np.save('universe/noise_dst', dst_mat)
 
 
-def compute_trees():
-    # import galaxy
-    # galaxy.galaxy_maker_clean(redensify.G, 5, outname='universe/noise')
+def compute_trees(seed=None):
+    if seed:
+        import galaxy
+        galaxy.galaxy_maker_clean(redensify.G, 5,
+                                  outname='universe/noise_{}'.format(seed))
+        return None
     assert len(redensify.G.keys()) == 1000
     trees = []
     for root in ROOTS:
@@ -82,8 +85,9 @@ def compute_stretch(gt_graph, dst_mat, spanner_edges):
     return path_stretch, edge_stretch
 
 
-def compute_prediction_galaxy(k, edge_signs):
-    gold, pred, brute_pred = pot.predict_edges('universe/noise_'+str(k),
+def compute_prediction_galaxy(k, edge_signs, seed=None):
+    basename = 'universe/noise_{}_{}'.format(seed, k)
+    gold, pred, brute_pred = pot.predict_edges(basename,
                                                all_signs=edge_signs,
                                                use_brute=False)
     # res = []
@@ -104,8 +108,20 @@ def compute_prediction_bfs(tree, edge_signs):
 
 if __name__ == '__main__':
     import random
-    gt_graph, dst_mat = get_graph()
-    BFS = compute_trees()
+    import real_world as rw
+    import sys
+    noise = int(sys.argv[1])
+    # gt_graph, dst_mat = get_graph()
+
+    def shuffle_nodes(seed):
+        random.seed(seed)
+        rperm = list(redensify.G.keys())
+        random.shuffle(rperm)
+        rperm = {i: v for i, v in enumerate(rperm)}
+        _ = rw.reindex_nodes(redensify.G, redensify.EDGES_SIGN, rperm)
+        redensify.G, redensify.EDGES_SIGN = _
+
+    # BFS = compute_trees()
     # bfs_stretch = np.zeros((len(BFS), 2))
     # for i, tree in enumerate(BFS):
     #     bfs_stretch[i, :] = compute_stretch(gt_graph, dst_mat, tree[1])
@@ -120,72 +136,36 @@ if __name__ == '__main__':
     # for e, s in redensify.EDGES_SIGN.items():
     #     redensify.EDGES_SIGN[e] = 1 if s else -1
 
-    noise_level = [-1, 2, 4, 7, 10, 15, 20, 30, 40]
-    # noise_level = [2, 40]
+    # noise_level = [-1, 2, 4, 7, 10, 15, 20, 30, 40]
+    n_rep = 50
+    noise_level = [noise]
+    seeds = [100*s + 57 for s in range(n_rep)]
     for p in noise_level:
         p /= 100
         print(p)
         edge_signs = {}
-        bfs_res = np.zeros((len(BFS), 3))
+        # bfs_res = np.zeros((len(BFS), 3))
         for e, s in redensify.EDGES_SIGN.items():
             edge_signs[e] = not s if random.random() < p else s
-        for i, tree in enumerate(BFS):
-            bfs_res[i, :] = compute_prediction_bfs(tree[0], edge_signs)
-        print(' & '.join(['{:.3f} ({:.3f})'.format(*l)
-                          for l in zip(np.mean(bfs_res, 0),
-                                       np.std(bfs_res, 0))]))
+        # for i, tree in enumerate(BFS):
+        #     bfs_res[i, :] = compute_prediction_bfs(tree[0], edge_signs)
+        # print(' & '.join(['{:.3f} ({:.3f})'.format(*l)
+        #                   for l in zip(np.mean(bfs_res, 0),
+        #                                np.std(bfs_res, 0))]))
+        for s in seeds:
+            get_graph()
+            shuffle_nodes(s)
+            compute_trees(s)
         for k in range(3):
-            res = compute_prediction_galaxy(k, edge_signs)
-            print(' & '.join(['{:.3f}'.format(o) for o in res]))
-
-
-
-# 999, 13.5\%  & 2.004 (0.023) & 5.597 (0.068)
-# 4174, 56.3\% & 1.243         & 3.497
-# 1012, 13.6\% & 2.638         & 7.303
-# 999, 13.5\%  & 2.678         & 7.417
-
-# 1.000 (0.000) & 1.000 (0.000) & 1.000 (0.000)
-# 1.000         & 1.000         & 1.000
-# 1.000         & 1.000         & 1.000
-# 1.000         & 1.000         & 1.000
-# 0.02
-# 0.872 (0.070) & 0.912 (0.052) & 0.681 (0.147)
-# 0.913         & 0.944         & 0.744
-# 0.876         & 0.915         & 0.689
-# 0.876         & 0.915         & 0.689
-# 0.04
-# 0.762 (0.063) & 0.830 (0.051) & 0.448 (0.117)
-# 0.799         & 0.865         & 0.486
-# 0.730         & 0.803         & 0.393
-# 0.729         & 0.803         & 0.392
-# 0.07
-# 0.664 (0.061) & 0.749 (0.053) & 0.265 (0.106)
-# 0.739         & 0.817         & 0.374
-# 0.532         & 0.621         & 0.059
-# 0.532         & 0.622         & 0.060
-# 0.1
-# 0.614 (0.053) & 0.702 (0.049) & 0.179 (0.087)
-# 0.677         & 0.766         & 0.260
-# 0.643         & 0.728         & 0.232
-# 0.643         & 0.728         & 0.231
-# 0.15
-# 0.552 (0.032) & 0.635 (0.033) & 0.077 (0.049)
-# 0.583         & 0.680         & 0.096
-# 0.523         & 0.603         & 0.035
-# 0.524         & 0.604         & 0.036
-# 0.2
-# 0.521 (0.019) & 0.596 (0.021) & 0.029 (0.029)
-# 0.540         & 0.627         & 0.050
-# 0.503         & 0.579         & -0.007
-# 0.503         & 0.579         & -0.007
-# 0.3
-# 0.503 (0.005) & 0.551 (0.006) & 0.006 (0.010)
-# 0.510         & 0.565         & 0.013
-# 0.511         & 0.553         & 0.023
-# 0.510         & 0.553         & 0.022
-# 0.4
-# 0.499 (0.006) & 0.529 (0.007) & -0.001 (0.013)
-# 0.492         & 0.518         & -0.014
-# 0.500         & 0.523         & 0.002
-# 0.500         & 0.523         & 0.002
+            gtx_res = np.zeros((n_rep, 3))
+            for i, s in enumerate(seeds):
+                get_graph()
+                shuffle_nodes(s)
+                edge_signs = {}
+                for e, sign in redensify.EDGES_SIGN.items():
+                    edge_signs[e] = not sign if random.random() < p else sign
+                gtx_res[i, :] = compute_prediction_galaxy(k, edge_signs, s)
+            txt_res = (' & '.join(['{:.3f} ({:.3f})'.format(*l)
+                                   for l in zip(np.mean(gtx_res, 0),
+                                                np.std(gtx_res, 0))]))
+            print('& $k={}$ & & {} & & \\\\'.format(k, txt_res))

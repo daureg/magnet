@@ -67,9 +67,8 @@ def edge_between(G, s1, s2):
     """return a "arbitrary" edge of `G` between two stars"""
     for u, v in product([s1.center] + s1.points,
                         [s2.center] + s2.points):
-        u, v = (u, v) if u < v else (v, u)
         if v in G[u]:
-            return u, v
+            return (u, v) if u < v else (v, u)
     return None
 
 
@@ -105,7 +104,9 @@ def collapse_stars(G, stars):
 
 @profile
 def galaxy_maker_clean(G, k, outname=None):
-    """same as galaxy_maker with no visualization and unnecessary variables"""
+    """kind of like galaxy_maker with no visualization and unnecessary
+    variables, and the ability to write full output at each iteration, along
+    keeping track of star membership"""
     current_graph, ems, all_stars = G, [], []
     star_membership = {}
     for i in range(k):
@@ -115,14 +116,14 @@ def galaxy_maker_clean(G, k, outname=None):
         collapsed_graph, _, em, sm = collapse_stars(current_graph, stars)
         if i == 0:
             star_membership = sm
-            a, b = set(G.keys()), set(star_membership.keys())
-            assert a == b, a - b
+            # a, b = set(G.keys()), set(star_membership.keys())
+            # assert a == b, a - b
         else:
             for orig_nodes, previous_star in star_membership.items():
                 star_membership[orig_nodes] = sm[previous_star]
-        duration = clock() - start
-        print('iteration {} in {:.3f} seconds'.format(str(i).ljust(3),
-                                                      duration))
+        # duration = clock() - start
+        # print('iteration {} in {:.3f} seconds'.format(str(i).ljust(3),
+        #                                               duration))
         ems.append(em)
         if outname:
             filename = '{}_{}'.format(outname, i)

@@ -29,7 +29,7 @@ def get_training_matrix(pr_in_train_set, mapping, slcc):
             test_edges.add((u, v))
     sadj = scipy.sparse.csc_matrix(madj[np.ix_(slcc, slcc)],
                                    dtype=np.double)
-    return sadj, mapping, test_edges
+    return sadj, test_edges
 
 
 def predict_edges(adjacency, nb_dim, mapping, test_edges):
@@ -54,42 +54,53 @@ if __name__ == '__main__':
     # rw.read_original_graph('soc-sign-Slashdot090221.txt')
     noise = int(sys.argv[1])
     assert noise == 0 or noise > 1, 'give noise as a percentage'
-    k = gt.load_graph('universe/noise.gt')
-    cexp.to_python_graph(k)
-    cexp.add_noise(noise/100, noise/100)
-    rw.G = deepcopy(redensify.G)
-    rw.EDGE_SIGN = deepcopy(redensify.EDGES_SIGN)
-    rw.DEGREES = sorted(((node, len(adj)) for node, adj in rw.G.items()),
-                        key=lambda x: x[1])
+    G = gt.load_graph('universe/noisePA.gt')
 
-    # TODO load universe/noise.gt, add noise, convert to redensify and
-    # transfer to rw
-    lcc_tree = pot.get_bfs_tree(rw.G, rw.DEGREES[-1][0])
-    heads, tails = zip(*lcc_tree)
-    slcc = sorted(set(heads).union(set(tails)))
-    # a mapping between original vertex indices and indices in the largest
-    # component
-    mapping = {v: i for i, v in enumerate(slcc)}
+    def add_cc_noise(noise):
+        cexp.to_python_graph(G)
+        cexp.add_noise(noise/100, noise/100)
+        rw.G = deepcopy(redensify.G)
+        rw.EDGE_SIGN = deepcopy(redensify.EDGES_SIGN)
+        rw.DEGREES = sorted(((node, len(adj)) for node, adj in rw.G.items()),
+                            key=lambda x: x[1])
+
+        lcc_tree = pot.get_bfs_tree(rw.G, rw.DEGREES[-1][0])
+        heads, tails = zip(*lcc_tree)
+        slcc = sorted(set(heads).union(set(tails)))
+        # a mapping between original vertex indices and indices in the largest
+        # component
+        mapping = {v: i for i, v in enumerate(slcc)}
+        return mapping, slcc
+
     # nb_dims = [5, 10, 15, 25]
-    n_rep = 10
-    nb_dims = n_rep*[15,]
+    n_rep = 30
+    nb_dims = n_rep*[15, ]
     # training_fraction = [5, 7.5, 11, 17, 27.1, 50]
     # training_fraction = [16.5, 36.1]
-    training_fraction = [13.5, 56.3]
-    acc = np.zeros((len(nb_dims), len(training_fraction)))
-    f1 = np.zeros((len(nb_dims), len(training_fraction)))
-    mcc = np.zeros((len(nb_dims), len(training_fraction)))
-    for i, nb_dim in enumerate(nb_dims):
-        for j, pr in enumerate(training_fraction):
-            print(nb_dim, pr)
-            adj, mapping, test_edges = get_training_matrix(pr/100, mapping,
-                                                           slcc)
-            res = predict_edges(adj, nb_dim, mapping, test_edges)
-            print(res)
-            acc[i, j] = res[0]
-            f1[i, j] = res[1]
-            mcc[i, j] = res[2]
-    out_name = 'asym_{}_{}_{}'.format
-    np.save(out_name('noise', int(noise), 'acc'), acc)
-    np.save(out_name('noise', int(noise), 'f1'), f1)
-    np.save(out_name('noise', int(noise), 'mcc'), mcc)
+    training_fraction = [18, ]
+    n_noise = 20
+    acc = np.zeros((len(nb_dims)*n_noise, len(training_fraction)))
+    f1 = np.zeros((len(nb_dims)*n_noise, len(training_fraction)))
+    mcc = np.zeros((len(nb_dims)*n_noise, len(training_fraction)))
+    print(noise/100)
+    for k in range(n_noise):
+        mapping, slcc = add_cc_noise(noise)
+        for i, nb_dim in enumerate(nb_dims):
+            for j, pr in enumerate(training_fraction):
+                # print(nb_dim, pr)
+                adj, test_edges = get_training_matrix(pr/100, mapping, slcc)
+                res = predict_edges(adj, nb_dim, mapping, test_edges)
+                # print(res)
+                acc[i+k*n_rep, j] = res[0]
+                f1[i+k*n_rep, j] = res[1]
+                mcc[i+k*n_rep, j] = res[2]
+    txt_res = ' & '.join(['{:.3f} ({:.3f})'.format(np.mean(_[:, 0], 0),
+                                                   np.std(_[:, 0], 0))
+                          for _ in [acc, f1, mcc]])
+    print('& AsymExp $z={}$ & {:.1f}% & {} & & \\\\'.format(nb_dims[0],
+                                                            training_fraction[0],
+                                                            txt_res))
+    # out_name = 'asym_{}_{}_{}'.format
+    # np.save(out_name('noise', int(noise), 'acc'), acc)
+    # np.save(out_name('noise', int(noise), 'f1'), f1)
+    # np.save(out_name('noise', int(noise), 'mcc'), mcc)

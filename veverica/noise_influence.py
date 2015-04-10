@@ -111,14 +111,14 @@ def compute_stretch(gt_graph, dst_mat, spanner_edges):
 
 
 def compute_prediction_galaxy(k, edge_signs, seed=None):
-    basename = 'universe/noise_{}_{}'.format(seed, k)
+    global NUM_TRAIN_EDGES
+    basename = BASENAME+'_{}_{}'.format(seed, k)
+    spanner_edges, _, _, _ = pot.read_spanner_from_file(basename)
+    train_edges = {(u, v) for u, v in spanner_edges}
+    NUM_TRAIN_EDGES = len(train_edges)
     gold, pred, brute_pred = pot.predict_edges(basename,
                                                all_signs=edge_signs,
                                                use_brute=False)
-    # res = []
-    # for p in pred, brute_pred:
-    #     res.append((accuracy_score(gold, pred), f1_score(gold, pred),
-    #                 matthews_corrcoef(gold, pred)))
     return (accuracy_score(gold, pred), f1_score(gold, pred),
             matthews_corrcoef(gold, pred))
 
@@ -135,18 +135,22 @@ if __name__ == '__main__':
     import random
     import real_world as rw
     import sys
+    from copy import deepcopy
     noise = int(sys.argv[1])
-    # gt_graph, dst_mat = get_graph()
+    gt_graph, dst_mat = get_graph()
+    orig_g = deepcopy(redensify.G)
+    orig_es = deepcopy(redensify.EDGES_SIGN)
 
     def shuffle_nodes(seed):
         random.seed(seed)
-        rperm = list(redensify.G.keys())
+        rperm = list(orig_g.keys())
         random.shuffle(rperm)
         rperm = {i: v for i, v in enumerate(rperm)}
-        _ = rw.reindex_nodes(redensify.G, redensify.EDGES_SIGN, rperm)
+        _ = rw.reindex_nodes(orig_g, orig_es, rperm)
         redensify.G, redensify.EDGES_SIGN = _
+        return rperm
 
-    # BFS = compute_trees()
+    BFS = compute_trees()
     # bfs_stretch = np.zeros((len(BFS), 2))
     # for i, tree in enumerate(BFS):
     #     bfs_stretch[i, :] = compute_stretch(gt_graph, dst_mat, tree[1])
@@ -162,35 +166,55 @@ if __name__ == '__main__':
     #     redensify.EDGES_SIGN[e] = 1 if s else -1
 
     # noise_level = [-1, 2, 4, 7, 10, 15, 20, 30, 40]
-    n_rep = 50
-    noise_level = [noise]
+    n_rep = 40
+    n_noise_bfs_rep = 20
+    n_noise_gtx_rep = n_noise_bfs_rep
+    assert n_noise_bfs_rep == n_noise_gtx_rep
+    edge_noises = []
+    for i in range(n_noise_bfs_rep):
+        p = noise/100
+        edge_signs = {}
+        for e, sign in orig_es.items():
+            edge_signs[e] = not sign if random.random() < p else sign
+        edge_noises.append(edge_signs)
+    noise_level = [noise, ]
     seeds = [100*s + 57 for s in range(n_rep)]
+    name = '\multirow{{4}}{{*}}{{{:.2f}}}'.format(noise/100)
     for p in noise_level:
         p /= 100
         print(p)
-        edge_signs = {}
-        # bfs_res = np.zeros((len(BFS), 3))
-        for e, s in redensify.EDGES_SIGN.items():
-            edge_signs[e] = not s if random.random() < p else s
-        # for i, tree in enumerate(BFS):
-        #     bfs_res[i, :] = compute_prediction_bfs(tree[0], edge_signs)
-        # print(' & '.join(['{:.3f} ({:.3f})'.format(*l)
-        #                   for l in zip(np.mean(bfs_res, 0),
-        #                                np.std(bfs_res, 0))]))
+        bfs_res = np.zeros((n_noise_bfs_rep*len(BFS), 3))
+        for j in range(n_noise_bfs_rep):
+            edge_signs = edge_noises[j]
+            for i, tree in enumerate(BFS):
+                idx = j*len(BFS)+i
+                bfs_res[idx, :] = compute_prediction_bfs(tree[0], edge_signs)
+        txt_res = ' & '.join(['{:.3f} ({:.3f})'.format(*l)
+                              for l in zip(np.mean(bfs_res, 0),
+                                           np.std(bfs_res, 0))])
+        print('{} & BFS & & {} & & \\\\'.format(name, txt_res))
+        # continue
+        nodes_mappings = []
         for s in seeds:
             get_graph()
-            shuffle_nodes(s)
+            nodes_mappings.append(shuffle_nodes(s))
             compute_trees(s)
-        for k in range(3):
-            gtx_res = np.zeros((n_rep, 3))
+        for k in range(K):
+            gtx_res = np.zeros((n_rep*n_noise_gtx_rep, 3))
             for i, s in enumerate(seeds):
                 get_graph()
-                shuffle_nodes(s)
-                edge_signs = {}
-                for e, sign in redensify.EDGES_SIGN.items():
-                    edge_signs[e] = not sign if random.random() < p else sign
-                gtx_res[i, :] = compute_prediction_galaxy(k, edge_signs, s)
+                _ = shuffle_nodes(s)
+                assert _ == nodes_mappings[i], i
+                for j in range(n_noise_gtx_rep):
+                    _, edge_signs = rw.reindex_nodes({}, edge_noises[j],
+                                                     nodes_mappings[i])
+                    score = compute_prediction_galaxy(k, edge_signs, s)
+                    idx = j*n_rep + i
+                    gtx_res[idx, :] = score
             txt_res = (' & '.join(['{:.3f} ({:.3f})'.format(*l)
                                    for l in zip(np.mean(gtx_res, 0),
                                                 np.std(gtx_res, 0))]))
             print('& $k={}$ & & {} & & \\\\'.format(k, txt_res))
+            if noise == 2:
+                fraction = len(redensify.EDGES_SIGN)/NUM_TRAIN_EDGES
+                print('{}, {:.1f}%'.format(NUM_TRAIN_EDGES, fraction))

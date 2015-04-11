@@ -226,5 +226,5 @@ if __name__ == '__main__':
                                                 np.std(gtx_res, 0))]))
             print('& $k={}$ & & {} & & \\\\'.format(k, txt_res))
             if noise == 2:
-                fraction = len(redensify.EDGES_SIGN)/NUM_TRAIN_EDGES
+                fraction = NUM_TRAIN_EDGES/len(redensify.EDGES_SIGN)
                 print('{}, {:.1f}%'.format(NUM_TRAIN_EDGES, fraction))

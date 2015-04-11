@@ -10,9 +10,10 @@ import pred_on_tree as pot
 import sklearn.metrics
 
 
-def get_training_matrix(pr_in_train_set, mapping, slcc):
+def get_training_matrix(pr_in_train_set, mapping, slcc, tree_edges=None):
     """Build a sparse adjacency matrix, keeping only a fraction
-    `pr_in_train_set` of the entry. Return edges to be predicted."""
+    `pr_in_train_set` of the entry (or those in `tree_edges`). Return edges to
+    be predicted."""
     n = len(rw.G)
     madj = np.zeros((n, n), dtype=np.int8)
     for u in rw.G.keys():
@@ -21,12 +22,22 @@ def get_training_matrix(pr_in_train_set, mapping, slcc):
                               for v in sorted(rw.G[u])))
             madj[u, vs] = [1 if sign else -1 for sign in signs]
     test_edges = set()
+    if tree_edges:
+        pr_in_train_set = 10
+    total_edges = 0
     for u, v in np.argwhere(madj):
         if u > v or u not in mapping:
             continue
-        if random.random() > pr_in_train_set:
+        total_edges += 1
+        if tree_edges and (u, v) not in tree_edges or \
+           random.random() > pr_in_train_set:
             madj[u, v], madj[v, u] = 0, 0
             test_edges.add((u, v))
+
+    if tree_edges:
+        msg = '{} = {}+{}'.format(total_edges, len(tree_edges),
+                                  len(test_edges))
+        assert len(test_edges) == total_edges - len(tree_edges), msg
     sadj = scipy.sparse.csc_matrix(madj[np.ix_(slcc, slcc)],
                                    dtype=np.double)
     return sadj, test_edges

@@ -28,11 +28,20 @@ else:
     K = 3
 
 
-def get_graph():
+def get_graph(balanced=False):
+    """Load the graph from BASENAME and optionally remove positive edges to
+    balance the graph. NOTE: this only modify redensify structure and not
+    graph_tool & its distance matrix"""
+    if balanced:
+        import persistent
     if os.path.isfile(BASENAME+'.gt'):
         g = graph_tool.load_graph(BASENAME+'.gt')
         dst_mat = np.load(BASENAME+'_dst.npy')
         cexp.to_python_graph(g)
+        if balanced:
+            to_delete = persistent.load_var(BASENAME+'_balance.my')
+            for edge in to_delete:
+                pot.delete_edge(redensify.G, edge, redensify.EDGES_SIGN)
         return g, dst_mat
     if not PA:
         cexp.random_signed_communities(2, 500, 13, 11.5/500, .0, .0)
@@ -137,7 +146,8 @@ if __name__ == '__main__':
     import sys
     from copy import deepcopy
     noise = int(sys.argv[1])
-    gt_graph, dst_mat = get_graph()
+    balanced = True
+    gt_graph, dst_mat = get_graph(balanced=balanced)
     orig_g = deepcopy(redensify.G)
     orig_es = deepcopy(redensify.EDGES_SIGN)
 
@@ -166,7 +176,7 @@ if __name__ == '__main__':
     #     redensify.EDGES_SIGN[e] = 1 if s else -1
 
     # noise_level = [-1, 2, 4, 7, 10, 15, 20, 30, 40]
-    n_rep = 40
+    n_rep = 50
     n_noise_bfs_rep = 20
     n_noise_gtx_rep = n_noise_bfs_rep
     assert n_noise_bfs_rep == n_noise_gtx_rep
@@ -196,13 +206,13 @@ if __name__ == '__main__':
         # continue
         nodes_mappings = []
         for s in seeds:
-            get_graph()
+            get_graph(balanced=balanced)
             nodes_mappings.append(shuffle_nodes(s))
             compute_trees(s)
         for k in range(K):
             gtx_res = np.zeros((n_rep*n_noise_gtx_rep, 3))
             for i, s in enumerate(seeds):
-                get_graph()
+                get_graph(balanced=balanced)
                 _ = shuffle_nodes(s)
                 assert _ == nodes_mappings[i], i
                 for j in range(n_noise_gtx_rep):

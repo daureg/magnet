@@ -68,6 +68,17 @@ def make_pred(tree, tags, edge_signs=None):
     return gold, pred
 
 
+def delete_edge(adjacency, edge, edges_sign=None):
+    """Remove `edge` from `adjacency` and optionally from `edges_sign`"""
+    u, v = edge
+    if u > v:
+        u, v = v, u
+    adjacency[u].remove(v)
+    adjacency[v].remove(u)
+    if edges_sign is not None:
+        del edges_sign[(u, v)]
+
+
 def add_edge_to_tree(tree, u, v):
     """Update adjacency list `tree` with the (u, v) edge"""
     if u in tree:

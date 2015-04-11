@@ -50,14 +50,22 @@ if __name__ == '__main__':
     import graph_tool as gt
     import redensify
     import convert_experiment as cexp
+    import pred_on_tree as pot
     from copy import deepcopy
     # rw.read_original_graph('soc-sign-Slashdot090221.txt')
     noise = int(sys.argv[1])
     assert noise == 0 or noise > 1, 'give noise as a percentage'
-    G = gt.load_graph('universe/noisePA.gt')
+    BASENAME = 'universe/noisePA'
+    balanced = True
+    G = gt.load_graph(BASENAME+'.gt')
 
-    def add_cc_noise(noise):
+    def add_cc_noise(noise, balanced=False):
         cexp.to_python_graph(G)
+        if balanced:
+            import persistent
+            to_delete = persistent.load_var(BASENAME+'_balance.my')
+            for edge in to_delete:
+                pot.delete_edge(redensify.G, edge, redensify.EDGES_SIGN)
         cexp.add_noise(noise/100, noise/100)
         rw.G = deepcopy(redensify.G)
         rw.EDGE_SIGN = deepcopy(redensify.EDGES_SIGN)
@@ -73,18 +81,18 @@ if __name__ == '__main__':
         return mapping, slcc
 
     # nb_dims = [5, 10, 15, 25]
-    n_rep = 30
+    n_rep = 50
     nb_dims = n_rep*[15, ]
     # training_fraction = [5, 7.5, 11, 17, 27.1, 50]
     # training_fraction = [16.5, 36.1]
-    training_fraction = [18, ]
+    training_fraction = [7.6, ]
     n_noise = 20
     acc = np.zeros((len(nb_dims)*n_noise, len(training_fraction)))
     f1 = np.zeros((len(nb_dims)*n_noise, len(training_fraction)))
     mcc = np.zeros((len(nb_dims)*n_noise, len(training_fraction)))
     print(noise/100)
     for k in range(n_noise):
-        mapping, slcc = add_cc_noise(noise)
+        mapping, slcc = add_cc_noise(noise, balanced=balanced)
         for i, nb_dim in enumerate(nb_dims):
             for j, pr in enumerate(training_fraction):
                 # print(nb_dim, pr)

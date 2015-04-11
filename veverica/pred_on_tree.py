@@ -280,6 +280,7 @@ if __name__ == '__main__':
     args = sys.argv
     full_graph, tree_edges, seed = args[1], args[2], int(args[3])
     gt_graph = 'xx'
+    balanced = True
     # gt_graph = {'soc-sign-Slashdot090221.txt': 'slashdot_simple.gt',
     #             'soc-wiki.txt': 'wiki_simple.gt',
     #             'soc-sign-epinions.txt': 'epinion.gt'}[full_graph]
@@ -291,7 +292,7 @@ if __name__ == '__main__':
         info = '{}{:.2f} seconds'.format
         print(info(msg.ljust(60), clock() - start))
         start = clock()
-    rw.read_original_graph(full_graph, seed=seed)
+    rw.read_original_graph(full_graph, seed=seed, balanced=balanced)
     for e, s in rw.EDGE_SIGN.items():
         rw.EDGE_SIGN[e] = 1 if s else -1
     # print_diag('Read graph')
@@ -312,7 +313,7 @@ if __name__ == '__main__':
     print('{}{:.3f}'.format('Accuracy'.ljust(60), acc))
     print('{}{:.3f}'.format('F1-score'.ljust(60), f1))
     print('{}{:.3f}'.format('Matthews correlation coefficient'.ljust(60), mc))
-    with open('sla_res.dat', 'a') as f:
+    with open('wiki_bal_res.dat', 'a') as f:
         f.write('\t'.join(map(str, [acc, f1, mc]))+'\n')
     sys.exit()
     import random
@@ -322,7 +323,8 @@ if __name__ == '__main__':
     roots = list(set(roots))
     roots = [_[0] for _ in rw.DEGREES[-150:]]
     print(len(roots))
-    for root in roots:
+    bfs_res = np.zeros((len(roots), 4))
+    for i, root in enumerate(roots):
         bfst = get_bfs_tree(rw.G, root)
         with open('__.dat', 'w') as f:
             f.write('\n'.join(('{}, {}'.format(*e) for e in bfst)))
@@ -331,14 +333,16 @@ if __name__ == '__main__':
         print_diag('Predict with BFS {}'.format(root))
         print('{}{:.3f}'.format('F1-score'.ljust(60), f1))
         print('{}{:.3f}'.format('Matthews correlation coefficient'.ljust(60), mc))
+        bfs_res[i, :] = (acc, f1, mc, root)
         accs.append(acc)
         f1s.append(f1)
         mcs.append(mc)
-    prefix = 'wik'
-    persistent.save_var('{}_acc'.format(prefix), accs)
-    persistent.save_var('{}_f1'.format(prefix), f1s)
-    persistent.save_var('{}_mc'.format(prefix), mcs)
-    persistent.save_var('{}_roots'.format(prefix), roots)
+    np.save('wiki_bal_bfs.npy', bfs_res)
+    # prefix = 'wik'
+    # persistent.save_var('{}_acc'.format(prefix), accs)
+    # persistent.save_var('{}_f1'.format(prefix), f1s)
+    # persistent.save_var('{}_mc'.format(prefix), mcs)
+    # persistent.save_var('{}_roots'.format(prefix), roots)
     # rst = random_spanning_tree(k)
     # rtree = read_in_memory_tree(k, rst)
     # print_diag('Make random spanning tree')

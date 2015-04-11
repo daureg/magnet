@@ -13,6 +13,9 @@ G = {}
 EDGE_SIGN = {}
 DEGREES = None
 INCONSISTENT = 0
+EDGE_TO_DELETE = {'soc-sign-Slashdot090221.txt': 'universe/slash_delete.my',
+                  'soc-sign-epinions.txt': 'universe/epi_delete.my',
+                  'soc-wiki.txt': 'universe/wiki_delete.my'}
 
 
 def add_neighbor(node, neighbor):
@@ -41,6 +44,14 @@ def add_signed_edge(a, b, sign):
     EDGE_SIGN[e] = sign
 
 
+def remove_signed_edge(u, v):
+    if u > v:
+        u, v = v, u
+    G[u].remove(v)
+    G[v].remove(u)
+    del EDGE_SIGN[(u, v)]
+
+
 def reindex_nodes(old_G, old_E, mapping):
     """Change nodes id according to `mapping`"""
     new_G = {}
@@ -53,7 +64,7 @@ def reindex_nodes(old_G, old_E, mapping):
     return new_G, new_E
 
 
-def read_original_graph(filename, seed=None):
+def read_original_graph(filename, seed=None, balanced=False):
     """Read a signed graph from `filename` and compute its degree sequence.
     Optionally `shuffle` nodes ids"""
     global DEGREES, G, EDGE_SIGN, INCONSISTENT
@@ -69,6 +80,11 @@ def read_original_graph(filename, seed=None):
     # reindex nodes so they are sequential
     mapping = {v: i for i, v in enumerate(sorted(G.keys()))}
     G, EDGE_SIGN = reindex_nodes(G, EDGE_SIGN, mapping)
+    if balanced:
+        import persistent
+        to_delete = persistent.load_var(EDGE_TO_DELETE[filename])
+        for edge in to_delete:
+            remove_signed_edge(*edge)
     if isinstance(seed, int):
         r.seed(seed)
         rperm = list(G.keys())

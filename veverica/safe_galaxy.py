@@ -19,10 +19,8 @@ def safe_bfs_search(adjacency, edge_signs, edge_status, nodes_subset, src,
     discovered = {k: (False, 0) for k in nodes_subset}
     border.append(src)
     discovered[src] = (True, 0)
-    # nb_iter = 0
     found = False
-    while border and not found:  # and nb_iter < len(discovered):
-        # nb_iter += 1
+    while border and not found::
         v = border.popleft()
         negativity = discovered[v][1]
         for w in adjacency[v].intersection(nodes_subset):
@@ -45,8 +43,7 @@ def safe_bfs_search(adjacency, edge_signs, edge_status, nodes_subset, src,
     return discovered[dst][1]
 
 
-def safely_get_sign(adjacency, edge, nodes, edge_status, edge_signs,
-                    byphase=False):
+def safely_get_sign(adjacency, edge, nodes, edge_status, edge_signs):
     """Try to predict the sign of `edge` by finding a path in `nodes`"""
     prediction = safe_bfs_search(adjacency, edge_signs, edge_status, nodes,
                                  *edge)
@@ -55,9 +52,7 @@ def safely_get_sign(adjacency, edge, nodes, edge_status, edge_signs,
         return True, 1 if prediction == 0 else -1
     # If we can't predict, we query the edge (which in practice only means we
     # can now look at its sign)
-    # or maybe wait
-    if not byphase:
-        edge_status[edge] = QUERIED
+    edge_status[edge] = QUERIED
     return False, None
 
 
@@ -132,6 +127,8 @@ def safe_galaxy_maker(G, k, edge_signs):
     gold, preds = [], []
 
     def predict_edges_batch(test_edges, nodes):
+        if not test_edges:  # common fast path
+            return
         _nodes = nodes
         if hasattr(nodes, 'center'):
             _nodes = set([nodes.center] + nodes.points)
@@ -164,17 +161,21 @@ def safe_galaxy_maker(G, k, edge_signs):
                 continue
             center = original_basis[s.center]
             radials = [original_basis[p] for p in s.points]
+            # TODO Ask Fabio about this all points thing
+            allpts = {p for c in [center]+radials for p in c}
             for component in ([center] + radials):
                 to_be_predicted = all_edges_within(G, component, edge_status)
                 predict_edges_batch(to_be_predicted, component)
             for component in radials:
                 to_be_predicted = all_edges_between(G, component, center,
                                                     edge_status)
-                predict_edges_batch(to_be_predicted, component | center)
+                predict_edges_batch(to_be_predicted, allpts)
+                # component | center)
             for comp1, comp2 in combinations(radials, 2):
                 to_be_predicted = all_edges_between(G, comp1, comp2,
                                                     edge_status)
-                predict_edges_batch(to_be_predicted, comp1 | comp2)
+                predict_edges_batch(to_be_predicted, allpts)
+                # comp1.union(comp2).union(center))
         collapsed_graph, _, em, sm = gx.collapse_stars(current_graph, stars)
         if i == 0:
             star_membership = sm
@@ -193,3 +194,10 @@ def safe_galaxy_maker(G, k, edge_signs):
             break
         current_graph = collapsed_graph
     return gold, preds, edge_status
+
+
+def save_edges(edge_status, outname):
+    edges = [e for e, kind in edge_status.items()
+             if kind == QUERIED]
+    with open(outname+'.edges', 'w') as f:
+        f.write('\n'.join(('{}, {}'.format(*e) for e in edges)))

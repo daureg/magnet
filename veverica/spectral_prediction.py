@@ -10,7 +10,7 @@ import pred_on_tree as pot
 import sklearn.metrics
 import sys
 DATA = sys.argv[1].upper()
-BALANCED = bool(sys.argv[2])
+BALANCED = bool(int(sys.argv[2]))
 NOISE = float(sys.argv[3])
 SEEDS = None
 
@@ -41,7 +41,8 @@ def get_training_matrix(pr_in_train_set, mapping, slcc, tree_edges=None):
     if tree_edges:
         msg = '{} = {}+{}'.format(total_edges, len(tree_edges),
                                   len(test_edges))
-        assert total_edges == len(tree_edges) + len(test_edges), msg
+        real = len(tree_edges) + len(test_edges)
+        assert .99*total_edges <= real <= 1.01*total_edges, msg
     sadj = scipy.sparse.csc_matrix(madj[np.ix_(slcc, slcc)],
                                    dtype=np.double)
     return sadj, test_edges
@@ -63,7 +64,8 @@ def predict_edges(adjacency, nb_dim, mapping, test_edges):
 def parse_args():
     global DATA, BALANCED
     assert DATA in ['ER', 'PA', 'EPI', 'WIK', 'SLA']
-    if len(DATA) == 2:
+    synthetic_data = len(DATA) == 2
+    if synthetic_data:
         basename = 'universe/noise'
         if DATA == 'PA':
             basename += 'PA'
@@ -73,7 +75,12 @@ def parse_args():
         basename = {'EPI': 'soc-sign-epinions.txt',
                     'WIK': 'soc-wiki.txt',
                     'SLA': 'soc-sign-Slashdot090221.txt'}[DATA]
-    return basename, seeds
+    prefix = basename
+    if not synthetic_data:
+        prefix = {'WIK': 'wiki', 'EPI': 'epi', 'SLA': 'slash'}[DATA]
+        if BALANCED:
+            prefix += '_bal'
+    return basename, seeds, synthetic_data, prefix
 
 if __name__ == '__main__':
     # pylint: disable=C0103
@@ -87,7 +94,7 @@ if __name__ == '__main__':
     assert noise == 0 or noise >= 1, 'give noise as a percentage'
     bfstrees = None
     training_fraction = None
-    BASENAME, SEEDS = parse_args()
+    BASENAME, SEEDS, SYNTHETIC_DATA, PREFIX = parse_args()
 
     def load_graph(seed=None):
         if BASENAME.startswith('soc'):
@@ -106,7 +113,7 @@ if __name__ == '__main__':
         global bfstrees
         redensify.G = deepcopy(orig_g)
         redensify.EDGES_SIGN = deepcopy(orig_es)
-        if balanced:
+        if balanced and SYNTHETIC_DATA:
             import persistent
             to_delete = persistent.load_var(BASENAME+'_balance.my')
             for edge in to_delete:
@@ -124,7 +131,7 @@ if __name__ == '__main__':
         rw.DEGREES = sorted(((node, len(adj)) for node, adj in rw.G.items()),
                             key=lambda x: x[1])
         if not bfstrees:
-            if len(DATA) == 2:
+            if SYNTHETIC_DATA:
                 bfstrees = [t[1] for t in nsi.compute_trees()]
             else:
                 bfstrees = []
@@ -137,7 +144,6 @@ if __name__ == '__main__':
         global training_fraction
         lcc_tree = pot.get_bfs_tree(rw.G, rw.DEGREES[-1][0])
         if not training_fraction:
-            print(len(lcc_tree), len(rw.EDGE_SIGN))
             training_fraction = len(lcc_tree)/len(rw.EDGE_SIGN)
         heads, tails = zip(*lcc_tree)
         slcc = sorted(set(heads).union(set(tails)))
@@ -146,12 +152,10 @@ if __name__ == '__main__':
         mapping = {v: i for i, v in enumerate(slcc)}
         return mapping, slcc
 
-    n_rep = 50
-    bfs_rep = 20
+    bfs_rep = 50
     SEEDS = SEEDS[:bfs_rep]
     NB_DIM = 15
-    nb_dims = n_rep*[NB_DIM, ]
-    n_noise = 2
+    n_noise = 20 if SYNTHETIC_DATA else 1
     bfs_res = np.zeros((bfs_rep*n_noise, 3))
     random_res = np.zeros((bfs_rep*n_noise, 3))
     gtx_res = np.zeros((len(SEEDS)*n_noise, 3))
@@ -164,7 +168,6 @@ if __name__ == '__main__':
             bfs_res[i+k*bfs_rep, :] = res
 
         pr = training_fraction
-        print(training_fraction)
         for i in range(bfs_rep):
             mapping, slcc = add_cc_noise(noise, balanced=BALANCED, seed=None)
             adj, test_edges = get_training_matrix(pr, mapping, slcc)
@@ -174,7 +177,7 @@ if __name__ == '__main__':
         for i, seed in enumerate(SEEDS):
             mapping, slcc = add_cc_noise(noise, balanced=BALANCED,
                                          seed=seed)
-            file_pattern = BASENAME+'_{}_*.edges'.format(seed)
+            file_pattern = 'universe/{}_{}_*.edges'.format(PREFIX, seed)
             gtx_trees = sorted(glob.glob(file_pattern))
             basename = gtx_trees[-1][:-6]
             spanner_edges, _, _, _ = pot.read_spanner_from_file(basename)
@@ -188,5 +191,5 @@ if __name__ == '__main__':
         txt_res = (' & '.join(['{:.3f} ({:.3f})'.format(*l)
                                for l in zip(np.mean(arr, 0),
                                             np.std(arr, 0))]))
-        params = (kind, training_fraction, txt_res)
+        params = (kind, 100*training_fraction, txt_res)
         print('& AsymExp {} & {:.1f}% & {} & & \\\\'.format(*params))

@@ -166,7 +166,7 @@ def meta_galaxy(graph, edge_signs, nb_iter, outname, safe=False, short=False):
         if outname:
             filename = '{}_{}'.format(outname, i)
             if safe:
-                save_edges(edge_status, outname)
+                save_edges(edge_status, filename)
             else:
                 gx.export_spanner(all_stars, ems, star_membership, filename)
         if len(em) == 0 or len(collapsed_graph) == len(current_graph):
@@ -312,5 +312,9 @@ if __name__ == '__main__':
                 '_safe' if args.safe else '')
     outname = 'universe/{}{}{}{}_test'.format(args.data.lower(), *suffixes)
     print(outname)
-    meta_galaxy(redensify.G, redensify.EDGES_SIGN, 10, outname,
-                safe=args.safe, short=args.short)
+    res = meta_galaxy(redensify.G, redensify.EDGES_SIGN, 10, outname,
+                      safe=args.safe, short=args.short)
+    if args.safe:
+        gold, pred, _ = res
+        import persistent
+        persistent.save_var(outname+'_res.my', (gold, pred))

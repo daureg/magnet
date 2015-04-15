@@ -1,3 +1,4 @@
+"""Implement variants of the original GalaxyMaker algorithm"""
 from collections import deque, defaultdict, Counter
 from itertools import combinations
 from copy import deepcopy
@@ -20,7 +21,7 @@ def safe_bfs_search(adjacency, edge_signs, edge_status, nodes_subset, src,
     border.append(src)
     discovered[src] = (True, 0)
     found = False
-    while border and not found::
+    while border and not found:
         v = border.popleft()
         negativity = discovered[v][1]
         for w in adjacency[v].intersection(nodes_subset):
@@ -71,7 +72,7 @@ def all_edges_within(adjacency, star, edge_status):
     return set(edges)
 
 
-def all_edges_between(adjacency, s1, s2, edge_status):
+def all_edges_between(adjacency, s1, s2, edge_status=None):
     """return the set of all test edges of `G` between two stars"""
     if hasattr(s1, 'center'):
         size1 = len(adjacency[s1.center])
@@ -82,19 +83,19 @@ def all_edges_between(adjacency, s1, s2, edge_status):
         s1, s2 = s2, s1
     edges = []
     if hasattr(s1, 'center'):
-        srcs = s1.points
+        srcs = set([s1.center] + s1.points)
         dests = set([s2.center] + s2.points)
     else:
         srcs, dests = s1, s2
     for u in srcs:
         for v in adjacency[u].intersection(dests):
             edge = (u, v) if u < v else (v, u)
-            if edge_status[edge] == UNKNOWN:
+            if edge_status is None or edge_status[edge] == UNKNOWN:
                 edges.append(edge)
     return set(edges)
 
 
-class id_dict(dict):
+class IdentityDict(dict):
     """Identity dictionary"""
 
     def __getitem__(self, key):
@@ -105,7 +106,7 @@ class id_dict(dict):
 def mark_queried_edges(edge_status, edges_to_mark, edge_mappings):
     """Update `edge_status` by translating to initial level `edges_to_mark`"""
     if len(edge_mappings) == 0:
-        trad = id_dict()
+        trad = IdentityDict()
     else:
         trad = deepcopy(edge_mappings[-1])
         for mapping in reversed(edge_mappings[:-1]):
@@ -117,87 +118,171 @@ def mark_queried_edges(edge_status, edges_to_mark, edge_mappings):
         edge_status[trad[e]] = QUERIED
 
 
-def safe_galaxy_maker(G, k, edge_signs):
-    """Galaxy maker, but predicting only if there are paths with no more than
-    one negative edge, querying otherwise."""
-    current_graph, ems, _ = G, [], []
-    star_membership = {node: node for node in G.keys()}
-    edge_status = {edge: UNKNOWN for edge in edge_signs.keys()}
-    original_basis = id_dict()
-    gold, preds = [], []
-
-    def predict_edges_batch(test_edges, nodes):
-        if not test_edges:  # common fast path
-            return
-        _nodes = nodes
-        if hasattr(nodes, 'center'):
-            _nodes = set([nodes.center] + nodes.points)
-        for e in test_edges:
-            pred, sign = safely_get_sign(G, e, _nodes, edge_status, edge_signs)
-            if pred:
-                preds.append(sign)
-                gold.append(1 if edge_signs[e] else -1)
-
-    for i in range(k):
-        start = clock()
-        stars, stars_edges = gx.stars_maker(current_graph)
-        flat_stars_edges = (e for s in stars_edges for e in s)
-        mark_queried_edges(edge_status, flat_stars_edges, ems)
-        for s in stars:
-            if i == 0:
-                to_be_predicted = all_edges_within(G, s, edge_status)
-                # TODO instead of querying, should I put failed edges on hold,
-                # hoping that future successful prediction will yield safe
-                # path for them? If the to_be_predicted does not change
-                # size after one pass, then I query everything.
-                # It could be a function taking to_be_predicted and node
-                # subset. This would require modifying safely_get_sign to not
-                # query edges.
-                # In fact, I still don't get the idea: if I can't predict the
-                # edge and don't query it, nothing will change since
-                # safe_bfs_search don't use predicted edge. So I can make as
-                # many pass as I want, it won't change anything
-                predict_edges_batch(to_be_predicted, s)
-                continue
-            center = original_basis[s.center]
-            radials = [original_basis[p] for p in s.points]
-            # TODO Ask Fabio about this all points thing
-            allpts = {p for c in [center]+radials for p in c}
-            for component in ([center] + radials):
-                to_be_predicted = all_edges_within(G, component, edge_status)
-                predict_edges_batch(to_be_predicted, component)
-            for component in radials:
-                to_be_predicted = all_edges_between(G, component, center,
-                                                    edge_status)
-                predict_edges_batch(to_be_predicted, allpts)
-                # component | center)
-            for comp1, comp2 in combinations(radials, 2):
-                to_be_predicted = all_edges_between(G, comp1, comp2,
-                                                    edge_status)
-                predict_edges_batch(to_be_predicted, allpts)
-                # comp1.union(comp2).union(center))
-        collapsed_graph, _, em, sm = gx.collapse_stars(current_graph, stars)
-        if i == 0:
-            star_membership = sm
-        else:
-            for orig_nodes, previous_star in star_membership.items():
-                star_membership[orig_nodes] = sm[previous_star]
-        original_basis = defaultdict(set)
-        for orig_id, star_id in star_membership.items():
-            original_basis[star_id].add(orig_id)
-        duration = clock() - start
-        print('iteration {} in {:.3f} seconds'.format(str(i).ljust(3),
-                                                      duration))
-        print(i, Counter(edge_status.values()))
-        ems.append(em)
-        if len(em) == 0 or len(collapsed_graph) == len(current_graph):
-            break
-        current_graph = collapsed_graph
-    return gold, preds, edge_status
-
-
 def save_edges(edge_status, outname):
+    """Write the list of queried edges in `outname`."""
     edges = [e for e, kind in edge_status.items()
              if kind == QUERIED]
     with open(outname+'.edges', 'w') as f:
         f.write('\n'.join(('{}, {}'.format(*e) for e in edges)))
+
+
+def meta_galaxy(graph, edge_signs, nb_iter, outname, safe=False, short=False):
+    """General structure of the galaxy maker algorithm with two optional
+    variants:
+    -safe: predict only paths with less than 2 negative edges, query otherwise
+    -short: create link between stars based on nodes centrality"""
+    current_graph, ems, all_stars = graph, [], []
+    star_membership = {node: node for node in graph.keys()}
+    centrality = {node: 0 for node in graph.keys()} if short else None
+    edge_status = None
+    if safe:
+        edge_status = {edge: UNKNOWN for edge in edge_signs.keys()}
+    original_basis = IdentityDict()
+    gold, preds = [], []
+
+    for i in range(nb_iter):
+        start = clock()
+        first_iter = i == 0
+        stars, stars_edges = gx.stars_maker(current_graph)
+        all_stars.append(stars_edges)
+        if safe:
+            flat_stars_edges = (e for s in stars_edges for e in s)
+            mark_queried_edges(edge_status, flat_stars_edges, ems)
+        graph_info = (graph, edge_status, edge_signs, original_basis)
+        labels = (gold, preds)
+        for_each_stars(stars, centrality, edge_status, first_iter, graph_info,
+                       labels)
+
+        collapsed_graph, em, sm = collapse_stars(current_graph, stars,
+                                                 centrality, edge_status)
+        long_res = update_nodes_mapping(star_membership, sm, first_iter)
+        star_membership, original_basis = long_res
+        duration = clock() - start
+        print('iteration {} in {:.3f} seconds'.format(str(i).ljust(3),
+                                                      duration))
+        if safe:
+            print(Counter(edge_status.values()))
+        ems.append(em)
+        if outname:
+            filename = '{}_{}'.format(outname, i)
+            if safe:
+                save_edges(edge_status, outname)
+            else:
+                gx.export_spanner(all_stars, ems, star_membership, filename)
+        if len(em) == 0 or len(collapsed_graph) == len(current_graph):
+            break
+        current_graph = collapsed_graph
+    return None if not safe else (gold, preds, edge_status)
+
+
+def for_each_stars(stars, centrality, edge_status, first_iter, graph_info,
+                   labels):
+    if not (centrality or edge_status):
+        return
+    G, edge_status, edge_signs, original_basis = graph_info
+    for s in stars:
+        if edge_status and first_iter:
+            to_be_predicted = all_edges_within(G, s, edge_status)
+            # TODO instead of querying, should I put failed edges on hold,
+            # hoping that future successful prediction will yield safe
+            # path for them? If the to_be_predicted does not change
+            # size after one pass, then I query everything.
+            # It could be a function taking to_be_predicted and node
+            # subset. This would require modifying safely_get_sign to not
+            # query edges.
+            # In fact, I still don't get the idea: if I can't predict the
+            # edge and don't query it, nothing will change since
+            # safe_bfs_search don't use predicted edge. So I can make as
+            # many pass as I want, it won't change anything
+            predict_edges_batch(to_be_predicted, s, graph_info, labels)
+        center = original_basis[s.center]
+        radials = [original_basis[p] for p in s.points]
+        if centrality:
+            for component in radials:
+                if isinstance(component, int):
+                    assert first_iter
+                    centrality[component] += 1
+                else:
+                    for point in component:
+                        centrality[point] += 1
+        if edge_status is None or first_iter:
+            continue
+        # TODO Ask Fabio about this all points thing
+        allpts = {p for c in [center]+radials for p in c}
+        for component in ([center] + radials):
+            to_be_predicted = all_edges_within(G, component, edge_status)
+            predict_edges_batch(to_be_predicted, component, graph_info, labels)
+        for component in radials:
+            to_be_predicted = all_edges_between(G, component, center,
+                                                edge_status)
+            predict_edges_batch(to_be_predicted, allpts, graph_info, labels)
+            # component | center)
+        for comp1, comp2 in combinations(radials, 2):
+            to_be_predicted = all_edges_between(G, comp1, comp2,
+                                                edge_status)
+            predict_edges_batch(to_be_predicted, allpts, graph_info, labels)
+            # comp1.union(comp2).union(center))
+
+
+def update_nodes_mapping(star_membership, new_sm, first_iter):
+    """After a collapse step, update the mapping between node indices in the
+    new graph and original one."""
+    if first_iter:
+        star_membership = new_sm
+    else:
+        for orig_nodes, previous_star in star_membership.items():
+            star_membership[orig_nodes] = new_sm[previous_star]
+    original_basis = defaultdict(set)
+    for orig_id, star_id in star_membership.items():
+        original_basis[star_id].add(orig_id)
+    return star_membership, original_basis
+
+
+def collapse_stars(G, stars, centrality, edge_status):
+    """From a graph `G` and its list of `stars`, return a new graph with a
+    node for each star and a link between them if they are connected in the
+    previous level graph.
+    If centrality is not None, create the link with highest centrality.
+    e_mapping: edge in G' -> edge in G
+    """
+    Gprime = {_: set() for _ in range(len(stars))}
+    # at the end, each node of G will be key, whose value is the star it
+    # belongs to
+    star_membership = {}
+    e_mapping = {}
+    for i, s in enumerate(stars):
+        star_membership[s.center] = i
+        for p in s.points:
+            star_membership[p] = i
+        for j, t in enumerate(stars[i+1:]):
+            if centrality is None:
+                min_edge = gx.edge_between(G, s, t)
+            else:
+                between = all_edges_between(G, s, t)
+                min_val, min_edge = 1000, None
+                for u, v in between:
+                    val = centrality[u] + centrality[v]
+                    if val < min_val:
+                        min_val, min_edge = val, (u, v)
+            if min_edge:
+                Gprime[i].add(j+i+1)
+                Gprime[j+i+1].add(i)
+                e_mapping[(i, i+1+j)] = min_edge
+    return Gprime, e_mapping, star_membership
+
+
+def predict_edges_batch(test_edges, nodes, graph_info, labels):
+    """update `labels` with prediction over `test_edges` by searching for safe
+    paths within `nodes`"""
+    if not test_edges:  # common fast path
+        return
+    graph, edge_status, edge_signs, _ = graph_info
+    gold, preds = labels
+    _nodes = nodes
+    if hasattr(nodes, 'center'):
+        _nodes = set([nodes.center] + nodes.points)
+    for e in test_edges:
+        pred, sign = safely_get_sign(graph, e, _nodes, edge_status, edge_signs)
+        if pred:
+            preds.append(sign)
+            gold.append(1 if edge_signs[e] else -1)

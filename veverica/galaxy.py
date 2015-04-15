@@ -396,14 +396,16 @@ if __name__ == '__main__':
     import sys
     # import graph_tool as gt
     # import convert_experiment as cexp
+    graph_number = 1
+    balanced = False
     start = clock()
     # k=gt.load_graph('slashdot_simple.gt')
     # cexp.to_python_graph(k)
     seed = int(sys.argv[1])
     graph_txt = ['soc-sign-Slashdot090221.txt', 'soc-wiki.txt',
-                 'soc-sign-epinions.txt'][1]
-    balanced = True
-    rw.read_original_graph(graph_txt, seed=seed, balanced=True)
+                 'soc-sign-epinions.txt'][graph_number]
+    graph_short_name = ['sla', 'wiki', 'epi'][graph_number]
+    rw.read_original_graph(graph_txt, seed=seed, balanced=balanced)
     # cexp.generate_random_graph(600, .12)
     # redensify.G, redensify.N, redensify.EDGES_SIGN = cexp.p.load_var('rng22k.my')
     print('Generate graph in {:.3f} seconds'.format(clock()-start))
@@ -411,7 +413,7 @@ if __name__ == '__main__':
     redensify.EDGES_SIGN = deepcopy(rw.EDGE_SIGN)
     redensify.N = len(rw.G)
     start = clock()
-    outname = 'universe/wiki_bal_{}'.format(seed)
+    outname = 'universe/{}_bal_{}'.format(graph_short_name, seed)
     _, _, ems, sedge, sm = galaxy_maker_clean(redensify.G, 8,
                                               outname=outname)
     # final = extract_tree_edges(sedge, ems)

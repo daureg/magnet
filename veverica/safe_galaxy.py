@@ -286,3 +286,31 @@ def predict_edges_batch(test_edges, nodes, graph_info, labels):
         if pred:
             preds.append(sign)
             gold.append(1 if edge_signs[e] else -1)
+
+if __name__ == '__main__':
+    # pylint: disable=C0103
+    import args_experiments as ae
+    import convert_experiment as cexp
+    import real_world as rw
+    import redensify
+    parser = ae.get_parser('Compute a galaxy tree')
+    args = parser.parse_args()
+    a = ae.further_parsing(args)
+    basename, seeds, synthetic_data, prefix, noise, balanced = a
+
+    if synthetic_data:
+        import graph_tool as gt
+        g = gt.load_graph(basename+'.gt')
+        cexp.to_python_graph(g)
+    else:
+        rw.read_original_graph(basename, seed=args.seed, balanced=balanced)
+        redensify.G = deepcopy(rw.G)
+        redensify.EDGES_SIGN = deepcopy(rw.EDGE_SIGN)
+
+    suffixes = ('_bal' if args.balanced else '',
+                '_short' if args.short else '',
+                '_safe' if args.safe else '')
+    outname = 'universe/{}{}{}{}_test'.format(args.data.lower(), *suffixes)
+    print(outname)
+    meta_galaxy(redensify.G, redensify.EDGES_SIGN, 10, outname,
+                safe=args.safe, short=args.short)

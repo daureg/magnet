@@ -9,10 +9,6 @@ import scipy.sparse
 import pred_on_tree as pot
 import sklearn.metrics
 import sys
-DATA = sys.argv[1].upper()
-BALANCED = bool(int(sys.argv[2]))
-NOISE = float(sys.argv[3])
-SEEDS = None
 
 
 def get_training_matrix(pr_in_train_set, mapping, slcc, tree_edges=None):
@@ -61,27 +57,6 @@ def predict_edges(adjacency, nb_dim, mapping, test_edges):
             sklearn.metrics.matthews_corrcoef(gold, pred))
 
 
-def parse_args():
-    global DATA, BALANCED
-    assert DATA in ['ER', 'PA', 'EPI', 'WIK', 'SLA']
-    synthetic_data = len(DATA) == 2
-    if synthetic_data:
-        basename = 'universe/noise'
-        if DATA == 'PA':
-            basename += 'PA'
-        seeds = [100*s + (32 if BALANCED else 57) for s in range(50)]
-    else:
-        seeds = list(range(4027, 4047))
-        basename = {'EPI': 'soc-sign-epinions.txt',
-                    'WIK': 'soc-wiki.txt',
-                    'SLA': 'soc-sign-Slashdot090221.txt'}[DATA]
-    prefix = basename.split('/')[-1]
-    if not synthetic_data:
-        prefix = {'WIK': 'wiki', 'EPI': 'epi', 'SLA': 'slash'}[DATA]
-        if BALANCED:
-            prefix += '_bal'
-    return basename, seeds, synthetic_data, prefix
-
 if __name__ == '__main__':
     # pylint: disable=C0103
     import graph_tool as gt
@@ -91,11 +66,14 @@ if __name__ == '__main__':
     import noise_influence as nsi
     import glob
     from time import time
-    noise = NOISE
-    assert noise == 0 or noise >= 1, 'give noise as a percentage'
+    import args_experiments as ae
     bfstrees = None
     training_fraction = None
-    BASENAME, SEEDS, SYNTHETIC_DATA, PREFIX = parse_args()
+    parser = ae.get_parser('Predict sign using a spectral method')
+    args = parser.parse_args()
+    a = ae.further_parsing(args)
+    DATA = sys.argv[1].upper()
+    BASENAME, SEEDS, SYNTHETIC_DATA, PREFIX, noise, BALANCED = a
     LAUNCH = int(time() - 1427846400)
 
     def load_graph(seed=None):
@@ -188,7 +166,7 @@ if __name__ == '__main__':
                                                   tree_edges=gtx_tree)
             res = predict_edges(adj, NB_DIM, mapping, test_edges)
             gtx_res[i+k*len(SEEDS), :] = res
-    res_name = '{}_{}_{:.1f}_{}'.format(DATA, BALANCED, NOISE, LAUNCH)
+    res_name = '{}_{}_{:.1f}_{}'.format(DATA, BALANCED, noise, LAUNCH)
     for kind, arr in zip(['random', 'bfs', 'gtx'],
                          [random_res, bfs_res, gtx_res]):
         txt_res = (' & '.join(['{:.3f} ({:.3f})'.format(*l)

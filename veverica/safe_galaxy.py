@@ -309,8 +309,8 @@ if __name__ == '__main__':
 
     suffixes = ('_bal' if args.balanced else '',
                 '_short' if args.short else '',
-                '_safe' if args.safe else '')
-    outname = 'universe/{}{}{}{}_test'.format(args.data.lower(), *suffixes)
+                '_safe' if args.safe else '', args.seed)
+    outname = 'universe/{}{}{}{}_{}'.format(args.data.lower(), *suffixes)
     print(outname)
     res = meta_galaxy(redensify.G, redensify.EDGES_SIGN, 10, outname,
                       safe=args.safe, short=args.short)

@@ -2,14 +2,14 @@
 """Parse experiments command line arguments."""
 import argparse
 from operator import itemgetter
+DATASETS = ['ER', 'PA', 'EPI', 'WIK', 'SLA', 'MNI', 'MNIN']
 
 
 def get_parser(desc=None):
     """build a parser with dataset and balance selection"""
     parser = argparse.ArgumentParser(description=desc)
     parser.add_argument("data", help="Which data to use",
-                        choices=['ER', 'PA', 'EPI', 'WIK', 'SLA', 'MNI'],
-                        default='PA')
+                        choices=DATASETS, default='PA')
     parser.add_argument("-b", "--balanced", action='store_true',
                         help="Should there be 50/50 +/- edges")
     parser.add_argument("-n", "--noise", help="amount of noise to add",
@@ -30,7 +30,6 @@ def further_parsing(args):
     # balanced = bool(int(args[2]))
     # noise = None if len(args) < 4 else float(args[3])
     seeds = None
-    assert data in ['ER', 'PA', 'EPI', 'WIK', 'SLA']
     assert noise == 0 or noise >= 1, 'give noise as a percentage'
     synthetic_data = len(data) == 2
     if synthetic_data:
@@ -42,12 +41,19 @@ def further_parsing(args):
         seeds = list(range(4027, 4047))
         basename = {'EPI': 'soc-sign-epinions.txt',
                     'WIK': 'soc-wiki.txt',
+                    'MNI': 'soc-mnist.txt',
+                    'MNIN': 'soc-mnist_n.txt',
                     'SLA': 'soc-sign-Slashdot090221.txt'}[data]
+        if data.startswith('MNI'):
+            seeds = list(range(6000, 6050))
     prefix = basename.split('/')[-1]
     if not synthetic_data:
-        prefix = {'WIK': 'wiki', 'EPI': 'epi', 'SLA': 'slash'}[data]
-        if balanced:
-            prefix += '_bal'
+        prefix = {'WIK': 'wiki', 'MNI': 'mni', 'EPI': 'epi',
+                  'SLA': 'slash', 'MNIN': 'mnin'}[data]
+        suffixes = ('_bal' if args.balanced else '',
+                    '_short' if args.short else '',
+                    '_safe' if args.safe else '')
+        prefix += '{}{}{}'.format(*suffixes)
     return basename, seeds, synthetic_data, prefix, noise, balanced
 
 if __name__ == '__main__':

@@ -15,6 +15,8 @@ DEGREES = None
 INCONSISTENT = 0
 EDGE_TO_DELETE = {'soc-sign-Slashdot090221.txt': 'universe/slash_delete.my',
                   'soc-sign-epinions.txt': 'universe/epi_delete.my',
+                  'soc-mnist.txt': 'universe/mni_delete.my',
+                  'soc-mnist_n.txt': 'universe/mnin_delete.my',
                   'soc-wiki.txt': 'universe/wiki_delete.my'}
 
 

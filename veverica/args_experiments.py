@@ -2,7 +2,7 @@
 """Parse experiments command line arguments."""
 import argparse
 from operator import itemgetter
-DATASETS = ['ER', 'PA', 'EPI', 'WIK', 'SLA', 'MNI', 'MNIN']
+DATASETS = ['LP', 'ER', 'PA', 'EPI', 'WIK', 'SLA', 'MNI', 'MNIN']
 
 
 def get_parser(desc=None):
@@ -26,16 +26,13 @@ def get_parser(desc=None):
 def further_parsing(args):
     data, balanced, noise = itemgetter('data', 'balanced',
                                        'noise')(vars(args))
-    # data = args[1].upper()
-    # balanced = bool(int(args[2]))
-    # noise = None if len(args) < 4 else float(args[3])
     seeds = None
     assert noise == 0 or noise >= 1, 'give noise as a percentage'
     synthetic_data = len(data) == 2
     if synthetic_data:
         basename = 'universe/noise'
-        if data == 'PA':
-            basename += 'PA'
+        if data != 'ER':
+            basename += data
         seeds = [100*s + (32 if balanced else 57) for s in range(50)]
     else:
         seeds = list(range(4027, 4047))

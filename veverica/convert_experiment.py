@@ -403,7 +403,32 @@ def turn_into_signed_graph_at_random(num_cluster=5):
     return cluster
 
 
-def turn_into_signed_graph_by_propagation(num_cluster=5):
+def turn_into_2cc_by_breadth_first():
+    """Make two balanced clusters by building half of a BF tree from a random
+    root"""
+    border = deque()
+    discovered = {k: False for k in redensify.G}
+    # cluster_idx = {k: 0 for k in redensify.G}
+    src = r.choice(list(redensify.G.keys()))
+    border.append(src)
+    discovered[src] = True
+    first_cluster_size = 0
+    while border and first_cluster_size < 6*len(redensify.G)//10:
+        v = border.popleft()
+        for w in redensify.G[v]:
+            if not discovered[w]:
+                discovered[w] = True
+                # cluster_idx[w] = 1
+                first_cluster_size += 1
+                border.append(w)
+    cluster_idx = [int(discovered[u]) for u in sorted(redensify.G)]
+    for i, j in redensify.EDGES_SIGN.keys():
+        redensify.EDGES_SIGN[(i, j)] = cluster_idx[i] == cluster_idx[j]
+    return cluster_idx
+
+
+def turn_into_signed_graph_by_propagation(num_cluster=5,
+                                          infected_fraction=0.7):
     """Set the `num_cluster` nodes with highest as cluster centers and
     propagate their label through edges"""
     degrees = {node: len(adj) for node, adj in redensify.G.items()}
@@ -422,11 +447,20 @@ def turn_into_signed_graph_by_propagation(num_cluster=5):
     while to_cluster:
         u = to_cluster.popleft()
         idx = cluster_idx[u]
-        for neighbor in redensify.G[u].intersection(unclustered_nodes):
+        neighbors = redensify.G[u].intersection(unclustered_nodes)
+        infected = 0
+        for neighbor in neighbors:
             cluster_idx[neighbor] = idx
             unclustered_nodes.remove(neighbor)
             to_cluster.append(neighbor)
+            infected += 1
+            # quit after propagating to infected_fraction of neighbors
+            if infected > infected_fraction*len(neighbors):
+                break
 
+    # affect unclustered_nodes at random
+    for u in unclustered_nodes:
+        cluster_idx[u] = r.randint(0, num_cluster-1)
     for i, j in redensify.EDGES_SIGN.keys():
         redensify.EDGES_SIGN[(i, j)] = cluster_idx[i] == cluster_idx[j]
     return cluster_idx
@@ -478,7 +512,7 @@ def fast_random_graph(n, pr=0.1):
     finalize_graph()
 
 
-def preferential_attachment(n, m=1, c=0, gamma=1):
+def preferential_attachment(n, m=1, c=0, gamma=1, bonus_neighbor_prob=0):
     """Create an undirected graph of `n` nodes according to Barabási–Albert
     model where each newly added nodes is connected to `m` previous with
     probability proportional to k**gamma + c (k being degree of the node
@@ -492,8 +526,9 @@ def preferential_attachment(n, m=1, c=0, gamma=1):
     for new_node in range(m+1, n):
         weights = [_**gamma + c for _ in degrees]
         objects = range(len(degrees))
+        num_neighbors = m+1 if r.random() < bonus_neighbor_prob else m
         neighbors = [redensify.weighted_choice(objects, weights)
-                     for _ in range(m)]
+                     for _ in range(num_neighbors)]
         for n in neighbors:
             add_signed_edge(n, new_node, True)
             degrees[n] += 1

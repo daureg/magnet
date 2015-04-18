@@ -289,6 +289,7 @@ def predict_edges_batch(test_edges, nodes, graph_info, labels):
 
 if __name__ == '__main__':
     # pylint: disable=C0103
+    import random as r
     import args_experiments as ae
     import convert_experiment as cexp
     import real_world as rw
@@ -302,6 +303,20 @@ if __name__ == '__main__':
         try:
             import persistent as p
             redensify.G, redensify.EDGES_SIGN = p.load_var(basename+'.my')
+            seed = args.seed
+            if isinstance(seed, int):
+                r.seed(seed)
+                rperm = list(redensify.G.keys())
+                r.shuffle(rperm)
+                rperm = {i: v for i, v in enumerate(rperm)}
+                _ = rw.reindex_nodes(redensify.G, redensify.EDGES_SIGN, rperm)
+                redensify.G, redensify.EDGES_SIGN = _
+            # Because cexp share the random number generator, given a seed, it
+            # will always generate the same noise, which for a one shot case
+            # like this makes sense
+            if args.noise is not None:
+                noise = args.noise/100
+                cexp.add_noise(noise, noise)
         except IOError:
             import graph_tool as gt
             g = gt.load_graph(basename+'.gt')

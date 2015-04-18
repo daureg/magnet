@@ -299,9 +299,13 @@ if __name__ == '__main__':
     basename, seeds, synthetic_data, prefix, noise, balanced = a
 
     if synthetic_data:
-        import graph_tool as gt
-        g = gt.load_graph(basename+'.gt')
-        cexp.to_python_graph(g)
+        try:
+            import persistent as p
+            redensify.G, redensify.EDGES_SIGN = p.load_var(basename+'.my')
+        except IOError:
+            import graph_tool as gt
+            g = gt.load_graph(basename+'.gt')
+            cexp.to_python_graph(g)
     else:
         rw.read_original_graph(basename, seed=args.seed, balanced=balanced)
         redensify.G = deepcopy(rw.G)

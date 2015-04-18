@@ -67,20 +67,25 @@ if __name__ == '__main__':
     import glob
     from time import time
     import args_experiments as ae
+    import persistent
     bfstrees = None
-    training_fraction = None
     parser = ae.get_parser('Predict sign using a spectral method')
     args = parser.parse_args()
     a = ae.further_parsing(args)
     DATA = sys.argv[1].upper()
     BASENAME, SEEDS, SYNTHETIC_DATA, PREFIX, noise, BALANCED = a
     LAUNCH = int(time() - 1427846400)
+    training_fraction = 0.375 if DATA == 'LP' else None
 
     def load_graph(seed=None):
         if BASENAME.startswith('soc'):
             rw.read_original_graph(BASENAME, seed=seed, balanced=BALANCED)
             redensify.G = deepcopy(rw.G)
             redensify.EDGES_SIGN = deepcopy(rw.EDGE_SIGN)
+        elif DATA == 'LP':
+            _ = persistent.load_var(BASENAME+'.my')
+            redensify.G, redensify.EDGES_SIGN = _
+            return
         else:
             G = gt.load_graph(BASENAME+'.gt')
             cexp.to_python_graph(G)
@@ -94,7 +99,6 @@ if __name__ == '__main__':
         redensify.G = deepcopy(orig_g)
         redensify.EDGES_SIGN = deepcopy(orig_es)
         if balanced and SYNTHETIC_DATA:
-            import persistent
             to_delete = persistent.load_var(BASENAME+'_balance.my')
             for edge in to_delete:
                 pot.delete_edge(redensify.G, edge, redensify.EDGES_SIGN)
@@ -132,40 +136,44 @@ if __name__ == '__main__':
         mapping = {v: i for i, v in enumerate(slcc)}
         return mapping, slcc
 
-    bfs_rep = 50
+    bfs_rep = 18
     SEEDS = SEEDS[:bfs_rep]
     NB_DIM = 15
-    n_noise = 20 if SYNTHETIC_DATA else 1
+    n_noise = 11 if SYNTHETIC_DATA else 1
     bfs_res = np.zeros((bfs_rep*n_noise, 3))
     random_res = np.zeros((bfs_rep*n_noise, 3))
     gtx_res = np.zeros((len(SEEDS)*n_noise, 3))
     for k in range(n_noise):
-        mapping, slcc = add_cc_noise(noise, balanced=BALANCED, seed=None)
-        for i, tree in enumerate(bfstrees[:bfs_rep]):
-            adj, test_edges = get_training_matrix(-5, mapping, slcc,
-                                                  tree_edges=tree)
-            res = predict_edges(adj, NB_DIM, mapping, test_edges)
-            bfs_res[i+k*bfs_rep, :] = res
+        # mapping, slcc = add_cc_noise(noise, balanced=BALANCED, seed=None)
+        # for i, tree in enumerate(bfstrees[:bfs_rep]):
+        #     adj, test_edges = get_training_matrix(-5, mapping, slcc,
+        #                                           tree_edges=tree)
+        #     res = predict_edges(adj, NB_DIM, mapping, test_edges)
+        #     bfs_res[i+k*bfs_rep, :] = res
+
+        # for i, seed in enumerate(SEEDS):
+        #     mapping, slcc = add_cc_noise(noise, balanced=BALANCED,
+        #                                  seed=seed)
+        #     file_pattern = 'universe/{}_{}_*.edges'.format(PREFIX, seed)
+        #     gtx_trees = sorted(glob.glob(file_pattern))
+        #     basename = gtx_trees[-1][:-6]
+        #     print(basename)
+        #     _, spanner_edges = pot.read_tree(basename+'.edges')
+        #     gtx_tree = {(u, v) for u, v in spanner_edges if u in slcc}
+        #     adj, test_edges = get_training_matrix(-5, mapping, slcc,
+        #                                           tree_edges=gtx_tree)
+        #     res = predict_edges(adj, NB_DIM, mapping, test_edges)
+        #     gtx_res[i+k*len(SEEDS), :] = res
+        #     training_fraction = len(spanner_edges) / len(rw.EDGE_SIGN)
 
         pr = training_fraction
         for i in range(bfs_rep):
+            print('{}/{}: {}/{}'.format(k, n_noise, i, bfs_rep))
             mapping, slcc = add_cc_noise(noise, balanced=BALANCED, seed=None)
             adj, test_edges = get_training_matrix(pr, mapping, slcc)
             res = predict_edges(adj, NB_DIM, mapping, test_edges)
             random_res[i+k*bfs_rep, :] = res
 
-        for i, seed in enumerate(SEEDS):
-            mapping, slcc = add_cc_noise(noise, balanced=BALANCED,
-                                         seed=seed)
-            file_pattern = 'universe/{}_{}_*.edges'.format(PREFIX, seed)
-            gtx_trees = sorted(glob.glob(file_pattern))
-            basename = gtx_trees[-1][:-6]
-            spanner_edges, _, _, _ = pot.read_spanner_from_file(basename)
-            gtx_tree = {(u, v) for u, v in spanner_edges}
-            adj, test_edges = get_training_matrix(-5, mapping, slcc,
-                                                  tree_edges=gtx_tree)
-            res = predict_edges(adj, NB_DIM, mapping, test_edges)
-            gtx_res[i+k*len(SEEDS), :] = res
     res_name = '{}_{}_{:.1f}_{}'.format(DATA, BALANCED, noise, LAUNCH)
     for kind, arr in zip(['random', 'bfs', 'gtx'],
                          [random_res, bfs_res, gtx_res]):

@@ -2,23 +2,23 @@
 # vim: set fileencoding=utf-8
 """."""
 from collections import defaultdict
-from graph_tool.topology import random_spanning_tree, label_largest_component
-from graph_tool.topology import min_spanning_tree
-from sklearn.metrics import f1_score, matthews_corrcoef, accuracy_score
-import real_world as rw
-from graph_tool.search import bfs_search, BFSVisitor
+# from graph_tool.topology import random_spanning_tree, label_largest_component
+# from graph_tool.topology import min_spanning_tree
+# from sklearn.metrics import f1_score, matthews_corrcoef, accuracy_score
+# import real_world as rw
+# from graph_tool.search import bfs_search, BFSVisitor
 from collections import deque
-import numpy as np
+# import numpy as np
 
 
-class BFSTree(BFSVisitor):
-    tree = None
-
-    def __init__(self):
-        self.tree = []
-
-    def tree_edge(self, e):
-        self.tree.append((int(e.source()), int(e.target())))
+# class BFSTree(BFSVisitor):
+#     tree = None
+#
+#     def __init__(self):
+#         self.tree = []
+#
+#     def tree_edge(self, e):
+#         self.tree.append((int(e.source()), int(e.target())))
 
 
 def read_tree(filename):
@@ -201,10 +201,10 @@ def brute_parity(i, j, low_level_graph, edge_sign):
     path = shortest_path(low_level_graph, i, j)
     for u, v in zip(path, path[1:]):
         parity *= edge_sign[(u, v) if u < v else (v, u)]
-    return parity
+    return parity, len(path)
 
 
-def shortest_path(graph, src, dst):#vertices):
+def shortest_path(graph, src, dst):
     """Return a shortest_path between vertices[0] and vertices[1]"""
     # src, dst = vertices
     q = deque()
@@ -232,7 +232,8 @@ def shortest_path(graph, src, dst):#vertices):
     return list(reversed(path))
 
 
-def predict_edges(basename, all_signs=None, lcc_nodes=None, use_brute=False):
+def predict_edges(basename, all_signs=None, lcc_nodes=None, use_brute=False,
+                  degrees=None):
     # import redensify
     edge_signs = {}
     # all_signs = all_signs or redensify.EDGES_SIGN
@@ -251,8 +252,15 @@ def predict_edges(basename, all_signs=None, lcc_nodes=None, use_brute=False):
     trees = split_into_trees(train_edges, star_membership)
     tags = {}
     for star, tree in trees.items():
-        tags[star] = dfs_tagging(tree, edge_signs,
-                                 root=next(iter(tree.keys())))
+        root = next(iter(tree.keys()))
+        if degrees is not None:
+            max_deg, max_node = -1, root
+            for node, deg in degrees.items():
+                if node in tree and deg > max_deg:
+                    max_deg, max_node = deg, node
+            root = max_node
+        # print(root)
+        tags[star] = dfs_tagging(tree, edge_signs, root=root)
     # Since we build trees and tags based on edges of the span, stars
     # consisting of a single node do not appear. Thus we create their tag
     # structure manually

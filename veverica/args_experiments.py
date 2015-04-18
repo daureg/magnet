@@ -53,6 +53,29 @@ def further_parsing(args):
         prefix += '{}{}{}'.format(*suffixes)
     return basename, seeds, synthetic_data, prefix, noise, balanced
 
+
+def load_raw(basename, redensify, args):
+    """Load a graph from a pickled file and shuffle nodes/add noise if
+    requested by `args`"""
+    import persistent as p
+    import convert_experiment as cexp
+    import real_world as rw
+    redensify.G, redensify.EDGES_SIGN = p.load_var(basename+'.my')
+    seed = args.seed
+    if isinstance(seed, int):
+        cexp.r.seed(seed)
+        rperm = list(redensify.G.keys())
+        cexp.r.shuffle(rperm)
+        rperm = {i: v for i, v in enumerate(rperm)}
+        _ = rw.reindex_nodes(redensify.G, redensify.EDGES_SIGN, rperm)
+        redensify.G, redensify.EDGES_SIGN = _
+    # Because cexp share the random number generator, given a seed, it
+    # will always generate the same noise, which for a one shot case
+    # like this makes sense
+    if args.noise is not None:
+        noise = args.noise/100
+        cexp.add_noise(noise, noise)
+
 if __name__ == '__main__':
     args = get_parser('Asym')
     args = args.parse_args()

@@ -102,6 +102,7 @@ if __name__ == '__main__':
             to_delete = persistent.load_var(BASENAME+'_balance.my')
             for edge in to_delete:
                 pot.delete_edge(redensify.G, edge, redensify.EDGES_SIGN)
+        cexp.add_noise(noise/100, noise/100)
         if seed is not None:
             random.seed(seed)
             rperm = list(redensify.G.keys())
@@ -109,7 +110,6 @@ if __name__ == '__main__':
             rperm = {i: v for i, v in enumerate(rperm)}
             _ = rw.reindex_nodes(redensify.G, redensify.EDGES_SIGN, rperm)
             redensify.G, redensify.EDGES_SIGN = _
-        cexp.add_noise(noise/100, noise/100)
         rw.G = deepcopy(redensify.G)
         rw.EDGE_SIGN = deepcopy(redensify.EDGES_SIGN)
         rw.DEGREES = sorted(((node, len(adj)) for node, adj in rw.G.items()),

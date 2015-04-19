@@ -6,6 +6,7 @@ import numpy as np
 from sklearn.metrics import accuracy_score, f1_score, matthews_corrcoef
 import pred_on_tree as pot
 import persistent
+import redensify
 import args_experiments as ae
 SEEDS = list(range(6000, 6100))
 
@@ -14,20 +15,25 @@ if __name__ == '__main__':
     parser = ae.get_parser()
     args = parser.parse_args()
     balanced = args.balanced
-    num_k = 3 if balanced else 3
+    num_k = 4 if balanced else 4
     num_method = 1 + 2 + 2*num_k
     acc = np.zeros((num_method, len(SEEDS)))
     f1 = np.zeros_like(acc)
     mcc = np.zeros_like(acc)
-    outname = 'universe/wik{}{}_{}{}'.format
+    data = "lp"
+    outname = 'universe/lp{}{}_{}{}'.format
     if balanced:
-        outname = 'universe/wik_bal{}{}_{}{}'.format
+        outname = 'universe/lp_bal{}{}_{}{}'.format
     for i, seed in enumerate(SEEDS):
-        if seed == 6014:
-            # TODO recompute wiki tree
-            continue
+        args.seed = seed
         print(seed)
-        rw.read_original_graph('soc-wiki.txt', seed=seed, balanced=balanced)
+        # rw.read_original_graph('soc-wiki.txt', seed=seed, balanced=balanced)
+        ae.load_raw('universe/noiseLP', redensify, args)
+        rw.G, rw.EDGE_SIGN = redensify.G, redensify.EDGES_SIGN
+        if rw.DEGREES is None:
+            rw.DEGREES = sorted(((node, len(adj))
+                                 for node, adj in rw.G.items()),
+                                key=lambda x: x[1])
         num_e = len(rw.EDGE_SIGN)
         all_lcc_edges = {}
         lcc_tree = pot.get_bfs_tree(rw.G, rw.DEGREES[-1][0])
@@ -82,5 +88,5 @@ if __name__ == '__main__':
             a, f, m = (accuracy_score(gold, pred), f1_score(gold, pred),
                        matthews_corrcoef(gold, pred))
             acc[3+2*k+1, i], f1[3+2*k+1, i], mcc[3+2*k+1, i] = a, f, m
-        np.savez('wik{}_tree'.format('_bal' if balanced else ''),
+        np.savez('{}{}_tree'.format(data, '_bal' if balanced else ''),
                  acc=acc, f1=f1, mcc=mcc)

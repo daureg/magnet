@@ -110,6 +110,29 @@ def assess_tree_fitness(tree):
     return acc, f1_score(gold, pred), matthews_corrcoef(gold, pred)
 
 
+def get_dfs_tree(G, root):
+    tree = []
+    q = []
+    status = [(False, -1) for _ in range(len(G))]
+    q.append(root)
+    while q:
+        v = q.pop()
+        discovered, pred = status[v]
+        if not discovered:
+            status[v] = (True, pred)
+            if pred != -1:
+                tree.append((v, pred) if v < pred else (pred, v))
+                if len(tree) == len(G) - 1:
+                    break
+            for w in G[v]:
+                discovered, pred = status[w]
+                if pred == -1:
+                    status[w] = (discovered, v)
+                if not discovered:
+                    q.append(w)
+    return tree
+
+
 def get_bfs_tree(G, root):
     tree = []
     q = deque()

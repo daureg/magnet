@@ -2,8 +2,8 @@
 # vim: set fileencoding=utf-8
 """Initial implementation of galaxy maker"""
 # import numpy as np
-# import heapq
-from collections import namedtuple
+from heap.heap import heap
+from collections import namedtuple, defaultdict
 from itertools import product
 import convert_experiment as cexp
 # import cc_pivot as cc
@@ -24,13 +24,8 @@ def profile(func):
 def sort_degree(G):
     """Return a heap of nodes sorted by degree and a boolean (all false)
     array"""
-    res = sorted(G.keys(), key=lambda n: len(G[n]), reverse=True)
-    # res = []
-    # used = np.zeros(len(G), dtype=np.bool)
-    used = [False for _ in G.keys()]
-    # for node, adj in G.items():
-    #     heapq.heappush(res, (-len(adj), node))
-    return res, used
+    return (heap({node: -len(adj) for node, adj in G.items()}),
+            [False for _ in G.keys()])
 
 
 @profile
@@ -46,17 +41,22 @@ def stars_maker(G):
     degrees, used = sort_degree(G)
     res = []
     redge = []
-    # while degrees:
-    for center in degrees:
-        # center = heapq.heappop(degrees)[1]
+    not_in_any_star = set(G.keys())
+    while degrees:
+        center = degrees.pop()
         if used[center]:
             continue
         used[center] = True
+        not_in_any_star.remove(center)
         star = Star(center, [_ for _ in G[center] if not used[_]])
-        # TODO? would be faster to loop over a list
+        degree_changes = defaultdict(int)
         for p in star.points:
+            not_in_any_star.remove(p)
             used[p] = True
-        # used[list(star.points)] = True
+            for v in G[p].intersection(not_in_any_star):
+                degree_changes[v] -= 1
+        for node, decrease in degree_changes.items():
+            degrees[node] -= decrease
         res.append(star)
         redge.append(edges_of_star(star))
     return res, redge

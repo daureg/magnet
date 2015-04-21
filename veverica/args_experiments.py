@@ -2,7 +2,7 @@
 """Parse experiments command line arguments."""
 import argparse
 from operator import itemgetter
-DATASETS = ['LP', 'ER', 'PA', 'EPI', 'WIK', 'SLA', 'MNI', 'MNIN']
+DATASETS = ['LP', 'ER', 'PA', 'EPI', 'WIK', 'SLA', 'MNIN']
 
 
 def get_parser(desc=None):

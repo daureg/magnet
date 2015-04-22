@@ -10,7 +10,7 @@ import persistent
 import redensify
 import args_experiments as ae
 from asym_on_tree import find_tree_filename
-SEEDS = list(range(6000, 6090))[:15]
+SEEDS = list(range(6000, 6090))
 
 
 def compute_one_seed(args):

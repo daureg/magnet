@@ -162,7 +162,7 @@ if __name__ == '__main__':
         targs.seed = seed
         seeded_args.append(targs)
 
-    num_threads = 14
+    num_threads = 15
     per_thread = len(SEEDS) // num_threads
     pool = Pool(num_threads)
     runs = list(pool.imap(compute_one_seed, seeded_args, chunksize=per_thread))

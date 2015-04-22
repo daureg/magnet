@@ -64,7 +64,7 @@ def compute_one_seed(args):
                matthews_corrcoef(gold, pred))
     acc[0], f1[0], mcc[0] = a, f, m
 
-    if args.data in ['SLA', 'EPI']:
+    if args.data in ['SLA', 'EPI', 'LR']:
         names.append('stree')
         names.append('stree short')
     else:

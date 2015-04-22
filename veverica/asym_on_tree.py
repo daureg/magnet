@@ -72,7 +72,8 @@ def compute_one_seed(args):
 
     if args.data in ['SLA', 'EPI', 'LR']:
         names.append('stree')
-        names.append('stree short')
+        if not only_random:
+            names.append('stree short')
     else:
         basename = find_tree_filename(outname, ('', '_safe', seed))
         _, gtx_tree = pot.read_tree(basename+'.edges')

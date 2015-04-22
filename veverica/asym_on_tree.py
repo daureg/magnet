@@ -24,9 +24,10 @@ def find_tree_filename(outname, kinds):
 
 def compute_one_seed(args):
     balanced = args.balanced
+    only_random = args.random
     data = args.data.lower()
     dataname = ae.further_parsing(args)[0]
-    num_method = 2 + 2 + 2*2
+    num_method = 3 if only_random else 8
     acc = np.zeros((num_method))
     f1 = np.zeros_like(acc)
     mcc = np.zeros_like(acc)
@@ -60,31 +61,39 @@ def compute_one_seed(args):
 
     root = rw.DEGREES[-rw.r.randint(1, 100)][0]
 
-    bfs_edges = pot.get_bfs_tree(rw.G, root)
-    name = 'BFS {:.1f}%'.format(100*(len(bfs_edges)/num_e))
-    names.append(name)
-    adj, test_edges = sp.get_training_matrix(-5, mapping, slcc,
-                                             tree_edges=bfs_edges)
-    a, f, m = sp.predict_edges(adj, 15, mapping, test_edges)
-    acc[0], f1[0], mcc[0] = a, f, m
+    if not only_random:
+        bfs_edges = pot.get_bfs_tree(rw.G, root)
+        name = 'BFS {:.1f}%'.format(100*(len(bfs_edges)/num_e))
+        names.append(name)
+        adj, test_edges = sp.get_training_matrix(-5, mapping, slcc,
+                                                 tree_edges=bfs_edges)
+        a, f, m = sp.predict_edges(adj, 15, mapping, test_edges)
+        acc[0], f1[0], mcc[0] = a, f, m
 
     basename = find_tree_filename(outname, ('', '_safe', seed))
     _, gtx_tree = pot.read_tree(basename+'.edges')
-    name = 'stree {:.1f}%'.format(100*len(gtx_tree)/num_e)
+    fraction = 100*len(gtx_tree)/num_e
+    name = '{} {:.1f}%'.format('Asym' if only_random else 'stree',
+                               fraction)
     names.append(name)
-    adj, test_edges = sp.get_training_matrix(-5, mapping, slcc,
-                                             tree_edges=gtx_tree)
+    if only_random:
+        adj, test_edges = sp.get_training_matrix(fraction, mapping, slcc)
+    else:
+        adj, test_edges = sp.get_training_matrix(-5, mapping, slcc,
+                                                 tree_edges=gtx_tree)
     a, f, m = sp.predict_edges(adj, 15, mapping, test_edges)
-    acc[1], f1[1], mcc[1] = a, f, m
+    index = 0 if only_random else 1
+    acc[index], f1[index], mcc[index] = a, f, m
 
-    basename = find_tree_filename(outname, ('_short', '_safe', seed))
-    _, gtx_tree = pot.read_tree(basename+'.edges')
-    name = 'stree short {:.1f}%'.format(100*len(gtx_tree)/num_e)
-    names.append(name)
-    adj, test_edges = sp.get_training_matrix(-5, mapping, slcc,
-                                             tree_edges=gtx_tree)
-    a, f, m = sp.predict_edges(adj, 15, mapping, test_edges)
-    acc[2], f1[2], mcc[2] = a, f, m
+    if not only_random:
+        basename = find_tree_filename(outname, ('_short', '_safe', seed))
+        _, gtx_tree = pot.read_tree(basename+'.edges')
+        name = 'stree short {:.1f}%'.format(100*len(gtx_tree)/num_e)
+        names.append(name)
+        adj, test_edges = sp.get_training_matrix(-5, mapping, slcc,
+                                                 tree_edges=gtx_tree)
+        a, f, m = sp.predict_edges(adj, 15, mapping, test_edges)
+        acc[2], f1[2], mcc[2] = a, f, m
 
     for i, k in enumerate(['1', 'last']):
         if i == 0:
@@ -92,12 +101,21 @@ def compute_one_seed(args):
         else:
             basename = find_tree_filename(outname, ('', '', seed))
         _, gtx_tree = pot.read_tree(basename+'.edges')
-        name = 'utree {} {:.1f}%'.format(k, 100*len(gtx_tree)/num_e)
+        fraction = 100*len(gtx_tree)/num_e
+        fname = 'Asym' if only_random else 'utree ' + k
+        name = '{} {:.1f}%'.format(fname, fraction)
         names.append(name)
-        adj, test_edges = sp.get_training_matrix(-5, mapping, slcc,
-                                                 tree_edges=gtx_tree)
+        if only_random:
+            adj, test_edges = sp.get_training_matrix(fraction, mapping, slcc)
+        else:
+            adj, test_edges = sp.get_training_matrix(-5, mapping, slcc,
+                                                     tree_edges=gtx_tree)
         a, f, m = sp.predict_edges(adj, 15, mapping, test_edges)
-        acc[3+2*i], f1[3+2*i], mcc[3+2*i] = a, f, m
+        index = 2 if only_random else 3 + 2*i
+        acc[index], f1[index], mcc[index] = a, f, m
+
+        if only_random:
+            continue
 
         if i == 0:
             basename = outname('_short', '', seed, '_0')
@@ -111,13 +129,14 @@ def compute_one_seed(args):
         a, f, m = sp.predict_edges(adj, 15, mapping, test_edges)
         acc[3+2*i+1], f1[3+2*i+1], mcc[3+2*i+1] = a, f, m
 
-    dfs_edges = pot.get_dfs_tree(rw.G, root)
-    name = 'DFS {:.1f}%'.format(100*(len(dfs_edges)/num_e))
-    names.append(name)
-    adj, test_edges = sp.get_training_matrix(-5, mapping, slcc,
-                                             tree_edges=dfs_edges)
-    a, f, m = sp.predict_edges(adj, 15, mapping, test_edges)
-    acc[7], f1[7], mcc[7] = a, f, m
+    if not only_random:
+        dfs_edges = pot.get_dfs_tree(rw.G, root)
+        name = 'DFS {:.1f}%'.format(100*(len(dfs_edges)/num_e))
+        names.append(name)
+        adj, test_edges = sp.get_training_matrix(-5, mapping, slcc,
+                                                 tree_edges=dfs_edges)
+        a, f, m = sp.predict_edges(adj, 15, mapping, test_edges)
+        acc[7], f1[7], mcc[7] = a, f, m
 
     return acc, f1, mcc, names
 
@@ -126,6 +145,8 @@ if __name__ == '__main__':
     from multiprocessing import Pool
     from operator import itemgetter
     parser = ae.get_parser()
+    parser.add_argument("-r", "--random", action='store_true',
+                        help="only compute Asym on random edges")
     args = parser.parse_args()
     balanced = args.balanced
     data = args.data.lower()

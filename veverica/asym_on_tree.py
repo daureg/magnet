@@ -8,15 +8,24 @@ from copy import deepcopy
 import pred_on_tree as pot
 import redensify
 import args_experiments as ae
+from glob import glob
 SEEDS = list(range(6000, 6090))
+
+
+def find_tree_filename(outname, kinds):
+    """return the `outname` parametrized by `kinds` with the maximum number of
+    iteration"""
+    is_short, is_safe, seed = kinds
+    suffix = "_*.edges"
+    pattern = outname(is_short, is_safe, seed, suffix)
+    candidates = sorted(glob(pattern))
+    return candidates[-1][:-6]
 
 
 def compute_one_seed(args):
     balanced = args.balanced
     data = args.data.lower()
     dataname = ae.further_parsing(args)[0]
-    last_k = 4 if data in ['lp'] else 3
-    suffix = '_{}'.format(last_k-1)
     num_method = 2 + 2 + 2*2
     acc = np.zeros((num_method))
     f1 = np.zeros_like(acc)
@@ -29,11 +38,9 @@ def compute_one_seed(args):
     print(seed)
     if dataname.startswith('soc'):
         rw.read_original_graph(dataname, seed=seed, balanced=balanced)
-    if data == 'lp':
-        ae.load_raw('universe/noiseLP', redensify, args)
+    if data in ['lp', 'lr']:
+        ae.load_raw('universe/noise'+data.upper(), redensify, args)
         rw.G, rw.EDGE_SIGN = redensify.G, redensify.EDGES_SIGN
-    if data == 'lr':
-        pass
     if rw.DEGREES is None:
         rw.DEGREES = sorted(((node, len(adj))
                              for node, adj in rw.G.items()),
@@ -61,7 +68,7 @@ def compute_one_seed(args):
     a, f, m = sp.predict_edges(adj, 15, mapping, test_edges)
     acc[0], f1[0], mcc[0] = a, f, m
 
-    basename = outname('', '_safe', seed, suffix)
+    basename = find_tree_filename(outname, ('', '_safe', seed))
     _, gtx_tree = pot.read_tree(basename+'.edges')
     name = 'stree {:.1f}%'.format(100*len(gtx_tree)/num_e)
     names.append(name)
@@ -70,7 +77,7 @@ def compute_one_seed(args):
     a, f, m = sp.predict_edges(adj, 15, mapping, test_edges)
     acc[1], f1[1], mcc[1] = a, f, m
 
-    basename = outname('_short', '_safe', seed, suffix)
+    basename = find_tree_filename(outname, ('_short', '_safe', seed))
     _, gtx_tree = pot.read_tree(basename+'.edges')
     name = 'stree short {:.1f}%'.format(100*len(gtx_tree)/num_e)
     names.append(name)
@@ -79,8 +86,11 @@ def compute_one_seed(args):
     a, f, m = sp.predict_edges(adj, 15, mapping, test_edges)
     acc[2], f1[2], mcc[2] = a, f, m
 
-    for i, k in enumerate([1, last_k]):
-        basename = outname('', '', seed, '_'+str(k-1))
+    for i, k in enumerate(['1', 'last']):
+        if i == 0:
+            basename = outname('', '', seed, '_0')
+        else:
+            basename = find_tree_filename(outname, ('', '', seed))
         _, gtx_tree = pot.read_tree(basename+'.edges')
         name = 'utree {} {:.1f}%'.format(k, 100*len(gtx_tree)/num_e)
         names.append(name)
@@ -89,7 +99,10 @@ def compute_one_seed(args):
         a, f, m = sp.predict_edges(adj, 15, mapping, test_edges)
         acc[3+2*i], f1[3+2*i], mcc[3+2*i] = a, f, m
 
-        basename = outname('_short', '', seed, '_'+str(k-1))
+        if i == 0:
+            basename = outname('_short', '', seed, '_0')
+        else:
+            basename = find_tree_filename(outname, ('_short', '', seed))
         _, gtx_tree = pot.read_tree(basename+'.edges')
         name = 'utree short {} {:.1f}%'.format(k, 100*len(gtx_tree)/num_e)
         names.append(name)
@@ -104,7 +117,7 @@ def compute_one_seed(args):
     adj, test_edges = sp.get_training_matrix(-5, mapping, slcc,
                                              tree_edges=dfs_edges)
     a, f, m = sp.predict_edges(adj, 15, mapping, test_edges)
-    acc[-1], f1[-1], mcc[-1] = a, f, m
+    acc[7], f1[7], mcc[7] = a, f, m
 
     return acc, f1, mcc, names
 

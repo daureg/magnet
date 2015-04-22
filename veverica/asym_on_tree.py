@@ -111,7 +111,7 @@ def compute_one_seed(args):
             adj, test_edges = sp.get_training_matrix(-5, mapping, slcc,
                                                      tree_edges=gtx_tree)
         a, f, m = sp.predict_edges(adj, 15, mapping, test_edges)
-        index = 2 if only_random else 3 + 2*i
+        index = i+1 if only_random else (3 + 2*i)
         acc[index], f1[index], mcc[index] = a, f, m
 
         if only_random:

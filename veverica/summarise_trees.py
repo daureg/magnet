@@ -9,15 +9,15 @@ import pred_on_tree as pot
 import persistent
 import redensify
 import args_experiments as ae
-SEEDS = list(range(6000, 6090))
+from asym_on_tree import find_tree_filename
+SEEDS = list(range(6000, 6090))[:15]
 
 
 def compute_one_seed(args):
     balanced = args.balanced
     data = args.data.lower()
     dataname = ae.further_parsing(args)[0]
-    num_k = 4 if data in ['lp'] else 3
-    num_method = 2 + 2 + 2*num_k
+    num_method = 2 + 2 + 2*2
     acc = np.zeros((num_method))
     f1 = np.zeros_like(acc)
     mcc = np.zeros_like(acc)
@@ -26,14 +26,13 @@ def compute_one_seed(args):
     if balanced:
         outname = ('universe/'+data+'_bal{}{}_{}{}').format
     seed = args.seed
-    print(seed)
+    if (seed % 25) == 0:
+        print(seed)
     if dataname.startswith('soc'):
         rw.read_original_graph(dataname, seed=seed, balanced=balanced)
-    if data == 'lp':
-        ae.load_raw('universe/noiseLP', redensify, args)
+    if data in ['lp', 'lr']:
+        ae.load_raw('universe/noise'+data.upper(), redensify, args)
         rw.G, rw.EDGE_SIGN = redensify.G, redensify.EDGES_SIGN
-    if data == 'lr':
-        pass
     if rw.DEGREES is None:
         rw.DEGREES = sorted(((node, len(adj))
                              for node, adj in rw.G.items()),
@@ -65,38 +64,48 @@ def compute_one_seed(args):
                matthews_corrcoef(gold, pred))
     acc[0], f1[0], mcc[0] = a, f, m
 
-    basename = outname('', '_safe', seed, '')
-    gold, pred = persistent.load_var(basename + '_res.my')
-    name = 'stree {:.1f}%'.format(100*(1-len(pred)/num_e))
-    names.append(name)
-    a, f, m = (accuracy_score(gold, pred), f1_score(gold, pred),
-               matthews_corrcoef(gold, pred))
-    acc[1], f1[1], mcc[1] = a, f, m
-
-    basename = outname('_short', '_safe', seed, '')
-    gold, pred = persistent.load_var(basename + '_res.my')
-    name = 'stree short {:.1f}%'.format(100*(1-len(pred)/num_e))
-    names.append(name)
-    a, f, m = (accuracy_score(gold, pred), f1_score(gold, pred),
-               matthews_corrcoef(gold, pred))
-    acc[2], f1[2], mcc[2] = a, f, m
-
-    for k in range(num_k):
-        basename = outname('', '', seed, '_'+str(k))
-        gold, pred, _ = pot.predict_edges(basename, all_lcc_edges, slcc)
-        name = 'utree {} {:.1f}%'.format(k+1, 100*(1-len(pred)/num_e))
+    if args.data in ['SLA', 'EPI']:
+        names.append('stree')
+        names.append('stree short')
+    else:
+        basename = outname('', '_safe', seed, '')
+        gold, pred = persistent.load_var(basename + '_res.my')
+        name = 'stree {:.1f}%'.format(100*(1-len(pred)/num_e))
         names.append(name)
         a, f, m = (accuracy_score(gold, pred), f1_score(gold, pred),
                    matthews_corrcoef(gold, pred))
-        acc[3+2*k], f1[3+2*k], mcc[3+2*k] = a, f, m
+        acc[1], f1[1], mcc[1] = a, f, m
 
-        basename = outname('_short', '', seed, '_'+str(k))
-        gold, pred, _ = pot.predict_edges(basename, all_lcc_edges, slcc)
-        name = 'utree short {} {:.1f}%'.format(k+1, 100*(1-len(pred)/num_e))
+        basename = outname('_short', '_safe', seed, '')
+        gold, pred = persistent.load_var(basename + '_res.my')
+        name = 'stree short {:.1f}%'.format(100*(1-len(pred)/num_e))
         names.append(name)
         a, f, m = (accuracy_score(gold, pred), f1_score(gold, pred),
                    matthews_corrcoef(gold, pred))
-        acc[3+2*k+1], f1[3+2*k+1], mcc[3+2*k+1] = a, f, m
+        acc[2], f1[2], mcc[2] = a, f, m
+
+    for i, k in enumerate(['1', 'last']):
+        if i == 0:
+            basename = outname('', '', seed, '_0')
+        else:
+            basename = find_tree_filename(outname, ('', '', seed))
+        gold, pred, _ = pot.predict_edges(basename, all_lcc_edges, slcc)
+        name = 'utree {} {:.1f}%'.format(k, 100*(1-len(pred)/num_e))
+        names.append(name)
+        a, f, m = (accuracy_score(gold, pred), f1_score(gold, pred),
+                   matthews_corrcoef(gold, pred))
+        acc[3+2*i], f1[3+2*i], mcc[3+2*i] = a, f, m
+
+        if i == 0:
+            basename = outname('_short', '', seed, '_0')
+        else:
+            basename = find_tree_filename(outname, ('_short', '', seed))
+        gold, pred, _ = pot.predict_edges(basename, all_lcc_edges, slcc)
+        name = 'utree short {} {:.1f}%'.format(k, 100*(1-len(pred)/num_e))
+        names.append(name)
+        a, f, m = (accuracy_score(gold, pred), f1_score(gold, pred),
+                   matthews_corrcoef(gold, pred))
+        acc[3+2*i+1], f1[3+2*i+1], mcc[3+2*i+1] = a, f, m
 
     dfs_edges = pot.get_dfs_tree(rw.G, root)
     name = 'DFS {:.1f}%'.format(100*(len(dfs_edges)/num_e))
@@ -126,7 +135,7 @@ if __name__ == '__main__':
         targs.seed = seed
         seeded_args.append(targs)
 
-    num_threads = 10
+    num_threads = 15
     per_thread = len(SEEDS) // num_threads
     pool = Pool(num_threads)
     runs = list(pool.imap(compute_one_seed, seeded_args, chunksize=per_thread))

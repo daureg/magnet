@@ -72,9 +72,9 @@ def compute_one_seed(args):
 
     basename = find_tree_filename(outname, ('', '_safe', seed))
     _, gtx_tree = pot.read_tree(basename+'.edges')
-    fraction = 100*len(gtx_tree)/num_e
+    fraction = len(gtx_tree)/num_e
     name = '{} {:.1f}%'.format('Asym' if only_random else 'stree',
-                               fraction)
+                               100*fraction)
     names.append(name)
     if only_random:
         adj, test_edges = sp.get_training_matrix(fraction, mapping, slcc)
@@ -101,9 +101,9 @@ def compute_one_seed(args):
         else:
             basename = find_tree_filename(outname, ('', '', seed))
         _, gtx_tree = pot.read_tree(basename+'.edges')
-        fraction = 100*len(gtx_tree)/num_e
+        fraction = len(gtx_tree)/num_e
         fname = 'Asym' if only_random else 'utree ' + k
-        name = '{} {:.1f}%'.format(fname, fraction)
+        name = '{} {:.1f}%'.format(fname, 100*fraction)
         names.append(name)
         if only_random:
             adj, test_edges = sp.get_training_matrix(fraction, mapping, slcc)

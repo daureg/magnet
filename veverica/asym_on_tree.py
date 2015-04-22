@@ -70,30 +70,34 @@ def compute_one_seed(args):
         a, f, m = sp.predict_edges(adj, 15, mapping, test_edges)
         acc[0], f1[0], mcc[0] = a, f, m
 
-    basename = find_tree_filename(outname, ('', '_safe', seed))
-    _, gtx_tree = pot.read_tree(basename+'.edges')
-    fraction = len(gtx_tree)/num_e
-    name = '{} {:.1f}%'.format('Asym' if only_random else 'stree',
-                               100*fraction)
-    names.append(name)
-    if only_random:
-        adj, test_edges = sp.get_training_matrix(fraction, mapping, slcc)
+    if args.data in ['SLA', 'EPI', 'LR']:
+        names.append('stree')
+        names.append('stree short')
     else:
-        adj, test_edges = sp.get_training_matrix(-5, mapping, slcc,
-                                                 tree_edges=gtx_tree)
-    a, f, m = sp.predict_edges(adj, 15, mapping, test_edges)
-    index = 0 if only_random else 1
-    acc[index], f1[index], mcc[index] = a, f, m
-
-    if not only_random:
-        basename = find_tree_filename(outname, ('_short', '_safe', seed))
+        basename = find_tree_filename(outname, ('', '_safe', seed))
         _, gtx_tree = pot.read_tree(basename+'.edges')
-        name = 'stree short {:.1f}%'.format(100*len(gtx_tree)/num_e)
+        fraction = len(gtx_tree)/num_e
+        name = '{} {:.1f}%'.format('Asym' if only_random else 'stree',
+                                   100*fraction)
         names.append(name)
-        adj, test_edges = sp.get_training_matrix(-5, mapping, slcc,
-                                                 tree_edges=gtx_tree)
+        if only_random:
+            adj, test_edges = sp.get_training_matrix(fraction, mapping, slcc)
+        else:
+            adj, test_edges = sp.get_training_matrix(-5, mapping, slcc,
+                                                     tree_edges=gtx_tree)
         a, f, m = sp.predict_edges(adj, 15, mapping, test_edges)
-        acc[2], f1[2], mcc[2] = a, f, m
+        index = 0 if only_random else 1
+        acc[index], f1[index], mcc[index] = a, f, m
+
+        if not only_random:
+            basename = find_tree_filename(outname, ('_short', '_safe', seed))
+            _, gtx_tree = pot.read_tree(basename+'.edges')
+            name = 'stree short {:.1f}%'.format(100*len(gtx_tree)/num_e)
+            names.append(name)
+            adj, test_edges = sp.get_training_matrix(-5, mapping, slcc,
+                                                     tree_edges=gtx_tree)
+            a, f, m = sp.predict_edges(adj, 15, mapping, test_edges)
+            acc[2], f1[2], mcc[2] = a, f, m
 
     for i, k in enumerate(['1', 'last']):
         if i == 0:
@@ -148,6 +152,7 @@ if __name__ == '__main__':
     parser.add_argument("-r", "--random", action='store_true',
                         help="only compute Asym on random edges")
     args = parser.parse_args()
+    only_random = args.random
     balanced = args.balanced
     data = args.data.lower()
     seeded_args = []
@@ -165,8 +170,9 @@ if __name__ == '__main__':
     acc = np.vstack(list(map(itemgetter(0), runs)))
     f1 = np.vstack(list(map(itemgetter(1), runs)))
     mcc = np.vstack(list(map(itemgetter(2), runs)))
-    np.savez('altexp/{}{}_asym'.format(data,
-                                       '_bal' if balanced else ''),
+    np.savez('altexp/{}{}_asym_{}'.format(data,
+                                          '_bal' if balanced else '',
+                                          '_part' if only_random else ''),
              acc=acc, f1=f1, mcc=mcc)
     names = runs[-1][-1]
     print('\n'.join(['{}{:.3f} ({:.3f})'.format(n.ljust(40),

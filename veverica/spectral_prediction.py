@@ -5,53 +5,80 @@
 import numpy as np
 import real_world as rw
 import random
-import scipy.sparse
-import pred_on_tree as pot
+import scipy.sparse as sps
 import sklearn.metrics
-import sys
 
 
 def get_training_matrix(pr_in_train_set, mapping, slcc, tree_edges=None):
     """Build a sparse adjacency matrix, keeping only a fraction
     `pr_in_train_set` of the entry (or those in `tree_edges`). Return edges to
     be predicted."""
-    n = len(rw.G)
-    madj = np.zeros((n, n), dtype=np.int8)
-    for u in rw.G.keys():
-        if rw.G[u]:
-            vs, signs = zip(*((v, rw.EDGE_SIGN[(u, v) if u < v else (v, u)])
-                              for v in sorted(rw.G[u])))
-            madj[u, vs] = [1 if sign else -1 for sign in signs]
+    n = len(slcc)
+    data, row, col = [], [], []
+    for u, mu in mapping.items():
+        neighbors = [v for v in rw.G[u].intersection(slcc) if mu < mapping[v]]
+        signs = [1 if rw.EDGE_SIGN[(u, v) if u < v else (v, u)] else -1
+                 for v in neighbors]
+        row.extend((mu for _ in signs))
+        col.extend((mapping[v] for v in neighbors))
+        data.extend(signs)
     test_edges = set()
     if tree_edges:
         pr_in_train_set = 10
+        mapped_edges = set()
+        for u, v in tree_edges:
+            if u not in mapping:
+                continue
+            if mapping[u] < mapping[v]:
+                mapped_edges.add((mapping[u], mapping[v]))
+            else:
+                mapped_edges.add((mapping[v], mapping[u]))
+        tree_edges = mapped_edges
     total_edges = 0
-    for u, v in np.argwhere(madj):
-        if u > v or u not in mapping:
-            continue
+    for i, (u, v) in enumerate(zip(row, col)):
         total_edges += 1
         if tree_edges and (u, v) not in tree_edges or \
            random.random() > pr_in_train_set:
-            madj[u, v], madj[v, u] = 0, 0
+            data[i] = 0
             test_edges.add((u, v))
     if tree_edges:
         msg = '{} = {}+{}'.format(total_edges, len(tree_edges),
                                   len(test_edges))
         real = len(tree_edges) + len(test_edges)
-        assert .99*total_edges <= real <= 1.01*total_edges, msg
-    sadj = scipy.sparse.csc_matrix(madj[np.ix_(slcc, slcc)],
-                                   dtype=np.double)
+        assert real == total_edges, msg
+
+    sadj = sps.csc_matrix(sps.coo_matrix((data, (row, col)), shape=(n, n)),
+                          dtype=np.double)
+    sadj += sps.csc_matrix(sps.coo_matrix((data, (col, row)), shape=(n, n)),
+                           dtype=np.double)
     return sadj, test_edges
 
 
-def predict_edges(adjacency, nb_dim, mapping, test_edges):
-    eigsv, U = scipy.sparse.linalg.eigsh(adjacency, k=nb_dim)
-    D = np.diag(np.exp(eigsv))
-    recover = np.dot(U, np.dot(D, U.T))
+def predict_edges(adjacency, nb_dim, mapping, test_edges, bk=9000):
+    eigsv, U = sps.linalg.eigsh(adjacency, k=nb_dim)
+    U = U.astype(np.float32)
+    D = np.diag(np.exp(eigsv)).astype(np.float32)
+    partial = np.dot(D, U.T)
+    n = adjacency.shape[0]
     gold, pred = [], []
-    for u, v in test_edges:
-        gold.append(1 if rw.EDGE_SIGN[(u, v)] else -1)
-        pred.append(1 if recover[mapping[u], mapping[v]] > 0 else -1)
+    nmapping = {v: k for k, v in mapping.items()}
+    if n < 30e4:
+        recover = np.dot(U, partial)
+        for u, v in test_edges:
+            gold.append(1 if rw.EDGE_SIGN[(nmapping[u], nmapping[v])] else -1)
+            pred.append(1 if recover[u, v] > 0 else -1)
+    else:
+        # num_thread copies of recover takes too much space in memory
+        # so we need to predict by blocks of bk nodes
+        test_blocks = [[] for _ in range(n//bk + 1)]
+        for u, v in test_edges:
+            test_blocks[u//bk].append((u, v))
+        for i, test_edges in enumerate(test_blocks):
+            recover = np.dot(U[i*bk:(i+1)*bk, :], partial)
+            for u, v in test_edges:
+                real_edge = (nmapping[u], nmapping[v])
+                gold.append(1 if rw.EDGE_SIGN[real_edge] else -1)
+                pred.append(1 if recover[u-i*bk, v] > 0 else -1)
     return (sklearn.metrics.accuracy_score(gold, pred),
             sklearn.metrics.f1_score(gold, pred),
             sklearn.metrics.matthews_corrcoef(gold, pred))
@@ -68,6 +95,8 @@ if __name__ == '__main__':
     from time import time
     import args_experiments as ae
     import persistent
+    import pred_on_tree as pot
+    import sys
     bfstrees = None
     parser = ae.get_parser('Predict sign using a spectral method')
     args = parser.parse_args()

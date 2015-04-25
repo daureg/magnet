@@ -3,6 +3,7 @@
 from heap.heap import heap
 from collections import namedtuple, defaultdict
 from timeit import default_timer as clock
+import random
 Star = namedtuple('Star', 'center points'.split())
 
 
@@ -20,10 +21,13 @@ def edges_of_star(star):
             for p in star.points}
 
 
-def extract_stars(graph):
+def extract_stars(graph, approx=.0):
     # TODO values could include vertex indice to get stars of same degree in
     # topological order…
-    degrees = heap({u: -len(adj) for u, adj in graph.items()})
+    pertub = lambda : 1 + (2*random.random()-1)*approx
+    degrees = heap({u: -max(0, int(pertub()*len(adj)))
+                    for u, adj in graph.items()})
+    # degrees = heap({u: random.randint(0, len(graph)) for u in graph})
     used = {u: False for u in graph}
     not_in_stars = set(graph.keys())
     stars, inner_edges = [], []
@@ -60,7 +64,9 @@ def collapse_stars(graph, edges, stars, membership, edges_trad, centrality):
     cross_stars_edges = defaultdict(set) if centrality else {}
     new_graph = defaultdict(set)
     # FIXME sorted(edges) will make deterministic if not centrality
-    for u, v in edges:
+    ledges = list(edges)
+    random.shuffle(ledges)
+    for u, v in ledges:
         star_u, star_v = membership[u], membership[v]
         if star_u > star_v:
             star_u, star_v = star_v, star_u
@@ -80,6 +86,8 @@ def collapse_stars(graph, edges, stars, membership, edges_trad, centrality):
             return centrality[u] + centrality[v]
 
         for (star_u, star_v), candidates in cross_stars_edges.items():
+            # candidates = list(candidates)
+            # random.shuffle(candidates)
             edge = min(candidates, key=edge_distortion)
             cross_stars_edges[(star_u, star_v)] = edge
             new_graph[star_u].add(star_v)
@@ -119,7 +127,7 @@ def galaxy_maker(graph, max_iter, output_name=None, short=False):
         stars_edges.append(inner_edges)
         interstellar_edges.append(outer_edges)
         current_graph = new_graph
-        print('iteration {}: {:3f}'.format(k+1, clock() - start))
+        # print('iteration {}: {:3f}'.format(k+1, clock() - start))
         if len(outer_edges) == 0:
             break
     final = to_original_edges(stars_edges, interstellar_edges)
@@ -167,8 +175,11 @@ def to_original_edges(stars_edges, interstellar_edges):
 if __name__ == '__main__':
     # pylint: disable=C0103
     import real_world as rw
-    outname = 'fortestonly/wiki'
     rw.read_original_graph('soc-wiki.txt')
+    # import persistent
+    # rw.G, e = persistent.load_var('universe/noiseLP.my')
     start = clock()
-    edges, _ = galaxy_maker(rw.G, 10, short=True)
+    for i in range(1):
+        outname = 'fortestonly/wiki_{}.edges'.format(i)
+        edges, _ = galaxy_maker(rw.G, 10, output_name=outname, short=True)
     print('{} edges in {:.3f}'.format(len(edges), clock()-start))

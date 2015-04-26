@@ -36,6 +36,7 @@ def read_tree(filename):
 def dfs_tagging(tree, edges, root):
     """Tag each nodes in `tree` by the parity of its path (in `edges`) from the
     root"""
+    assert isinstance(tree, dict)
     tags = defaultdict(int)
 
     def _dfs_tagging(node, sign):
@@ -54,7 +55,7 @@ def make_pred(tree, tags, edge_signs=None):
     """predict sign of all edges not in tree according to nodes tags"""
     gold, pred = [], []
     vertices = set(tree.keys())
-    edge_signs = edge_signs or rw.EDGE_SIGN
+    # edge_signs = edge_signs or rw.EDGE_SIGN
     for e, s in edge_signs.items():
         u, v = e
         if u not in vertices or v not in vertices or e[1] in tree[e[0]]:

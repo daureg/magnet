@@ -61,6 +61,12 @@ def load_raw(basename, redensify, args):
     import convert_experiment as cexp
     import real_world as rw
     redensify.G, redensify.EDGES_SIGN = p.load_var(basename+'.my')
+    if args.balanced:
+        to_delete = p.load_var(basename+'_delete.my')
+        for u, v in to_delete:
+            redensify.G[u].remove(v)
+            redensify.G[v].remove(u)
+            del redensify.EDGES_SIGN[(u, v)]
     seed = args.seed
     if isinstance(seed, int):
         cexp.r.seed(seed)

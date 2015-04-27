@@ -22,9 +22,9 @@ def compute_one_seed(args):
     f1 = np.zeros_like(acc)
     mcc = np.zeros_like(acc)
     names = []
-    outname = ('universe/'+data+'{}{}_{}{}').format
+    outname = ('lp10/'+data+'{}{}_{}{}').format
     if balanced:
-        outname = ('universe/'+data+'_bal{}{}_{}{}').format
+        outname = ('lp10/'+data+'_bal{}{}_{}{}').format
     seed = args.seed
     if (seed % 25) == 0:
         print(seed)
@@ -144,7 +144,7 @@ if __name__ == '__main__':
     acc = np.vstack(list(map(itemgetter(0), runs)))
     f1 = np.vstack(list(map(itemgetter(1), runs)))
     mcc = np.vstack(list(map(itemgetter(2), runs)))
-    np.savez('altexp/{}{}_trees'.format(data,
+    np.savez('altexp10/{}{}_trees'.format(data,
                                         '_bal' if balanced else ''),
              acc=acc, f1=f1, mcc=mcc)
     names = runs[-1][-1]

@@ -209,6 +209,6 @@ if __name__ == '__main__':
         txt_res = (' & '.join(['{:.3f} ({:.3f})'.format(*l)
                                for l in zip(np.mean(arr, 0),
                                             np.std(arr, 0))]))
-        np.save('altexp/{}_{}.npy'.format(res_name, kind), arr)
+        np.save('altexp10/{}_{}.npy'.format(res_name, kind), arr)
         params = (kind, 100*training_fraction, txt_res)
         print('& AsymExp {} & {:.1f}% & {} & & \\\\'.format(*params))

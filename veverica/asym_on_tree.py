@@ -32,9 +32,9 @@ def compute_one_seed(args):
     f1 = np.zeros_like(acc)
     mcc = np.zeros_like(acc)
     names = []
-    outname = ('universe/'+data+'{}{}_{}{}').format
+    outname = ('lp10/'+data+'{}{}_{}{}').format
     if balanced:
-        outname = ('universe/'+data+'_bal{}{}_{}{}').format
+        outname = ('lp10/'+data+'_bal{}{}_{}{}').format
     seed = args.seed
     print(seed)
     if dataname.startswith('soc'):
@@ -157,13 +157,14 @@ if __name__ == '__main__':
     balanced = args.balanced
     data = args.data.lower()
     seeded_args = []
-    for seed in SEEDS:
+    upper = 6 if data == 'epi' and not only_random else 90
+    for seed in SEEDS[:upper]:
         targs = deepcopy(args)
         targs.seed = seed
         seeded_args.append(targs)
 
     num_threads = 15
-    per_thread = len(SEEDS) // num_threads
+    per_thread = len(SEEDS[:upper]) // num_threads
     pool = Pool(num_threads)
     runs = list(pool.imap(compute_one_seed, seeded_args, chunksize=per_thread))
     pool.close()
@@ -171,9 +172,9 @@ if __name__ == '__main__':
     acc = np.vstack(list(map(itemgetter(0), runs)))
     f1 = np.vstack(list(map(itemgetter(1), runs)))
     mcc = np.vstack(list(map(itemgetter(2), runs)))
-    np.savez('altexp/{}{}_asym_{}'.format(data,
-                                          '_bal' if balanced else '',
-                                          '_part' if only_random else ''),
+    np.savez('altexp10/{}{}_asym_{}'.format(data,
+                                            '_bal' if balanced else '',
+                                            '_part' if only_random else ''),
              acc=acc, f1=f1, mcc=mcc)
     names = runs[-1][-1]
     print('\n'.join(['{}{:.3f} ({:.3f})'.format(n.ljust(40),

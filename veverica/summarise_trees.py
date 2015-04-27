@@ -33,10 +33,9 @@ def compute_one_seed(args):
     if data in ['lp', 'lr']:
         ae.load_raw('universe/noise'+data.upper(), redensify, args)
         rw.G, rw.EDGE_SIGN = redensify.G, redensify.EDGES_SIGN
-    if rw.DEGREES is None:
-        rw.DEGREES = sorted(((node, len(adj))
-                             for node, adj in rw.G.items()),
-                            key=lambda x: x[1])
+    rw.DEGREES = sorted(((node, len(adj))
+                         for node, adj in rw.G.items()),
+                        key=lambda x: x[1])
     num_e = len(rw.EDGE_SIGN)
     all_lcc_edges = {}
     lcc_tree = pot.get_bfs_tree(rw.G, rw.DEGREES[-1][0])

@@ -1,12 +1,31 @@
 #! /usr/bin/env python
 # vim: set fileencoding=utf-8
-import convert_experiment as cexp
 import random as r
-import numpy as np
-import pred_on_tree as pot
 import new_galaxy as ng
-from graph_tool.generation import lattice
-from graph_tool.topology import shortest_distance
+
+
+def add_edge(tree, u, v):
+    """Update adjacency list `tree` with the (u, v) edge"""
+    if u in tree:
+        tree[u].add(v)
+    else:
+        tree[u] = set([v])
+    if v in tree:
+        tree[v].add(u)
+    else:
+        tree[v] = set([u])
+
+
+def ancestor_info(G, root):
+    parents = {root: None}
+
+    def _tag(node, level=0):
+        assert level < 50
+        for child in G[node].difference(parents.keys()):
+            parents[child] = node
+            _tag(child)
+    _tag(root)
+    return parents
 
 
 def perturbed_bfs(G, root=0):
@@ -34,11 +53,10 @@ def perturbed_bfs(G, root=0):
 
 
 def make_grid(side=10):
-    cexp.new_graph()
     n = side
-    p = np.zeros((2, n*n))
+    graph = {}
+    test_edges = set()
     for i in range(n*n):
-        p[:, i] = (i % n, n-i//n)
         neighbors = []
         if i % n != 0:
             neighbors.append(i-1)
@@ -49,57 +67,45 @@ def make_grid(side=10):
         if i < n*(n-1):
             neighbors.append(i+n)
         for v in neighbors:
-            cexp.add_signed_edge(i, v, True)
-    cexp.finalize_graph()
-    return lattice([side, side])
+            add_edge(graph, i, v)
+            test_edges.add((i, v) if i < v else (v, i))
+    return graph, test_edges
 
 
-def compute_stretch(k, edges):
-    """Compute the stretch of all edges of `k` but those in the graph spanned
-    by `edges`"""
-    test_graph = {}
-    k.set_vertex_filter(None)
-    k.set_edge_filter(None)
-    n = k.num_vertices()
-    bfsmap = k.new_edge_property('boolean')
-    for e in k.edges():
-        u, v = int(e.source()), int(e.target())
-        if (u, v) in edges:
-            bfsmap[e] = True
-        else:
-            bfsmap[e] = False
-            pot.add_edge_to_tree(test_graph, u, v)
-    k.set_edge_filter(bfsmap)
-
-    tree_dst = shortest_distance(k, dense=False)
-    tree_mat = np.zeros((n, n), dtype=np.uint8)
-    for v in k.vertices():
-        tree_mat[int(v), :] = tree_dst[v].a.astype(np.uint8)
-
-    edge_paths = {}
-    for v in range(n):
-        if v in test_graph:
-            edge_paths.update({(v, w): tree_mat[v, w]
-                               for w in sorted(test_graph[v]) if v < w})
-    return edge_paths
+def tree_path(u, v, parents):
+    path1, path2, history = set(), set(), {}
+    parent = u
+    while parent is not None:
+        if parent == v:
+            return len(path1)
+        path1.add(parent)
+        history[parent] = len(path1)
+        parent = parents[parent]
+    parent = v
+    while parent is not None:
+        path2.add(parent)
+        if parent in path1:
+            break
+        parent = parents[parent]
+    common = path1.intersection(path2)
+    assert len(common) == 1
+    common = list(common)[0]
+    return len(path2) + history[common] - 2
 
 
 if __name__ == '__main__':
     # pylint: disable=C0103
-    from timeit import default_timer as clock
-    side = 100
-    n_rep = 2
-    start = clock()
-    k = make_grid(side)
-    nb_test_edges = len(cexp.redensify.EDGES_SIGN) - (cexp.redensify.N - 1)
-    res = np.zeros((2*n_rep, nb_test_edges))
-    print(clock() - start); start = clock()
-    for i in range(n_rep):
-        bfs = perturbed_bfs(cexp.redensify.G, 0)
-        res[i, :] =  np.array(list(compute_stretch(k, bfs).values()))
-        print(clock() - start); start = clock()
-        gtx, _ = ng.galaxy_maker(cexp.redensify.G, 1000, short=True)
-        res[n_rep+i, :] = np.array(list(compute_stretch(k, gtx).values()))
-        print(clock() - start); start = clock()
-    print(res[:n_rep, :].mean(), res[n_rep:, :].mean())
-    np.savez_compressed('stgrid_{}'.format(side), res=res)
+    import persistent as p
+    import sys
+    rside = int(sys.argv[1])
+    for side in [13, rside]:
+        # run first on a small one to give Pypy time to compile
+        graph, test_edges = make_grid(side)
+        gtx, _ = ng.galaxy_maker(graph, 1000, short=True)
+        gtx_adj = {}
+        test_edges.difference_update(gtx)
+        for u, v in gtx:
+            add_edge(gtx_adj, u, v)
+        prt = ancestor_info(gtx_adj, 42)
+        p.save_var('ngrid_{}'.format(side),
+                   [tree_path(u, v, prt) for u, v in test_edges])

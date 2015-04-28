@@ -17,14 +17,18 @@ def add_edge(tree, u, v):
 
 
 def ancestor_info(G, root):
+    q = deque()
+    discovered = {u: False for u in G}
+    q.append(root)
+    discovered[root] = True
     parents = {root: None}
-
-    def _tag(node, level=0):
-        assert level < 50
-        for child in G[node].difference(parents.keys()):
-            parents[child] = node
-            _tag(child)
-    _tag(root)
+    while q:
+        v = q.popleft()
+        for w in G[v]:
+            if not discovered[w]:
+                q.append(w)
+                discovered[w] = True
+                parents[w] = v
     return parents
 
 
@@ -98,8 +102,14 @@ if __name__ == '__main__':
     import persistent as p
     import sys
     rside = int(sys.argv[1])
-    for side in [13, rside]:
-        # run first on a small one to give Pypy time to compile
+    if 0 <= rside <= 50:
+        supp = []
+    if 50 < rside <= 200:
+        supp = [25]
+    if 200 < rside:
+        supp = [25, 45]
+    for side in supp+[rside]:
+        # run first on small ones to give Pypy time to compile
         graph, test_edges = make_grid(side)
         gtx, _ = ng.galaxy_maker(graph, 1000, short=True)
         gtx_adj = {}

@@ -46,7 +46,9 @@ def perturbed_bfs(G, root=0):
         destination = list(current_border)
         r.shuffle(destination)
         for v in destination:
-            for w in G[v].difference(discovered.union(next_border)):
+            for w in G[v]:
+                if w in discovered or w in next_border:
+                    continue
                 next_border.add(w)
                 e = (v, w) if v < w else (w, v)
                 tree.append(e)

@@ -523,8 +523,8 @@ def preferential_attachment(n, m=1, c=0, gamma=1, bonus_neighbor_prob=0):
     for node in range(1, m+1):
         add_signed_edge(node-1, node, True)
     degrees = [1, ] + (m-1)*[2, ] + [1, ]
+    weights = [_**gamma + c for _ in degrees]
     for new_node in range(m+1, n):
-        weights = [_**gamma + c for _ in degrees]
         objects = range(len(degrees))
         num_neighbors = m+1 if r.random() < bonus_neighbor_prob else m
         neighbors = [redensify.weighted_choice(objects, weights)
@@ -532,5 +532,33 @@ def preferential_attachment(n, m=1, c=0, gamma=1, bonus_neighbor_prob=0):
         for n in neighbors:
             add_signed_edge(n, new_node, True)
             degrees[n] += 1
+            weights[n] = degrees[n]**gamma + c
         degrees.append(m)
+        weights.append(m**gamma + c)
+    finalize_graph()
+
+
+def fast_preferential_attachment(n, m=3, bonus_neighbor_prob=0):
+    """Create an undirected graph of `n` nodes according to Barabási–Albert
+    model where each newly added nodes is connected to `m` previous with
+    probability proportional to k**gamma + c (k being degree of the node
+    considered).
+    http://en.wikipedia.org/wiki/Barabási–Albert_model#Algorithm
+    """
+    new_graph()
+    for node in range(1, m+1):
+        add_signed_edge(node-1, node, True)
+    degrees = [1, ] + (m-1)*[2, ] + [1, ]
+    candidates = []
+    for u, d in enumerate(degrees):
+        candidates.extend([u for _ in range(d)])
+    for new_node in range(m+1, n):
+        num_neighbors = m+1 if r.random() < bonus_neighbor_prob else m
+        neighbors = r.sample(candidates, num_neighbors)
+        for n in neighbors:
+            add_signed_edge(n, new_node, True)
+            degrees[n] += 1
+            candidates.append(n)
+        degrees.append(m)
+        candidates.extend([new_node for _ in range(num_neighbors)])
     finalize_graph()

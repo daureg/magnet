@@ -45,9 +45,11 @@ def to_python_graph(graph):
     for node in graph.vertices():
         redensify.G[int(node)] = set(map(int, node.out_neighbours()))
     redensify.EDGES_SIGN.clear()
+    has_no_sign = 'sign' not in graph.ep
     for edge in graph.edges():
-        src, dst = (min(map(int, edge)), max(map(int, edge)))
-        redensify.EDGES_SIGN[(src, dst)] = bool(graph.ep['sign'][edge])
+        src, dst = int(edge.source()), int(edge.target())
+        sign = True if has_no_sign else bool(graph.ep['sign'][edge])
+        redensify.EDGES_SIGN[(src, dst)] = sign
     finalize_graph()
 
 

@@ -1,5 +1,6 @@
 #! /usr/bin/env python
 # vim: set fileencoding=utf-8
+from collections import deque
 import random as r
 import new_galaxy as ng
 
@@ -110,14 +111,22 @@ if __name__ == '__main__':
         supp = [25]
     if 200 < rside:
         supp = [25, 45]
+    if 500 < rside:
+        supp = 5*[55, ]
     for side in supp+[rside]:
         # run first on small ones to give Pypy time to compile
-        graph, test_edges = make_grid(side)
-        gtx, _ = ng.galaxy_maker(graph, 1000, short=True)
-        gtx_adj = {}
-        test_edges.difference_update(gtx)
-        for u, v in gtx:
-            add_edge(gtx_adj, u, v)
-        prt = ancestor_info(gtx_adj, 42)
-        p.save_var('ngrid_{}'.format(side),
-                   [tree_path(u, v, prt) for u, v in test_edges])
+        graph, all_test_edges = make_grid(side)
+        # gtx, _ = ng.galaxy_maker(graph, 1000, short=True)
+        bfs = perturbed_bfs(graph)
+        #for name, edges in zip(['sgt', 'bfs'], [gtx, bfs]):
+        for name, edges in zip(['bfs'], [bfs]):
+            tree_adj = {}
+            for u, v in edges:
+                add_edge(tree_adj, u, v)
+            prt = ancestor_info(tree_adj, 42)
+            test_edges = all_test_edges.difference(edges)
+            estretch = [tree_path(u, v, prt) for u, v in test_edges]
+            if side < 50:
+                continue
+            p.save_var('ngrid_{}_{}'.format(name, side), estretch)
+            #print(name, len(estretch), sum(estretch)/len(estretch))

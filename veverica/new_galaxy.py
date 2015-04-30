@@ -1,5 +1,6 @@
 #! /usr/bin/env python
 # vim: set fileencoding=utf-8
+from galaxy import export_spanner
 from heap.heap import heap
 from collections import namedtuple, defaultdict
 from timeit import default_timer as clock
@@ -105,12 +106,14 @@ def galaxy_maker(graph, max_iter, output_name=None, short=False):
     full_membership, edges_trad = {}, IdentityDict()
     original_node = {u: set([u]) for u in graph}
     centrality = {u: 0 for u in graph} if short else None
+    all_inner_edges = []
     for k in range(max_iter):
         start = clock()
         first_iter = k == 0
         edges = {(u, v) for u in current_graph
                  for v in current_graph[u] if u < v}
         stars, inner_edges, star_membership = extract_stars(current_graph)
+        all_inner_edges.append(inner_edges)
         if short:
             update_centrality(stars, centrality, original_node)
             long_res = update_nodes_mapping(full_membership, star_membership,
@@ -128,12 +131,17 @@ def galaxy_maker(graph, max_iter, output_name=None, short=False):
         interstellar_edges.append(outer_edges)
         current_graph = new_graph
         # print('iteration {}: {:3f}'.format(k+1, clock() - start))
+        if first_iter and output_name:
+            export_spanner(all_inner_edges, interstellar_edges,
+                           full_membership, output_name+'_0')
         if len(outer_edges) == 0:
             break
     final = to_original_edges(stars_edges, interstellar_edges)
     if output_name:
-        with open(output_name, 'w') as output:
-            output.write('\n'.join(('{}, {}'.format(*e) for e in final)))
+        export_spanner(all_inner_edges, interstellar_edges,
+                       full_membership, output_name)
+        # with open(output_name, 'w') as output:
+        #     output.write('\n'.join(('{}, {}'.format(*e) for e in final)))
     return final, centrality
 
 

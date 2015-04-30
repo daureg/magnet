@@ -434,8 +434,12 @@ def turn_into_signed_graph_by_propagation(num_cluster=5,
     """Set the `num_cluster` nodes with highest as cluster centers and
     propagate their label through edges"""
     degrees = {node: len(adj) for node, adj in redensify.G.items()}
-    centers = [_[0] for _ in (sorted(degrees.items(), key=itemgetter(1),
-                                     reverse=True)[:num_cluster])]
+    max_degree = max(degrees.values())
+    centers = [node for node, deg in degrees.items() if deg == max_degree]
+    if len(centers) < num_cluster:
+        centers = [_[0] for _ in sorted(degrees.items(),
+                                        key=itemgetter(1))[:num_cluster]]
+    centers = r.sample(centers, num_cluster)
     unclustered_nodes = set(range(len(degrees)))
     cluster_idx = len(unclustered_nodes)*[0, ]
     for node, degree in degrees.items():

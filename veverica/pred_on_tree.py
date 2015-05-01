@@ -40,7 +40,7 @@ def dfs_tagging(train_tree, edges, root):
     tags = {}
     dfs_tree = []
     q = []
-    status = [(False, -1) for _ in range(len(train_tree))]
+    status = {_: (False, -1) for _ in train_tree}
     q.append(root)
     tags[root] = 1
     while q:

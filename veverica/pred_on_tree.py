@@ -33,21 +33,33 @@ def read_tree(filename):
     return tree, edges
 
 
-def dfs_tagging(tree, edges, root):
+def dfs_tagging(train_tree, edges, root):
     """Tag each nodes in `tree` by the parity of its path (in `edges`) from the
     root"""
-    assert isinstance(tree, dict)
-    tags = defaultdict(int)
-
-    def _dfs_tagging(node, sign):
-        assert sign in [-1, 1], 'edges sign should not be boolean'
-        tags[node] = sign
-        for child in tree[node]:
-            if tags[child] != 0:
-                continue
-            e = (child, node) if child < node else (node, child)
-            _dfs_tagging(child, sign*edges[e])
-    _dfs_tagging(root, sign=1)
+    assert isinstance(train_tree, dict)
+    tags = {}
+    dfs_tree = []
+    q = []
+    status = [(False, -1) for _ in range(len(train_tree))]
+    q.append(root)
+    tags[root] = 1
+    while q:
+        v = q.pop()
+        discovered, pred = status[v]
+        if not discovered:
+            status[v] = (True, pred)
+            if pred != -1:
+                edge = (v, pred) if v < pred else (pred, v)
+                tags[v] = tags[pred] * edges[edge]
+                dfs_tree.append((v, pred) if v < pred else (pred, v))
+                if len(dfs_tree) == len(train_tree) - 1:
+                    break
+            for w in train_tree[v]:
+                discovered, pred = status[w]
+                if pred == -1:
+                    status[w] = (discovered, v)
+                if not discovered:
+                    q.append(w)
     return tags
 
 

@@ -110,9 +110,9 @@ def add_noise(E, noise_level):
 
 def process_graph(G, E, noise, outname):
     root = max(G.items(), key=lambda x: len(x[1]))[0]
+    if not outname.startswith('belgrade/'):
+        outname = 'belgrade/' + outname
     basename = '{}_{}'.format(outname, hostname())
-    if not basename.startswith('belgrade/'):
-        basename = 'belgrade/' + basename
     bfs = gs.perturbed_bfs(G, root)
     gtx, _ = galaxy_maker(G, 50, short=True, output_name=outname)
     stretch = None

@@ -9,6 +9,7 @@ import grid_stretch as gs
 import persistent
 import pred_on_tree as pot
 import random
+import os
 
 
 def confusion_number(gold, pred):
@@ -113,6 +114,8 @@ def process_graph(G, E, noise, outname):
     if not outname.startswith('belgrade/'):
         outname = 'belgrade/' + outname
     basename = '{}_{}'.format(outname, hostname())
+    if os.path.isfile(basename+'_perf.myres'):
+        return
     bfs = gs.perturbed_bfs(G, root)
     gtx, _ = galaxy_maker(G, 50, short=True, output_name=outname)
     stretch = None

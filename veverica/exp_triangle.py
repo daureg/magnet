@@ -11,7 +11,6 @@ if __name__ == '__main__':
     files = sorted(glob('belgrade/triangle_*.my'), key=t_size)
     for f in files[-1:]:
         print(f)
-        continue
         G, E = scratch.load_graph(f)
         for noise in [0, 1, 2, 5, 10]:
             Enoisy = scratch.add_noise(E, noise)

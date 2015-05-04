@@ -1,13 +1,12 @@
 #! /usr/bin/env python
 # vim: set fileencoding=utf-8
 import scratch
-from glob import glob
 from timeit import default_timer as clock
 
 if __name__ == '__main__':
     # pylint: disable=C0103
     num_exp = 4
-    sizes = [1000*(2**i) for i in range(15)]
+    sizes = [1000*(2**i) for i in range(15, 20)]
     for size in sizes:
         f = 'PA_{}'.format(size)
         G, E = scratch.load_graph('PA', size)

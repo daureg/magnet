@@ -3,6 +3,7 @@
 """Initial implementation of galaxy maker"""
 # import numpy as np
 from heap.heap import heap
+import gzip
 from collections import namedtuple, defaultdict
 from itertools import product
 import convert_experiment as cexp
@@ -166,17 +167,20 @@ def export_spanner(stars_edges, interstellar_edges, star_membership,
     """Write the active set of edges defined by the arguments in `filename`"""
     size_of_top_graph = len(interstellar_edges[-1])
     final = extract_tree_edges(stars_edges, interstellar_edges)
-    with open(filename+'.edges', 'w') as f:
-        f.write('\n'.join(('{}, {}'.format(*e) for e in final)))
-    with open(filename+'.sm', 'w') as f:
-        f.write('\n'.join(('{}\t{}'.format(k, v)
-                           for k, v in star_membership.items())))
+    with gzip.open(filename+'.edges', 'wb') as f:
+        content = '\n'.join(('{}, {}'.format(*e) for e in final))
+        f.write(content.encode('ascii')
+    with gzip.open(filename+'.sm', 'w') as f:
+        content = '\n'.join(('{}\t{}'.format(k, v)
+                             for k, v in star_membership.items()))
+        f.write(content.encode('ascii')
     edges_mapping = zip(interstellar_edges[-1], final[:size_of_top_graph])
     low_level_edges = [(top_edge, orig_edge)
                        for top_edge, orig_edge in edges_mapping]
-    with open(filename+'.lle', 'w') as f:
-        f.write('\n'.join(('{}, {}\t{}, {}'.format(*(e0+ek))
-                           for e0, ek in low_level_edges)))
+    with gzip.open(filename+'.lle', 'w') as f:
+        content = '\n'.join(('{}, {}\t{}, {}'.format(*(e0+ek))
+                             for e0, ek in low_level_edges))
+        f.write(content.encode('ascii')
 
 
 def compute_tree_stretch(graph, tree_maps):

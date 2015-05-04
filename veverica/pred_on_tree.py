@@ -8,6 +8,7 @@ from collections import defaultdict
 # import real_world as rw
 # from graph_tool.search import bfs_search, BFSVisitor
 from collections import deque
+import gzip
 # import numpy as np
 
 
@@ -25,9 +26,9 @@ def read_tree(filename):
     """Read a list of edge and return adjacency list"""
     tree = {}
     edges = []
-    with open(filename) as f:
+    with gzip.open(filename, 'rb') as f:
         for line in f.readlines():
-            u, v = [int(_) for _ in line.strip().split(',')]
+            u, v = [int(_) for _ in line.decode('ascii').strip().split(',')]
             add_edge_to_tree(tree, u, v)
             edges.append((u, v))
     return tree, edges
@@ -162,17 +163,18 @@ def get_bfs_tree(G, root):
                 tree.append(e)
     return tree
 
+
 def read_spanner_from_file(basename):
     """Reparse information written by galaxy.export_spanner"""
     adjacency, spanner = read_tree(basename+'.edges')
-    with open(basename+'.sm') as f:
-        raw_star_membership = f.readlines()
+    with gzip.open(basename+'.sm', 'rb') as f:
+        raw_star_membership = [_.decode('ascii') for _ in f.readlines()]
     star_membership = {}
     for line in raw_star_membership:
         orig_node, star_idx = [int(_) for _ in line.split()]
         star_membership[orig_node] = star_idx
-    with open(basename+'.lle') as f:
-        raw_lle = f.readlines()
+    with gzip.open(basename+'.lle', 'rb') as f:
+        raw_lle = [_.decode('ascii') for _ in f.readlines()]
     low_level_edges = {}
     for line in raw_lle:
         top_edge, orig_edge = line.split('\t')

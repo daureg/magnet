@@ -1,15 +1,14 @@
 #! /usr/bin/env python
 # vim: set fileencoding=utf-8
 import scratch
-from glob import glob
 from timeit import default_timer as clock
 
 if __name__ == '__main__':
     # pylint: disable=C0103
-    num_exp = 2
+    num_exp = 4
     f = 'belgrade/gplus.my'
     G, E = scratch.load_graph(f)
-    for noise in [0, 5]:
+    for noise in [0, 1, 2, 5, 10]:
         Enoisy = scratch.add_noise(E, noise)
         for _ in range(num_exp):
             start = clock()

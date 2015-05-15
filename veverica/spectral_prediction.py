@@ -65,7 +65,7 @@ def predict_edges(adjacency, nb_dim, mapping, test_edges, G=rw.G,
     gold, pred = [], []
     nmapping = {v: k for k, v in mapping.items()}
     # avoid using more than 45Gb of memory
-    bk = 127e6*45/n
+    bk = int(127e6*45/n)
     if n < bk:
         recover = np.dot(U, partial)
         for u, v in test_edges:

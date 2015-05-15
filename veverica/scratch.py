@@ -109,12 +109,23 @@ def add_noise(E, noise_level):
     return {e: not s if rand() < noise_level else s for e, s in E.items()}
 
 
-def process_graph(G, E, noise, outname):
+def run_asym(G, E, tree_edges):
+    import spectral_prediction as sp
+    # assume that G is connected
+    mapping, slcc = {k: k for k in G}, set(G.keys())
+    training_fraction = len(G) / len(E)
+    adj, test_edges = sp.get_training_matrix(training_fraction, mapping, slcc,
+                                             tree_edges, G, E)
+    return sp.predict_edges(adj, 15, mapping, test_edges, G, E)
+
+
+def process_graph(G, E, noise, outname, asym=False):
     root = max(G.items(), key=lambda x: len(x[1]))[0]
     if not outname.startswith('belgrade/'):
         outname = 'belgrade/' + outname
     basename = '{}_{}'.format(outname, hostname())
-    if os.path.isfile(basename+'_perf.myres'):
+    suffix = '.asymres' if asym else '.myres'
+    if os.path.isfile(basename+'_perf'+suffix):
         return
     bfs = gs.perturbed_bfs(G, root)
     gtx, _ = galaxy_maker(G, 50, short=True, output_name=outname)
@@ -123,27 +134,35 @@ def process_graph(G, E, noise, outname):
     binary_signs = {e: (1 if s else -1) for e, s in E.items()}
     perf = []
     for train_edges in [bfs, gtx]:
-        tree = {}
-        for u, v in train_edges:
-            gs.add_edge(tree, u, v)
-        tags = pot.dfs_tagging(tree, binary_signs, root)
-        gold, pred = pot.make_pred(tree, tags, binary_signs)
+        if asym:
+            perf.extend(run_asym(G, E, train_edges))
+        else:
+            tree = {}
+            for u, v in train_edges:
+                gs.add_edge(tree, u, v)
+            tags = pot.dfs_tagging(tree, binary_signs, root)
+            gold, pred = pot.make_pred(tree, tags, binary_signs)
+            tp, tn, fp, fn = confusion_number(gold, pred)
+            perf.extend([accuracy(tp, tn, fp, fn), f1_score(tp, tn, fp, fn),
+                         mcc(tp, tn, fp, fn)])
+    if asym:
+        _, edges = pot.read_tree(outname+'_0.edges')
+        perf.extend(run_asym(G, E, edges))
+        perf.extend(run_asym(G, E, tree_edges=None))
+    else:
+        gold, pred, _ = pot.predict_edges(outname+'_0', all_signs=E,
+                                          degrees={root: 5})
         tp, tn, fp, fn = confusion_number(gold, pred)
         perf.extend([accuracy(tp, tn, fp, fn), f1_score(tp, tn, fp, fn),
                      mcc(tp, tn, fp, fn)])
-    gold, pred, _ = pot.predict_edges(outname+'_0', all_signs=E,
-                                      degrees={root: 5})
-    tp, tn, fp, fn = confusion_number(gold, pred)
-    perf.extend([accuracy(tp, tn, fp, fn), f1_score(tp, tn, fp, fn),
-                 mcc(tp, tn, fp, fn)])
 
-    if noise == 0:
+    if noise == 0 and not asym:
         print(basename)
         bfsst = average_strech(set(E.keys()), bfs)
-        persistent.save_var(basename+'_bfsst.myres', bfsst)
+        persistent.save_var(basename+'_bfsst'+suffix, bfsst)
         gtxst = average_strech(set(E.keys()), gtx)
-        persistent.save_var(basename+'_gtxst.myres', gtxst)
+        persistent.save_var(basename+'_gtxst'+suffix, gtxst)
         stretch = [bfsst, gtxst]
 
-    persistent.save_var(basename+'_perf.myres', perf)
+    persistent.save_var(basename+'_perf'+suffix, perf)
     return perf, stretch

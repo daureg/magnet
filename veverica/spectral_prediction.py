@@ -9,15 +9,16 @@ import scipy.sparse as sps
 import sklearn.metrics
 
 
-def get_training_matrix(pr_in_train_set, mapping, slcc, tree_edges=None):
+def get_training_matrix(pr_in_train_set, mapping, slcc, tree_edges=None,
+                        G=rw.G, EDGE_SIGN=rw.EDGE_SIGN):
     """Build a sparse adjacency matrix, keeping only a fraction
     `pr_in_train_set` of the entry (or those in `tree_edges`). Return edges to
     be predicted."""
     n = len(slcc)
     data, row, col = [], [], []
     for u, mu in mapping.items():
-        neighbors = [v for v in rw.G[u].intersection(slcc) if mu < mapping[v]]
-        signs = [1 if rw.EDGE_SIGN[(u, v) if u < v else (v, u)] else -1
+        neighbors = [v for v in G[u].intersection(slcc) if mu < mapping[v]]
+        signs = [1 if EDGE_SIGN[(u, v) if u < v else (v, u)] else -1
                  for v in neighbors]
         row.extend((mu for _ in signs))
         col.extend((mapping[v] for v in neighbors))
@@ -54,7 +55,8 @@ def get_training_matrix(pr_in_train_set, mapping, slcc, tree_edges=None):
     return sadj, test_edges
 
 
-def predict_edges(adjacency, nb_dim, mapping, test_edges, bk=9000):
+def predict_edges(adjacency, nb_dim, mapping, test_edges, G=rw.G,
+                  EDGE_SIGN=rw.EDGE_SIGN, bk=9000):
     eigsv, U = sps.linalg.eigsh(adjacency, k=nb_dim)
     U = U.astype(np.float32)
     D = np.diag(np.exp(eigsv)).astype(np.float32)
@@ -62,10 +64,12 @@ def predict_edges(adjacency, nb_dim, mapping, test_edges, bk=9000):
     n = adjacency.shape[0]
     gold, pred = [], []
     nmapping = {v: k for k, v in mapping.items()}
-    if n < 30e4:
+    # avoid using more than 45Gb of memory
+    bk = 127e6*45/n
+    if n < bk:
         recover = np.dot(U, partial)
         for u, v in test_edges:
-            gold.append(1 if rw.EDGE_SIGN[(nmapping[u], nmapping[v])] else -1)
+            gold.append(1 if EDGE_SIGN[(nmapping[u], nmapping[v])] else -1)
             pred.append(1 if recover[u, v] > 0 else -1)
     else:
         # num_thread copies of recover takes too much space in memory
@@ -77,7 +81,7 @@ def predict_edges(adjacency, nb_dim, mapping, test_edges, bk=9000):
             recover = np.dot(U[i*bk:(i+1)*bk, :], partial)
             for u, v in test_edges:
                 real_edge = (nmapping[u], nmapping[v])
-                gold.append(1 if rw.EDGE_SIGN[real_edge] else -1)
+                gold.append(1 if EDGE_SIGN[real_edge] else -1)
                 pred.append(1 if recover[u-i*bk, v] > 0 else -1)
     return (sklearn.metrics.accuracy_score(gold, pred),
             sklearn.metrics.f1_score(gold, pred),

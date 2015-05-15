@@ -8,7 +8,7 @@ if __name__ == '__main__':
     # pylint: disable=C0103
     num_exp = 4
     num = lambda f: -int(f.split('_')[-1].split('.')[0])
-    files = sorted(glob('belgrade/*.pbm'), key=num)
+    files = sorted(glob('belgrade/z*.pbm'), key=num)
     for f in files:
         G, E = scratch.load_graph(f)
         for noise in [0, 1, 2, 5, 10]:

@@ -59,6 +59,7 @@ def flep(tree_adj, nodes_sign, edge_weight, root):
                     status[w] = (discovered, v, cutp, cutn)
                 if not discovered:
                     stack.append(w)
+    assert False, root
 
 
 def is_a_fork(tree_adj, node, hinge_lines):
@@ -88,7 +89,8 @@ def reveal_node(tree_adj, node, nodes_status, hinge_lines, ancestors):
             potential_fork = parent
         elif nodes_status[parent] == FORK:
             potential_fork = node
-        if potential_fork is not None:
+        if potential_fork is not None and \
+           nodes_status[potential_fork] != REVEALED:
             if is_a_fork(tree_adj, potential_fork, hinge_lines):
                 nodes_status[potential_fork] = FORK
         if nodes_status[parent] in [REVEALED, FORK]:
@@ -126,7 +128,7 @@ def predict_node_sign(tree_adj, node, nodes_status, nodes_sign, hinge_lines,
                 q.append(w)
                 status[w] = (True, distance_from_root + 1/edge_weight[edge])
 
-    print(connect_nodes, min_connect, min_connect_distance)
+    # print(connect_nodes, min_connect, min_connect_distance)
     return -1 if min_connect is None else connect_nodes[min_connect]
 
 

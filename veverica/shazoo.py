@@ -35,10 +35,15 @@ def flep(tree_adj, nodes_sign, edge_weight, root):
             status[v] = (discovered, pred, cutp, cutn)
             # print('{}: (+: {}, -: {})'.format(v, cutp, cutn))
             if v == root:
+                # return {n: vals[3] - vals[2] for n, vals in status.items()}
                 return cutp < cutn
 
         if not discovered:
             status[v] = (True, pred, cutp, cutn)
+            if v in nodes_sign:
+                # don't go beyond revealed node
+                # TODO don't cross fork either. But how do I know them?
+                continue
             stack.append(-(v+100))
             for w in tree_adj[v]:
                 discovered, pred, cutp, cutn = status[w]

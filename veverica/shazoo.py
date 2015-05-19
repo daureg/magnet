@@ -7,21 +7,30 @@ In Advances in Neural Information Processing Systems 24 (pp. 1584–1592).
 http://papers.nips.cc/paper/4476-see-the-tree-through-the-lines-the-shazoo-algorithm
 """
 from collections import deque
-
-
+import convert_experiment as cexp
+import random
 MAX_WEIGHT = int(2e9)
 UNKNOWN, REVEALED, FORK, HINGE = 0, 1, 2, 3
 
 
+def profile(f):
+    return f
+
+
+@profile
 def _edge(u, v):
     """reorder u and v"""
     return (u, v) if u < v else (v, u)
 
 
+@profile
 def flep(tree_adj, nodes_sign, edge_weight, root):
     """Compute the sign of the `root` that yield the smallest weighted cut in
     `tree_adj` given the already revealed `nodes_sign`."""
     assert isinstance(tree_adj, dict)
+    if root in nodes_sign:
+        return nodes_sign[root]
+    assert root not in nodes_sign
     stack = []
     status = {_: (False, -1, 0, 0) for _ in tree_adj}
     stack.append(root)
@@ -32,9 +41,10 @@ def flep(tree_adj, nodes_sign, edge_weight, root):
         else:
             v = -(v+100)
             discovered, pred, cutp, cutn = status[v]
-            children = (u for u in tree_adj[v] if status[u][1] == v)
-            for child in children:
-                eweight = edge_weight[_edge(child, v)]
+            for child in tree_adj[v]:
+                if status[child][1] != v:
+                    continue
+                eweight = edge_weight[(child, v) if child < v else (v, child)]
                 _, _, childp, childn = status[child]
                 cutp += min(childp, childn + eweight)
                 cutn += min(childn, childp + eweight)
@@ -62,6 +72,7 @@ def flep(tree_adj, nodes_sign, edge_weight, root):
     assert False, root
 
 
+@profile
 def is_a_fork(tree_adj, node, hinge_lines):
     """If node has more than 3 hinge edges incident, it's a fork"""
     incident_hinge = 0
@@ -72,6 +83,7 @@ def is_a_fork(tree_adj, node, hinge_lines):
     return False
 
 
+@profile
 def reveal_node(tree_adj, node, nodes_status, hinge_lines, ancestors):
     """Upon `node` sign revelation, traverse the tree to update the status of
     its nodes and edges."""
@@ -92,12 +104,14 @@ def reveal_node(tree_adj, node, nodes_status, hinge_lines, ancestors):
         if potential_fork is not None and \
            nodes_status[potential_fork] != REVEALED:
             if is_a_fork(tree_adj, potential_fork, hinge_lines):
+                assert nodes_status[potential_fork] != REVEALED
                 nodes_status[potential_fork] = FORK
         if nodes_status[parent] in [REVEALED, FORK]:
             break
         node, parent = parent, ancestors[parent]
 
 
+@profile
 def predict_node_sign(tree_adj, node, nodes_status, nodes_sign, hinge_lines,
                       edge_weight):
     q = deque()
@@ -115,6 +129,7 @@ def predict_node_sign(tree_adj, node, nodes_status, nodes_sign, hinge_lines,
             if distance_from_root < min_connect_distance:
                 min_connect, min_connect_distance = v, distance_from_root
         if v_status == FORK:
+            assert v not in nodes_sign, (v, v_status)
             estim = flep(tree_adj, nodes_sign, edge_weight, v)
             if abs(estim) > 1e-4:
                 connect_nodes[v] = 1 if estim > 0 else -1
@@ -132,11 +147,62 @@ def predict_node_sign(tree_adj, node, nodes_status, nodes_sign, hinge_lines,
     return -1 if min_connect is None else connect_nodes[min_connect]
 
 
+def make_graph(n):
+    cexp.fast_preferential_attachment(n, 1)
+    ci = cexp.turn_into_signed_graph_by_propagation(6, infected_fraction=0.9)
+    adj = cexp.redensify.G
+    ew = {e: 12*random.random() for e in cexp.redensify.EDGES_SIGN}
+
+    def to_bin_sign(val):
+        val = 1 if val % 2 == 0 else -1
+        return val if random.random() > .04 else -val
+    gold_sign = {i: to_bin_sign(v) for i, v in enumerate(ci)}
+    nodes_status = {n: UNKNOWN for n in adj}
+    hinge_lines = {e: False for e in ew}
+    nodes_sign = {}
+    num_phi = sum((1 for e in ew
+                   if gold_sign[e[0]] != gold_sign[e[1]]))
+    print('phi edges: {}'.format(num_phi))
+    return (adj, nodes_status, ew, hinge_lines, nodes_sign, gold_sign)
+
+
+@profile
+def shazoo(tree_adj, nodes_status, edge_weight, hinge_lines, nodes_sign,
+           gold_sign):
+    from grid_stretch import ancestor_info
+    order = list(gold_sign.keys())
+    random.shuffle(order)
+    allpred = {}
+    node = order[0]
+    nodes_sign[node] = gold_sign[node]
+    nodes_status[node] = REVEALED  # no need for full reveal call
+    ancestors = ancestor_info(tree_adj, node)
+    allpred[node] = -1
+    for node in order[1:]:
+        pred = predict_node_sign(tree_adj, node, nodes_status, nodes_sign,
+                                 hinge_lines, edge_weight)
+        allpred[node] = pred
+        nodes_sign[node] = gold_sign[node]
+        reveal_node(tree_adj, node, nodes_status, hinge_lines, ancestors)
+    mistakes = sum((1 for n, p in allpred.items() if p != gold_sign[n]))
+    print('mistakes: {}'.format(mistakes))
+
+
 if __name__ == '__main__':
     # pylint: disable=C0103
-    import convert_experiment as cexp
-    import random
     from timeit import default_timer as clock
+    import sys
+
+    for i in range(10):
+        shazoo(*make_graph(400))
+    timing = []
+    for i in range(8):
+        start = clock()
+        shazoo(*make_graph(6250))
+        # print('done in {:.3f} sec'.format(clock() - start))
+        timing.append(clock() - start)
+    print('avrg run: {:.3f}'.format(sum(timing)/len(timing)))
+    sys.exit()
 
     def run_once(size):
         cexp.fast_preferential_attachment(size, 1)

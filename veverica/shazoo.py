@@ -9,8 +9,10 @@ http://papers.nips.cc/paper/4476-see-the-tree-through-the-lines-the-shazoo-algor
 from collections import deque
 import convert_experiment as cexp
 import random
+from timeit import default_timer as clock
 MAX_WEIGHT = int(2e9)
 UNKNOWN, REVEALED, FORK, HINGE = 0, 1, 2, 3
+FLEP_CALLS_TIMING = []
 
 
 def profile(f):
@@ -27,6 +29,7 @@ def _edge(u, v):
 def flep(tree_adj, nodes_sign, edge_weight, root):
     """Compute the sign of the `root` that yield the smallest weighted cut in
     `tree_adj` given the already revealed `nodes_sign`."""
+    start = clock()
     assert isinstance(tree_adj, dict)
     if root in nodes_sign:
         return nodes_sign[root]
@@ -51,8 +54,10 @@ def flep(tree_adj, nodes_sign, edge_weight, root):
             status[v] = (discovered, pred, cutp, cutn)
             # print('{}: (+: {}, -: {})'.format(v, cutp, cutn))
             if v == root:
-                # return {n: vals[3] - vals[2] for n, vals in status.items()}
-                return cutn - cutp
+                intermediate = {n: (vals[2], vals[3])
+                                for n, vals in status.items() if vals[0]}
+                FLEP_CALLS_TIMING.append(clock() - start)
+                return (cutn - cutp, intermediate)
 
         if not discovered:
             status[v] = (True, pred, cutp, cutn)
@@ -130,7 +135,7 @@ def predict_node_sign(tree_adj, node, nodes_status, nodes_sign, hinge_lines,
                 min_connect, min_connect_distance = v, distance_from_root
         if v_status == FORK:
             assert v not in nodes_sign, (v, v_status)
-            estim = flep(tree_adj, nodes_sign, edge_weight, v)
+            estim, _ = flep(tree_adj, nodes_sign, edge_weight, v)
             if abs(estim) > 1e-4:
                 connect_nodes[v] = 1 if estim > 0 else -1
                 if distance_from_root < min_connect_distance:
@@ -188,17 +193,45 @@ def shazoo(tree_adj, nodes_status, edge_weight, hinge_lines, nodes_sign,
     print('mistakes: {}'.format(mistakes))
 
 
+@profile
+def offline_cut_computation(tree_adj, nodes_sign, edge_weight, root):
+    _, rooted_cut = flep(tree_adj, nodes_sign, edge_weight, root)
+    queue = deque()
+    discovered = {k: k == root for k in tree_adj}
+    queue.append(root)
+    while queue:
+        v = queue.popleft()
+        if v in nodes_sign:
+            continue
+        for u in tree_adj[v]:
+            if not discovered[u]:
+                queue.append(u)
+                discovered[u] = True
+                if u in nodes_sign:
+                    continue
+                u_cp, u_cn = rooted_cut[u]
+                p_cp, p_cn = rooted_cut[v]
+                ew = edge_weight[_edge(u, v)]
+                no_child_cp = p_cp - min(u_cp, u_cn + ew)
+                no_child_cn = p_cn - min(u_cn, u_cp + ew)
+                rooted_cut[u] = (u_cp + min(no_child_cp, no_child_cn + ew),
+                                 u_cn + min(no_child_cn, no_child_cp + ew))
+    return rooted_cut
+
+
 if __name__ == '__main__':
     # pylint: disable=C0103
-    from timeit import default_timer as clock
     import sys
+    import persistent as p
 
     for i in range(10):
         shazoo(*make_graph(400))
     timing = []
     for i in range(8):
+        del FLEP_CALLS_TIMING[:]
         start = clock()
-        shazoo(*make_graph(6250))
+        shazoo(*make_graph(3250))
+        p.save_var('flep_{}.my'.format(i), FLEP_CALLS_TIMING)
         # print('done in {:.3f} sec'.format(clock() - start))
         timing.append(clock() - start)
     print('avrg run: {:.3f}'.format(sum(timing)/len(timing)))

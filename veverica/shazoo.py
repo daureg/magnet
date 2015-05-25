@@ -55,7 +55,8 @@ def flep(tree_adj, nodes_sign, edge_weight, root):
             # print('{}: (+: {}, -: {})'.format(v, cutp, cutn))
             if v == root:
                 intermediate = {n: (vals[2], vals[3])
-                                for n, vals in status.items() if vals[0]}
+                                for n, vals in status.items()
+                                if vals[0] and n not in nodes_sign}
                 FLEP_CALLS_TIMING.append(clock() - start)
                 return (cutn - cutp, intermediate)
 
@@ -219,6 +220,37 @@ def offline_cut_computation(tree_adj, nodes_sign, edge_weight, root):
     return rooted_cut
 
 
+def offline_shazoo(tree_adj, edge_weights, node_signs, train_vertices):
+    test_vertices = set(tree_adj.keys()) - set(train_vertices)
+    nodes_status = {n: UNKNOWN for n in tree_adj}
+    preds = {}
+    seen_signs = {}
+    hinge_lines = {e: False for e in edge_weights}
+
+    from grid_stretch import ancestor_info
+    node = train_vertices[0]
+    nodes_status[node] = REVEALED  # no need for full reveal call
+    seen_signs[node] = node_signs[node]
+    ancestors = ancestor_info(tree_adj, node)
+    for node in train_vertices[1:]:
+        seen_signs[node] = node_signs[node]
+        reveal_node(tree_adj, node, nodes_status, hinge_lines, ancestors)
+    for node in test_vertices:
+        if node in preds:
+            continue
+        cuts = offline_cut_computation(tree_adj, seen_signs, edge_weights,
+                                       node)
+        new_pred = {n: 1 if cut[0] < cut[1] else -1
+                    for n, cut in cuts.items()}
+        assert all([n not in preds for n in new_pred])
+        preds.update(new_pred)
+    pred, gold = [], []
+    for node, sign in preds.items():
+        pred.append(sign)
+        gold.append(node_signs[node])
+    return gold, pred
+
+
 if __name__ == '__main__':
     # pylint: disable=C0103
     import sys
@@ -226,6 +258,13 @@ if __name__ == '__main__':
 
     for i in range(10):
         shazoo(*make_graph(400))
+
+    adj, _, ew, _, _, gold_sign = make_graph(400)
+    train_vertices = random.sample(gold_sign.keys(), 70)
+    gold, pred = offline_shazoo(adj, ew, gold_sign, train_vertices)
+    print(sum((1 for g, p in zip(gold, pred) if g != p)))
+    sys.exit()
+
     timing = []
     for i in range(8):
         del FLEP_CALLS_TIMING[:]
@@ -235,7 +274,6 @@ if __name__ == '__main__':
         # print('done in {:.3f} sec'.format(clock() - start))
         timing.append(clock() - start)
     print('avrg run: {:.3f}'.format(sum(timing)/len(timing)))
-    sys.exit()
 
     def run_once(size):
         cexp.fast_preferential_attachment(size, 1)

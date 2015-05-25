@@ -10,13 +10,89 @@ from collections import deque
 import convert_experiment as cexp
 import random
 from timeit import default_timer as clock
+from random_tree import get_tree as get_rst_tree
+from grid_stretch import perturbed_bfs as get_bfs_tree
+from grid_stretch import add_edge
+from new_galaxy import galaxy_maker as get_stg_tree
+from multiprocessing import Pool
 MAX_WEIGHT = int(2e9)
 UNKNOWN, REVEALED, FORK, HINGE = 0, 1, 2, 3
 FLEP_CALLS_TIMING = []
+GRAPH, TREE_ADJ, TWEIGHTS = None, None, None
+EWEIGHTS, SIGNS, VTRAIN = None, None, None
 
 
 def profile(f):
     return f
+
+
+def get_rst(_):
+    _, edges, _ = get_rst_tree(GRAPH, EWEIGHTS)
+    from_edges_to_tree(edges)
+    return predict()
+
+
+def get_bfs(root):
+    from_edges_to_tree(get_bfs_tree(GRAPH, root))
+    return predict()
+
+
+def get_stg(func):
+    edges, _ = get_stg_tree(GRAPH, 50, output_name=None, short=True)
+    from_edges_to_tree(edges)
+    return predict()
+
+
+def from_edges_to_tree(edges):
+    global TREE_ADJ, TWEIGHTS
+    adj = {}
+    for u,v in edges:
+        add_edge(adj, u, v)
+    TREE_ADJ, TWEIGHTS = adj, {e: EWEIGHTS[e] for e in edges}
+
+
+def majority_vote(preds):
+    """agregate all prediction by majority vote"""
+    if len(preds) == 1:
+        return preds
+    return [1 if sum(votes) > 0 else -1
+            for votes in zip(*preds)]
+
+
+def predict():
+    return offline_shazoo(TREE_ADJ, TWEIGHTS, SIGNS, VTRAIN)[1]
+
+
+def run_committee(graph, eweights, signs, tree_kind='rst', train_vertices=.1,
+                  size=13):
+    global GRAPH, EWEIGHTS, SIGNS, VTRAIN
+    GRAPH, EWEIGHTS, SIGNS = graph, eweights, signs
+    if isinstance(train_vertices, float):
+        num_revealed = int(train_vertices*len(graph))
+        train_vertices = random.sample(graph.keys(), num_revealed)
+    VTRAIN = train_vertices
+    tree_kind = tree_kind.lower()
+    assert tree_kind in ['rst', 'bfs', 'stg']
+    if tree_kind == 'rst':
+        tree_generation = get_rst_tree
+        args = size*[0, ]
+    if tree_kind == 'bfs':
+        tree_generation = get_bfs_tree
+        degrees = sorted(((node, len(adj)) for node, adj in graph.items()),
+                         key=lambda x: x[1])
+        args = [_[0] for _ in degrees[-size:]]
+    if tree_kind == 'stg':
+        UserWarning('not committee yet for stg')
+        size = 1
+        args = [None]
+        tree_generation = get_stg_tree
+    num_threads = min(13, size)
+    pool = Pool(num_threads)
+    res = list(pool.imap_unordered(func, iter, chunksize=size//num_threads))
+    preds, gold = res[0], []
+    for node, sign in sorted(preds.items()):
+        gold.append(signs[node])
+    return gold, majority_vote(res)
 
 
 @profile
@@ -245,7 +321,8 @@ def offline_shazoo(tree_adj, edge_weights, node_signs, train_vertices):
         assert all([n not in preds for n in new_pred])
         preds.update(new_pred)
     pred, gold = [], []
-    for node, sign in preds.items():
+    assert set(preds.keys()) == test_vertices
+    for node, sign in sorted(preds.items()):
         pred.append(sign)
         gold.append(node_signs[node])
     return gold, pred

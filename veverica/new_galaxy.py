@@ -22,13 +22,14 @@ def edges_of_star(star):
             for p in star.points}
 
 
-def extract_stars(graph, approx=.0):
+def extract_stars(graph, func=None):
     # TODO values could include vertex indice to get stars of same degree in
     # topological order…
-    pertub = lambda : 1 + (2*random.random()-1)*approx
-    degrees = heap({u: -max(0, int(pertub()*len(adj)))
-                    for u, adj in graph.items()})
-    # degrees = heap({u: random.randint(0, len(graph)) for u in graph})
+    pick_max_degree = func is None
+    if pick_max_degree:
+        degrees = heap({u: -len(adj) for u, adj in graph.items()})
+    else:
+        degrees = WeightedDegrees()
     used = {u: False for u in graph}
     not_in_stars = set(graph.keys())
     stars, inner_edges = [], []

@@ -25,13 +25,12 @@ class WeightedDegrees(object):
 
     def __init__(self, degrees, func, with_replacement=False):
         self.degrees = deepcopy(degrees)
-        self.map = func or lambda x: x
+        self.map = func or (lambda x: x)
         self.build_tree()
 
     def build_tree(self):
         self.weights = [self.map(_) for _ in self.degrees]
-        for i, w in enumerate(sel
-        self.num_active = len((1 for _ in self.degrees if _ > 0))
+        self.num_active = sum((1 for _ in self.degrees if _ > 0))
         # TODO get rid of 0 padding by setting not existing right nodes on the
         # border to None
         tree_height = ceil(log2(len(weights)))
@@ -58,7 +57,7 @@ class WeightedDegrees(object):
         string = (tree_height - len(string))*'0' + string
         return [c == '1' for c in string]
 
-    def sample(self, target=None):
+    def sample(self, target=None, with_replacement=False):
         total_weight = self.root.wleft + self.root.wright
         target = target or random.random()*total_weight
         current = self.root
@@ -78,6 +77,7 @@ class WeightedDegrees(object):
                 prev += l
         result = current.val
         if not with_replacement:
+            # set weight to 0 so that result will never be sampled again
             self.update_weights({result: -self.degrees[result]})
         return current.val
 
@@ -88,7 +88,8 @@ class WeightedDegrees(object):
                 new_weight = 0
             else:
                 new_weight = self.map(self.degrees[node])
-            self.update_weight_along_path(node, new_weight - self.weights[node])
+            self.update_weight_along_path(node,
+                                          new_weight - self.weights[node])
             self.weights[node] = new_weight
 
     def update_weight_along_path(self, elem, update):
@@ -108,23 +109,28 @@ if __name__ == '__main__':
     res = [i for i, v in enumerate(weights) for _ in range(v)]
 
     sampler = WeightedDegrees(weights, lambda x: x)
-    all([sampler.sample(i) == gold for i, gold in enumerate(res)])
+    all([sampler.sample(i, with_replacement=True) == gold
+         for i, gold in enumerate(res)])
 
     import numpy as np
-    from math import exp
+    from math import exp, log
     n = 18
     weights = np.random.rand(n)*5
     # weights /= weights.sum()
     weights[n//2] = 0
-    sampler = WeightedDegrees(weights, lambda x: exp(x))
+    weighting = lambda x: exp(-2*x)+log(x+1)
+    sampler = WeightedDegrees(weights, weighting)
     delta0, weights[4] = 2.3 - weights[4], 2.3
     delta1, weights[5] = 3.2 - weights[5], 3.2
     sampler.update_weights({4: delta0, 5: delta1})
-    samples = np.array([sampler.sample() for _ in range(10000)])
+    samples = np.array([sampler.sample(with_replacement=True)
+                        for _ in range(30000)])
     count = np.bincount(samples, minlength=n).astype(float)
     count /= count.sum()
-    weights = np.exp(weights)
+    weights = np.vectorize(weighting)(weights)
     weights /= weights.sum()
     print(np.allclose(weights, count, rtol=1e-2, atol=1e-2))
+    print(weights[4], count[4])
+    print(weights[5], count[5])
     print(weights)
     print(count)

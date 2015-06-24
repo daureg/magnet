@@ -100,29 +100,30 @@ $k$:
 \begin{table}
 \begin{tabularx}{\linewidth}{llcXX}
 \toprule
-									   &                             & $k$   & \mind{}                                                                                   & \maxa{} \\ \midrule
-			 \multirow{2}{*}{Complete} & unweighted                  &       & 2.5 \autocite{Ailon2008}                                                                  & PTAS in $n2^{poly(\frac{1}{\epsilon})}$ \autocite{Giotis2006} \\
-\cmidrule(r){4-5}
-									   & weighted                    &       & 2 (triangular inequality) \autocite{Ailon2008}                                            & ? \\
-			 \midrule
-			 \multirow{3}{*}{General}  & \multirow{2}{*}{unweighted} &       & $O(\log n)$ \autocite{Bansal2002}, optimal under UCG conjecture \autocite{Makarychev2014} & $0.7666$ \autocite{Swamy2004} \\
-\cmidrule(r){4-5}
-									   &  unweighted                 & $k=2$ & $O(\sqrt{\log n})$ \autocite{min2CNF05}                                                   & $0.884$ \autocite{Mitra2009} \\
-\cmidrule(r){4-5}
-									   & weighted                    &       & $O(\log n)$ \textcite{Demaine2006}                                                        & ? \\
+							 &                             & $k$   & \mind{}                                                                                   & \maxa{} \\ \midrule
+   \multirow{2}{*}{Complete} & unweighted                  &       & 2.06 \autocite{Chawla2014}                                                                & PTAS in $n2^{poly(\frac{1}{\epsilon})}$ \autocite{Giotis2006} \\
+   \cmidrule(r){4-5}
+							 & weighted                    &       & 1.5 (triangular inequality) \autocite{Chawla2014}                                         & ? \\
+   \midrule
+   \multirow{3}{*}{General}  & \multirow{2}{*}{unweighted} &       & $O(\log n)$ \autocite{Bansal2002}, optimal under UCG conjecture \autocite{Makarychev2014} & $0.7666$ \autocite{Swamy2004} \\
+   \cmidrule(r){4-5}
+							 & unweighted                  & $k=2$ & $O(\sqrt{\log n})$ \autocite{min2CNF05}                                                   & $0.884$ \autocite{Mitra2009} \\
+   \cmidrule(r){4-5}
+							 & weighted                    &       & $O(\log n)$ \textcite{Demaine2006}                                                        & ? \\
 \bottomrule
 \end{tabularx}
 \caption{Best results on various problem.\label{tab:soa}}
 \end{table}
 
-Among related problems, \textcite{Ailon2008} also consider \pcc{}. I haven't
-finish reading it seems they have the better so far so here is a quick summary:
+Among related problems, \textcite{Ailon2008} also consider \pcc{}.
 On complete unweighted graph, they got a 3 approximation using
 \textsc{CC-Pivot}. On weighted complete graph, they give two versions, one
 that is greedy and a more sophisticated one that involved LP but perform
 better. 2.5 approximation with probability constraints ($w_{uv}^+ + w_{uv}^- =
 1$) and 2 approximation if we add triangular inequality ($\forall k\;
-w_{ij}^- \leq w_{ik}^- + w_{kj}^-$).
+w_{ij}^- \leq w_{ik}^- + w_{kj}^-$). Using more sophisticated rounding of the
+LP, \textcite{Chawla2014} improve these approximation to 2.06 and 1.5
+respectively.
 
 Let say weights are bounded and assume w.l.o.g.\@ they lie in $[-1, +1]$.
 \Textcite[Section 7]{Bansal2002} describe a linear cost function where an edge
@@ -287,7 +288,9 @@ algorithm with a ratio bounded by max degree. They also present a fixed $k$
 method and experiment on real world datasets.
 
 % add bipartite (read KDD tuto)
-\paragraph{Bipartite \pcc{} \autocite{Bipartite12}}
+\paragraph{Bipartite \pcc{}}
+First 11 approximation \autocite{Amit04}, then 4 approximation using LP
+\autocite{Bipartite12} and improved to 3 even for $K$-partite graph \autocite{Chawla2014}
 
 \paragraph{Hypergraphs} \Textcite{Kim2011} show a LP relaxation on hypergraph
 and \textcite{Ricatte13} describe a class of hypergraphs that can be reduced
@@ -306,6 +309,9 @@ following performance bound:
 	general & $O(\log n\log{\Delta^+})$ & $O(\log{n})$ \\
 	\bottomrule
 \end{tabular}
+
+In the case of unit weight, this can be improved to $O(\log\log n)$ rounds
+and $3$ approximation \autocite{Ahn2015}.
 
 % mention unpublished yahoo method
 There are other approaches \autocite[Part III]{bonchi2014correlation} one can

@@ -24,8 +24,9 @@ class ThresholdSampler(object):
         self.low = heap({u: -degree
                          for i, (u, degree) in enumerate(degrees)
                          if i >= high_size})
+        self.high_nodes = set(self.high.keys())
         self.adjacency = adjacency
-        self.used = [False for u in adjacency]
+        self.used = set()
 
     def threshold_func(self):
         non_empty = min(self.num_active, 1)
@@ -39,11 +40,14 @@ class ThresholdSampler(object):
             else:
                 queue = self.low
                 delta = -delta
-            queue[u] -= delta
             # remove zero degree nodes
-            if abs(queue[u]) < 1:
+            if queue[u] == delta:
                 self.num_active -= 1
                 del queue[u]
+                if queue is self.high:
+                    self.high_nodes.remove(u)
+            else:
+                queue[u] -= delta
 
         if self.num_active == 0:
             return
@@ -51,42 +55,43 @@ class ThresholdSampler(object):
         low_max = -1 if not self.low else -self.low.peekitem()[1]
         while self.high and self.high.peekitem()[1] < low_max:
             node, degree = self.high.popitem()
+            self.high_nodes.remove(node)
             self.low[node] = -degree
 
         new_size_of_high = self.threshold_func()
         while self.high and len(self.high) > new_size_of_high:
             # high is too big so move small degree to low
             node, degree = self.high.popitem()
+            self.high_nodes.remove(node)
             self.low[node] = -degree
         while self.low and len(self.high) < new_size_of_high:
             # high is too small so move low big degree to high
             node, degree = self.low.popitem()
+            self.high_nodes.add(node)
             self.high[node] = -degree
         # print('{} nodes, threshold at {}: {}/{}'.format(self.num_active,
         #                                                 new_size_of_high,
         #                                                 len(self.high),
         #                                                 len(self.low)))
 
-    def _node_degree(self, node):
-        if node in self.high:
-            return self.high[node]
-        return -self.low[node]
-
     def sample_node(self):
         deltas = defaultdict(int)
         high_size, low_size = len(self.high), len(self.low)
         assert self.num_active == high_size + low_size
         assert high_size == self.threshold_func()
-        chosen = random.choice(list(self.high.keys()))
-        deltas[chosen] = self._node_degree(chosen)
-        self.used[chosen] = True
+        chosen = random.choice(list(self.high_nodes))
+        deltas[chosen] = self.high[chosen]
+        self.used.add(chosen)
         for v in self.adjacency[chosen]:
-            if self.used[v]:
+            if v in self.used:
                 continue
-            self.used[v] = True
-            deltas[v] = self._node_degree(v)
+            self.used.add(v)
+            if v in self.high_nodes:
+                deltas[v] = self.high[v]
+            else:
+                deltas[v] = -self.low[v]
             for w in self.adjacency[v]:
-                if self.used[w]:
+                if w in self.used:
                     continue
                 deltas[w] = 1
         self.update_degrees(deltas)

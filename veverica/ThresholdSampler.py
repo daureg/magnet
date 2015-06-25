@@ -40,8 +40,9 @@ class ThresholdSampler(object):
             else:
                 queue = self.low
                 delta = -delta
-            # remove zero degree nodes
-            if queue[u] == delta:
+            # remove zero degree nodes, more precisely those who became part
+            # of a star during the last sampling step
+            if queue[u] == delta and u in self.used:
                 self.num_active -= 1
                 del queue[u]
                 if queue is self.high:
@@ -93,7 +94,7 @@ class ThresholdSampler(object):
                 deltas[v] = -self.low[v]
             points.append(v)
             for w in self.adjacency[v]:
-                if w in self.used:
+                if w in self.used or w == chosen:
                     continue
                 deltas[w] = 1
         self.update_degrees(deltas)

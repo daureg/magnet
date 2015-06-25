@@ -82,6 +82,7 @@ class ThresholdSampler(object):
         chosen = random.choice(list(self.high_nodes))
         deltas[chosen] = self.high[chosen]
         self.used.add(chosen)
+        points = []
         for v in self.adjacency[chosen]:
             if v in self.used:
                 continue
@@ -90,12 +91,16 @@ class ThresholdSampler(object):
                 deltas[v] = self.high[v]
             else:
                 deltas[v] = -self.low[v]
+            points.append(v)
             for w in self.adjacency[v]:
                 if w in self.used:
                     continue
                 deltas[w] = 1
         self.update_degrees(deltas)
-        return chosen
+        return chosen, points
+
+    def __len__(self):
+        return self.num_active
 
 if __name__ == '__main__':
     # pylint: disable=C0103

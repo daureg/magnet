@@ -33,8 +33,8 @@ class WeightedDegrees(object):
         self.num_active = sum((1 for _ in self.degrees if _ > 0))
         # TODO get rid of 0 padding by setting not existing right nodes on the
         # border to None
-        tree_height = ceil(log2(len(weights)))
-        padding = (2**tree_height - len(weights)) * [0, ]
+        tree_height = ceil(log2(len(self.weights)))
+        padding = (2**tree_height - len(self.weights)) * [0, ]
         self.weights += padding
         leaves = [Tree(i, None, None, v if i % 2 == 0 else 0,
                        v if i % 2 == 1 else 0)
@@ -86,6 +86,7 @@ class WeightedDegrees(object):
             self.degrees[node] += delta
             if self.degrees[node] < 1e-7:
                 new_weight = 0
+                self.num_active -= 1
             else:
                 new_weight = self.map(self.degrees[node])
             self.update_weight_along_path(node,
@@ -101,6 +102,12 @@ class WeightedDegrees(object):
             else:
                 current.wleft += update
                 current = current.left
+
+    def pop(self):
+        return self.sample(with_replacement=False)
+
+    def __len__(self):
+        return self.num_active
 
 
 if __name__ == '__main__':

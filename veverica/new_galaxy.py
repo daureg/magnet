@@ -5,6 +5,8 @@ from heap.heap import heap
 from collections import namedtuple, defaultdict
 from timeit import default_timer as clock
 import random
+from ThresholdSampler import ThresholdSampler
+from NodeSampler import WeightedDegrees
 Star = namedtuple('Star', 'center points'.split())
 
 
@@ -22,14 +24,17 @@ def edges_of_star(star):
             for p in star.points}
 
 
-def extract_stars(graph, func=None):
+def extract_stars(graph, degree_function=None, threshold_function=None):
     # TODO values could include vertex indice to get stars of same degree in
     # topological order…
-    pick_max_degree = func is None
+    if threshold_function:
+        return _extract_stars_threshold(graph, threshold_function)
+    pick_max_degree = degree_function is None
     if pick_max_degree:
         degrees = heap({u: -len(adj) for u, adj in graph.items()})
     else:
-        degrees = WeightedDegrees()
+        degrees = WeightedDegrees([len(graph[u]) for u in sorted(graph)],
+                                  degree_function)
     used = {u: False for u in graph}
     not_in_stars = set(graph.keys())
     stars, inner_edges = [], []
@@ -51,13 +56,35 @@ def extract_stars(graph, func=None):
             not_in_stars.remove(p)
             for w in graph[p].intersection(not_in_stars):
                 degree_changes[w] -= 1
-        for node, decrease in degree_changes.items():
-            degrees[node] -= decrease
+        if pick_max_degree:
+            for node, decrease in degree_changes.items():
+                degrees[node] -= decrease
+        else:
+            degrees.update_weights({k: -v for k, v in degree_changes.items()})
         stars.append(star)
         inner_edges.append(edges_of_star(star))
     assert all(used.values())
     assert len(not_in_stars) == 0
     assert set(membership.keys()) == set(used.keys())
+    assert set(membership.values()) == set(range(len(stars)))
+    return stars, inner_edges, membership
+
+
+def _extract_stars_threshold(graph, function):
+    sampler = ThresholdSampler(graph, function)
+    stars, inner_edges = [], []
+    membership = {}
+    while sampler:
+        star_idx = len(stars)
+        center, points = sampler.sample_node()
+        star = Star(center, points)
+        membership[center] = star_idx
+        for p in star.points:
+            membership[p] = star_idx
+        stars.append(star)
+        inner_edges.append(edges_of_star(star))
+    assert sampler.used == set(graph.keys()), (sampler.used, set(graph.keys()))
+    assert set(membership.keys()) == set(sampler.used)
     assert set(membership.values()) == set(range(len(stars)))
     return stars, inner_edges, membership
 
@@ -101,7 +128,7 @@ def collapse_stars(graph, edges, stars, membership, edges_trad, centrality):
     return new_graph, cross_stars_edges
 
 
-def galaxy_maker(graph, max_iter, output_name=None, short=False):
+def galaxy_maker(graph, max_iter, output_name=None, short=False, **kwargs):
     current_graph = graph
     interstellar_edges, stars_edges = [], []
     full_membership, edges_trad = {}, IdentityDict()
@@ -109,11 +136,12 @@ def galaxy_maker(graph, max_iter, output_name=None, short=False):
     centrality = {u: 0 for u in graph} if short else None
     all_inner_edges = []
     for k in range(max_iter):
-        start = clock()
+        # start = clock()
         first_iter = k == 0
         edges = {(u, v) for u in current_graph
                  for v in current_graph[u] if u < v}
-        stars, inner_edges, star_membership = extract_stars(current_graph)
+        stars, inner_edges, star_membership = extract_stars(current_graph,
+                                                            **kwargs)
         all_inner_edges.append(inner_edges)
         if short:
             update_centrality(stars, centrality, original_node)

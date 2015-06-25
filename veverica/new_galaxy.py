@@ -60,9 +60,25 @@ def extract_stars(graph, degree_function=None, threshold_function=None):
             for node, decrease in degree_changes.items():
                 degrees[node] -= decrease
         else:
-            degrees.update_weights({k: -v for k, v in degree_changes.items()})
+            degrees.update_weights(degree_changes)
         stars.append(star)
         inner_edges.append(edges_of_star(star))
+    if not pick_max_degree:
+        # when using the degree based sampling, some node may reach 0 weight
+        # because all their neighbors have been grabbed by previous stars.
+        # Therefore they can't be sampled anymore (whereas when using
+        # max_degree, they stay in the queue with degree 0). So here we have to
+        # manually create singleton.
+        for u, in_star in used.items():
+            if in_star:
+                continue
+            assert degrees.degrees[u] == 0
+            star = Star(u, [])
+            used[u] = True
+            membership[u] = len(stars)
+            not_in_stars.remove(u)
+            stars.append(star)
+            inner_edges.append([])
     assert all(used.values())
     assert len(not_in_stars) == 0
     assert set(membership.keys()) == set(used.keys())

@@ -79,7 +79,7 @@ class WeightedDegrees(object):
         if not with_replacement:
             # set weight to 0 so that result will never be sampled again
             self.update_weights({result: -self.degrees[result]})
-        return current.val
+        return result
 
     def update_weights(self, updates):
         for node, delta in updates.items():
@@ -97,10 +97,10 @@ class WeightedDegrees(object):
         current = self.root
         for go_right in self.path[elem]+[elem % 2 == 1]:
             if go_right:
-                current.wright += update
+                current.wright = max(current.wright + update, 0)
                 current = current.right
             else:
-                current.wleft += update
+                current.wleft = max(current.wleft + update, 0)
                 current = current.left
 
     def pop(self):

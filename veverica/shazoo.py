@@ -26,73 +26,69 @@ def profile(f):
     return f
 
 
-def get_rst(_):
+def get_rst(fake):
     _, edges, _ = get_rst_tree(GRAPH, EWEIGHTS)
     from_edges_to_tree(edges)
-    return predict()
 
 
 def get_bfs(root):
     from_edges_to_tree(get_bfs_tree(GRAPH, root))
-    return predict()
 
 
-def get_stg(func):
-    edges, _ = get_stg_tree(GRAPH, 50, output_name=None, short=True)
+def get_stg(**func_args):
+    edges, _ = get_stg_tree(GRAPH, 50, output_name=None, short=True,
+                            **func_args)
     from_edges_to_tree(edges)
-    return predict()
 
 
 def from_edges_to_tree(edges):
     global TREE_ADJ, TWEIGHTS
     adj = {}
-    for u,v in edges:
+    for u, v in edges:
         add_edge(adj, u, v)
     TREE_ADJ, TWEIGHTS = adj, {e: EWEIGHTS[e] for e in edges}
 
 
 def majority_vote(preds):
-    """agregate all prediction by majority vote"""
+    """aggregate all prediction by majority vote"""
     if len(preds) == 1:
         return preds
     return [1 if sum(votes) > 0 else -1
             for votes in zip(*preds)]
 
 
-def predict():
-    return offline_shazoo(TREE_ADJ, TWEIGHTS, SIGNS, VTRAIN)[1]
+def predict(args):
+    tree_generation, tree_args = args
+    tree_generation(**tree_args)
+    return offline_shazoo(TREE_ADJ, TWEIGHTS, SIGNS, VTRAIN)
 
 
 def run_committee(graph, eweights, signs, tree_kind='rst', train_vertices=.1,
-                  size=13):
+                  size=13, degree_function=None, threshold_function=None):
     global GRAPH, EWEIGHTS, SIGNS, VTRAIN
     GRAPH, EWEIGHTS, SIGNS = graph, eweights, signs
     if isinstance(train_vertices, float):
         num_revealed = int(train_vertices*len(graph))
-        train_vertices = random.sample(graph.keys(), num_revealed)
+        train_vertices = random.sample(list(graph.keys()), num_revealed)
     VTRAIN = train_vertices
     tree_kind = tree_kind.lower()
-    assert tree_kind in ['rst', 'bfs', 'stg']
+    assert tree_kind in ['rst', 'bfs', 'stg'], tree_kind
     if tree_kind == 'rst':
-        tree_generation = get_rst_tree
-        args = size*[0, ]
+        args = size*[(get_rst, {'fake': None}), ]
     if tree_kind == 'bfs':
-        tree_generation = get_bfs_tree
         degrees = sorted(((node, len(adj)) for node, adj in graph.items()),
                          key=lambda x: x[1])
-        args = [_[0] for _ in degrees[-size:]]
+        args = [(get_bfs, {'root': _[0]}) for _ in degrees[-size:]]
     if tree_kind == 'stg':
-        UserWarning('not committee yet for stg')
-        size = 1
-        args = [None]
-        tree_generation = get_stg_tree
-    num_threads = min(13, size)
+        func_dict = {'degree_function': degree_function,
+                     'threshold_function': threshold_function}
+        args = size*[(get_stg, func_dict), ]
+    num_threads = min(6, size)
     pool = Pool(num_threads)
-    res = list(pool.imap_unordered(func, iter, chunksize=size//num_threads))
-    preds, gold = res[0], []
-    for node, sign in sorted(preds.items()):
-        gold.append(signs[node])
-    return gold, majority_vote(res)
+    res = list(pool.imap_unordered(predict, args,
+                                   chunksize=size//num_threads))
+    preds, gold = [_[1] for _ in res], res[0][0]
+    return gold, majority_vote(preds)
 
 
 @profile
@@ -229,8 +225,11 @@ def predict_node_sign(tree_adj, node, nodes_status, nodes_sign, hinge_lines,
     return -1 if min_connect is None else connect_nodes[min_connect]
 
 
-def make_graph(n):
-    cexp.fast_preferential_attachment(n, 1)
+def make_graph(n, tree=True):
+    if tree:
+        cexp.fast_preferential_attachment(n, 1)
+    else:
+        cexp.fast_preferential_attachment(n, 3, .13)
     ci = cexp.turn_into_signed_graph_by_propagation(6, infected_fraction=0.9)
     adj = cexp.redensify.G
     ew = {e: 12*random.random() for e in cexp.redensify.EDGES_SIGN}

@@ -60,10 +60,12 @@ def get_tree(graph, edge_weight):
     from pred_on_tree import add_edge_to_tree
     root = random.choice(list(graph.keys()))
     parent = random_tree_with_root(graph, edge_weight, root)
-    rst_edges = {(k, v) if k < v else (v, k)
-                 for k, v in parent.items() if v is not None}
-    tree_adj = {}
-    for (u, v), w in rst_edges.items():
+    rst_edges, tree_adj = {}, {}
+    for u, v in parent.items():
+        if v is None:
+            continue
+        edge = (u, v) if u < v else (v, u)
+        rst_edges[edge] = edge_weight[edge]
         add_edge_to_tree(tree_adj, u, v)
     return tree_adj, rst_edges, parent
 

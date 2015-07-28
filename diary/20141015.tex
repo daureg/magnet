@@ -212,7 +212,6 @@ cost.}\autocite{Makarychev2014}.
 \paragraph{Edge sign prediction}
 % better summary
 \autocite[Section 6]{Kunegis2009} using global matrix kernel.
-
 While the works mentioned above are combinatorial algorithms over arbitrary,
 undirected graph, we can also give additional semantic to edges in directed
 graph, such as friendship/foeship, trust/distrust, activator/inhibitor,
@@ -295,6 +294,15 @@ First 11 approximation \autocite{Amit04}, then 4 approximation using LP
 \paragraph{Hypergraphs} \Textcite{Kim2011} show a LP relaxation on hypergraph
 and \textcite{Ricatte13} describe a class of hypergraphs that can be reduced
 to signed graph.
+
+\paragraph{Other approaches}
+
+\begin{description}
+	\item[spectral clustering and embedding] \autocite{SignedEmbedding15}
+	\item[exact solution] By casting the problem as a \textsc{MaxSAT}
+		instance, one can take advantage of existing solvers to get an exact
+		solution on small instances ($n \leq 1000$) \autocite{Berg2015}
+\end{description}
 
 \subsection{Scalability}
 \paragraph{Distributed computation}

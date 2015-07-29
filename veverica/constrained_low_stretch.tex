@@ -1,0 +1,55 @@
+\documentclass[a4paper,final,notitlepage,11pt,svgnames]{scrartcl}
+\input{../diary/preambule}
+\usepackage[vmargin=2cm]{geometry}
+% \addbibresource{../../../biblio/dist.bib}
+\newcommand{\stcomp}[1]{\ensuremath{\overline{#1}}}
+\newcommand{\allst}{\ensuremath{\mathcal{T}_G}}
+\newcommand{\objf}{objective function}
+\usepackage{setspace}
+\title{Partial Low Stretch Trees}
+\author{Géraud Le Falher}
+\begin{document}
+\maketitle
+
+Let $G=(V,E,w)$ be an undirected weighted graph, $X \subset V$ a set of observed
+nodes, $\stcomp{X}$ its complement and \allst{} the set of spanning
+trees of $G$. We are looking for
+
+\begin{equation}
+	\label{eq:prob}
+	T^* = \argmin_{T \in \mathcal{T}_G} \sum_{i \in X ,\,j \in \stcomp{X}} \left|
+		path_T(i, j) \right |
+\end{equation}
+
+First note that the way $T\in \allst$ connects nodes in $X$ is irrelevant to
+the \objf{}.
+
+Let's first consider the unweighted case ($w=\boldsymbol{1}$) and look at
+the figure below, where the nodes of \stcomp{X} are sorted by distance
+from $X$ (where $d$ is the shortest path distance in $G$).
+
+\begin{center}
+\includegraphics[width=0.4\linewidth]{concentric}
+\end{center}
+
+All nodes $j$ in the first circle $C_1$ will contribute at least $1$ to the \objf{},
+all nodes $j'$ in the second circle $2$ and so on (because by definition, there
+is no path shorter than 2 between $j'$ and any node $i \in X$).
+
+Thus a natural idea would be to connect each $j \in C_1$ to one of its parent
+in $X$ then merge $C_1$ to $X$ and repeat the process. This is basically akin
+to creating a breadth first tree, starting with $X$ as the \enquote{discovered
+border}.
+
+The weighted case is more involved, because we cannot sort the nodes so easily.
+Yet adding outgoing edges from $X$ while maintaining the tree structure,
+\emph{à la} Prim, may do the trick.
+
+% \begingroup
+% \setstretch{0.9}
+% \setlength\bibitemsep{2pt}
+% \printbibliography
+% \endgroup
+\end{document}
+
+

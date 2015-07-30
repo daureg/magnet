@@ -1,47 +1,44 @@
 #! /usr/bin/env python
 # vim: set fileencoding=utf-8
+# import msgpack_pypy as msgpack
 import msgpack
 from timeit import default_timer as clock
 from collections import defaultdict
-from itertools import zip_longest as izip
 
 
 def read_text_graph(filename):
-    """return a flat list of edges in `filename`"""
-    edges = []
+    """return a graph representation from `filename`"""
+    graph = defaultdict(list)
     with open(filename) as f:
         for line in f:
             if line.startswith('#'):
                 continue
             u, v, _ = [int(_) for _ in line.split('\t')]
-            edges.extend([u, v])
-    return edges
+            graph[u].append(v)
+            graph[v].append(u)
+    return [(k, tuple(v)) for k, v in graph.iteritems()]
 
 
-def save_packed_edges(edges, filename):
+def save_packed_graph(graph_as_list, filename):
     with open(filename, 'w+b') as outfile:
-        msgpack.pack(list(edges), outfile)
+        msgpack.pack(graph_as_list, outfile)
 
 
-def load_packed_edges(filename):
+def load_packed_graph(filename):
     with open(filename, 'r+b') as packfile:
         return msgpack.unpack(packfile, use_list=False)
 
 
-def build_graph(edges):
-    graph = defaultdict(list)
-    for u, v in izip(edges[::2], edges[1::2]):
-        graph[u].append(v)
-        graph[v].append(u)
-    return graph
+def build_graph(graph_as_list):
+    return {node: adj for node, adj in graph_as_list}
 
 
 def load_graph(filename):
-    return build_graph(load_packed_edges(filename))
+    return build_graph(load_packed_graph(filename))
 
 if __name__ == '__main__':
     # do it once
-    # save_packed_edges(read_text_graph('soc-sign-epinions.txt'), 'epi.pack')
+    # save_packed_graph(read_text_graph('soc-sign-epinions.txt'), 'epi.pack')
     start = clock()
     G = load_graph('epi.pack')
     end = clock() - start

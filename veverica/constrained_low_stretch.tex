@@ -5,7 +5,9 @@
 \newcommand{\stcomp}[1]{\ensuremath{\overline{#1}}}
 \newcommand{\allst}{\ensuremath{\mathcal{T}_G}}
 \newcommand{\objf}{objective function}
+\usepackage{bbm}
 \usepackage{setspace}
+\usepackage{varioref}
 \title{Partial Low Stretch Trees}
 \author{Géraud Le Falher}
 \begin{document}
@@ -15,35 +17,69 @@ Let $G=(V,E,w)$ be an undirected weighted graph, $X \subset V$ a set of observed
 nodes, $\stcomp{X}$ its complement and \allst{} the set of spanning
 trees of $G$. We are looking for
 
-\begin{equation}
+\begin{align}
+	T^* = \argmin_{T \in \mathcal{T}_G} \; & f(T) \notag \\
+	\text{where }\; & f(T) = \sum_{i \in X ,\,j \in \stcomp{X}} \left| path_T(i, j) \right |
 	\label{eq:prob}
-	T^* = \argmin_{T \in \mathcal{T}_G} \sum_{i \in X ,\,j \in \stcomp{X}} \left|
-		path_T(i, j) \right |
-\end{equation}
+\end{align}
 
-First note that the way $T\in \allst$ connects nodes in $X$ is irrelevant to
-the \objf{}.
+First note that by symmetry of \eqref{eq:prob}, we may assume that $|X| \leq
+\left| \stcomp{X}\right|$.
 
-Let's first consider the unweighted case ($w=\boldsymbol{1}$) and look at
-the figure below, where the nodes of \stcomp{X} are sorted by distance
-from $X$ (where $d$ is the shortest path distance in $G$).
+Let's first consider the unweighted case: $w=\boldsymbol{1}$. Here are three
+ideas on how to solve the problem:
+\begin{itemize}
 
-\begin{center}
-\includegraphics[width=0.4\linewidth]{concentric}
-\end{center}
+	\item The first one is quite natural albeit rather unpractical: for each $i
+		\in X$, we build a Breadth First Tree (BFT) rooted at $i$ (let's call
+		it $T_i$). This yields the shortest paths from $i$ to all $j \in
+		\stcomp{X}$, and we denote the sum of the lengths of these
+		$|\stcomp{X}|$ paths as $S_i$.  Therefore a (non tight) lower bound of
+		$f(T^*)$ is $\sum_{i\in X} S_i$.  The last step is then to merge these
+		$|X|$ BFT into a single spanning tree. Unfortunately I couldn't think
+		of a straightforward way to do that. One method would be to count by
+		how many BFT each edges is used, and use the opposite of these counts
+		as weights for a minimum spanning tree algorithm, the intuition being
+		that we want to preserve edges that are important for many nodes in
+		$X$.
 
-All nodes $j$ in the first circle $C_1$ will contribute at least $1$ to the \objf{},
-all nodes $j'$ in the second circle $2$ and so on (because by definition, there
-is no path shorter than 2 between $j'$ and any node $i \in X$).
+	\item The second is based on the observation that, if $X = \{i\}$ is made of
+		a single node, then $T^* = T_i$. Thus if $|X| > 1$, we want to
+		extend that property by growing BFTs simultaneously from all $i \in X$.
+		To ensure we get a spanning tree at the end, we need to avoid creating
+		cycle. This can be done by maintaining information about the
+		connectivity between nodes in $X$. It's motivated by the cycle example
+		presented in \autoref{fig:cycle}~\vpageref{fig:cycle}. In that case,
+		this method will obtain the optimal solution as the farthest edge will
+		be the last to be reached and thus cut.
 
-Thus a natural idea would be to connect each $j \in C_1$ to one of its parent
-in $X$ then merge $C_1$ to $X$ and repeat the process. This is basically akin
-to creating a breadth first tree, starting with $X$ as the \enquote{discovered
-border}.
+		\begin{figure}[hbp]
+			\centering
+			\includegraphics[width=0.85\linewidth]{cpcycle.pdf}
+			\caption{In a simple cycle, drawing a spanning tree $T_e$ amounts
+				to cutting one edge $e$. Here $X$ is in orange and the label of
+				each edge $e$ is the cost $f(T_e)$ of the associate tree.
+				Although I didn't prove it, it makes sense that the
+				optimal edge to cut is the one farther away from $X$. \label{fig:cycle}}
+		\end{figure}
 
-The weighted case is more involved, because we cannot sort the nodes so easily.
-Yet adding outgoing edges from $X$ while maintaining the tree structure,
-\emph{à la} Prim, may do the trick.
+		\emph{\textbf{the following part is unclear; it's probably better I
+		write it as a formal algorithm:} More precisely, during the
+		construction, each node in $V$ is assigned the index of $i \in X$ from
+		which it has been discovered first. When two partial trees are about to
+		join, we check whether their respective label are already connected or
+		not.}
+
+	\item Although BFTs enjoy alluring practical performances, they don't
+		provide any theoretical guarantees. Therefore we might adapt
+		\emph{Galaxy Tree} construction to that setting, by choosing star
+		centers in priority in $X$. Practically, instead of sorting nodes by
+		their degree, we sort them in lexicographical order according to $(1 -
+		\mathbbm{1}_X, \textrm{degree})$ (that is we put all nodes of $X$
+		first). We also propagate membership to $X$ in the collapsed version of
+		$G$.
+
+\end{itemize}
 
 % \begingroup
 % \setstretch{0.9}

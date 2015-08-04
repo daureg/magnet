@@ -63,12 +63,11 @@ ideas on how to solve the problem:
 				optimal edge to cut is the one farther away from $X$. \label{fig:cycle}}
 		\end{figure}
 
-		\emph{\textbf{the following part is unclear; it's probably better I
-		write it as a formal algorithm:} More precisely, during the
+		\emph{\textbf{the following part is unclear; refer to
+		\autoref{alg:mbfs} \vpageref{alg:mbfs} instead} More precisely, during the
 		construction, each node in $V$ is assigned the index of $i \in X$ from
 		which it has been discovered first. When two partial trees are about to
-		join, we check whether their respective label are already connected or
-		not.}
+		join, we check whether their respective label are already connected or not.}
 
 	\item Although BFTs enjoy alluring practical performances, they don't
 		provide any theoretical guarantees. Therefore we might adapt
@@ -81,11 +80,48 @@ ideas on how to solve the problem:
 
 \end{itemize}
 
+A variant of $f$ is $g$, which measures how closely a given tree $T$ project
+$\stcomp{X}$ onto $X$:
+\begin{align}
+	g(T)= \sum_{j \in \stcomp{X}} \min_{i \in X} \left| path_T(i, j) \right |
+\end{align}
+Contrary to $f$, $g$ is not symmetric in $X$ and $\stcomp{X}$: consider the
+case were $X$ is a singleton.
+
+\begin{algorithm}
+	\caption{BFT from multiple roots \label{alg:mbfs}}
+	\begin{algorithmic}[0]
+		\State \textsc{Input:} $G=(V, E), X \subset V$
+		\State \textsc{Output:} $T$ a spanning tree of $G$
+		\State $T \gets$ an empty tree, $Q \gets$ an empty queue
+		\State $\forall i,j \in X, i<j$, let $Conn[i][j] = (i, j) \in E$
+		\State $\forall i \in V$, let $label[i] = i \,$if $i\in X$ else $None$
+		\ForAll{$x \in X$}
+			\State $Q$.enqueue($x$)
+		\EndFor
+		\While{$Q \neq \emptyset$}
+			\Let{$v$}{$Q.$dequeue()}
+			\ForAll{$w \in \mathcal{N}(v)$}
+				\If{$label[w]$ is $None$}
+					\State $Q$.enqueue($w$)
+					\Let{$T$}{$T \cup \{(v, w)\}$}
+					\Let{$label[w]$}{$label[v]$}
+				\ElsIf{$Conn[label[v]][label[w]]$ is true}
+					\State continue
+				\Else \Comment{$v$ and $w$ are not yet connected through $T$}
+					\Let{$T$}{$T \cup \{(v, w)\}$}
+					\Let{$Conn[label[v]][label[w]]$}{true}
+					\State update $Conn$
+				\EndIf
+			\EndFor
+		\EndWhile
+	\end{algorithmic}
+\end{algorithm}
+
 % \begingroup
 % \setstretch{0.9}
 % \setlength\bibitemsep{2pt}
 % \printbibliography
 % \endgroup
+
 \end{document}
-
-

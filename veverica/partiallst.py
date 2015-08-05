@@ -2,7 +2,7 @@
 # vim: set fileencoding=utf-8
 """Implement heuristics to solve Partial Low Stretch problem."""
 import sys
-from collections import deque
+from collections import deque, defaultdict
 from grid_stretch import perturbed_bfs
 from new_galaxy import galaxy_maker
 import random
@@ -13,16 +13,15 @@ def get_mbfs_tree(G, X):
     tree = []
     q = deque()
     label = {i: i if i in X else None for i in G}
-    conn = {}
+    conn = defaultdict(set)
     # It's kind of hacky to add edge between nodes of X directly in the tree
     # but they would grow onto each other anyway (except since both nodes are
     # already labeled, the edge wouldn't be added in the while loop)
     for i in X:
-        conn[i] = set()
         for j in G[i]:
-            if j in X:
-                conn[i].add(j)
-                tree.append((i, j) if i < j else (j, i))
+            if j in X and i < j:
+                update_connectivity(conn, i, j)
+                tree.append((i, j))
         q.append(i)
     while q:
         v = q.popleft()

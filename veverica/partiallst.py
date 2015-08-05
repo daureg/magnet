@@ -9,7 +9,7 @@ import random
 from heap.heap import heap
 
 
-def get_mbfs_tree(G, X):
+def get_mbfs_tree(G, X, momentum=False):
     tree = []
     q = deque()
     label = {i: i if i in X else None for i in G}
@@ -23,10 +23,19 @@ def get_mbfs_tree(G, X):
                 update_connectivity(conn, i, j)
                 tree.append((i, j))
         q.append(i)
+    max_component_size = max((len(_) for _ in conn.values()))
     while q:
         v = q.popleft()
         label_v = label[v]
         assert label_v is not None
+        if momentum:
+            # each component need to add its root to its size
+            v_component_size = len(conn[label_v]) + 1
+            ratio = v_component_size/float(max_component_size + 1)
+            proba = max(0.3, ratio**.5)
+            if random.random() > proba:
+                q.append(v)
+                continue
         for w in G[v]:
             label_w = label[w]
             a, b = label_v, label_w
@@ -40,12 +49,14 @@ def get_mbfs_tree(G, X):
             else:
                 tree.append((v, w) if v < w else (w, v))
                 update_connectivity(conn, a, b)
+                max_component_size = max((len(_) for _ in conn.values()))
     return tree
 
 
 def update_connectivity(conn, a, b):
     """`a` < `b` got connected inside X, which mean `conn` might get new True
     entries"""
+    # it could be cheapest to compute component max_size here
     for v in conn[a]:
         conn[v].add(b)
         conn[b].add(v)

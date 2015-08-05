@@ -36,10 +36,10 @@ def ancestor_info(G, root):
 def perturbed_bfs(G, root=0):
     tree = []
     current_border, next_border = set(), set()
-    discovered = set()
-    discovered.add(root)
+    discovered = set([root])
     for u in G[root]:
         current_border.add(u)
+        discovered.add(u)
         e = (root, u) if root < u else (u, root)
         tree.append(e)
     empty_border = len(current_border) == 0
@@ -48,12 +48,12 @@ def perturbed_bfs(G, root=0):
         r.shuffle(destination)
         for v in destination:
             for w in G[v]:
-                if w in discovered or w in next_border:
+                if w in discovered:
                     continue
                 next_border.add(w)
+                discovered.add(w)
                 e = (v, w) if v < w else (w, v)
                 tree.append(e)
-            discovered.add(v)
         current_border, next_border = next_border, set()
         empty_border = len(current_border) == 0
     return tree

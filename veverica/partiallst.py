@@ -13,8 +13,16 @@ def get_mbfs_tree(G, X):
     tree = []
     q = deque()
     label = {i: i if i in X else None for i in G}
-    conn = {i: set((j for j in G[i] if j in X)) for i in X}
+    conn = {}
+    # It's kind of hacky to add edge between nodes of X directly in the tree
+    # but they would grow onto each other anyway (except since both nodes are
+    # already labeled, the edge wouldn't be added in the while loop)
     for i in X:
+        conn[i] = set()
+        for j in G[i]:
+            if j in X:
+                conn[i].add(j)
+                tree.append((i, j) if i < j else (j, i))
         q.append(i)
     while q:
         v = q.popleft()

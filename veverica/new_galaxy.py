@@ -24,14 +24,19 @@ def edges_of_star(star):
             for p in star.points}
 
 
-def extract_stars(graph, degree_function=None, threshold_function=None):
+def extract_stars(graph, degree_function=None, threshold_function=None,
+                  X=None):
     # TODO values could include vertex indice to get stars of same degree in
     # topological order…
     if threshold_function:
         return _extract_stars_threshold(graph, threshold_function)
     pick_max_degree = degree_function is None
     if pick_max_degree:
-        degrees = heap({u: -len(adj) for u, adj in graph.items()})
+        if X:
+            degrees = heap({u: (1 - int(u in X), -len(adj))
+                            for u, adj in graph.items()})
+        else:
+            degrees = heap({u: -len(adj) for u, adj in graph.items()})
     else:
         degrees = WeightedDegrees([len(graph[u]) for u in sorted(graph)],
                                   degree_function)
@@ -58,7 +63,11 @@ def extract_stars(graph, degree_function=None, threshold_function=None):
                 degree_changes[w] -= 1
         if pick_max_degree:
             for node, decrease in degree_changes.items():
-                degrees[node] -= decrease
+                if X:
+                    inX, deg = degrees[node]
+                    degrees[node] = (inX, deg - decrease)
+                else:
+                    degrees[node] -= decrease
         else:
             degrees.update_weights(degree_changes)
         stars.append(star)
@@ -105,7 +114,8 @@ def _extract_stars_threshold(graph, function):
     return stars, inner_edges, membership
 
 
-def collapse_stars(graph, edges, stars, membership, edges_trad, centrality):
+def collapse_stars(graph, edges, stars, membership, edges_trad, centrality,
+                   X=None):
     cross_stars_edges = defaultdict(set) if centrality else {}
     new_graph = defaultdict(set)
     # FIXME sorted(edges) will make deterministic if not centrality
@@ -138,10 +148,13 @@ def collapse_stars(graph, edges, stars, membership, edges_trad, centrality):
             new_graph[star_u].add(star_v)
             new_graph[star_v].add(star_u)
 
-    for star_idx, _ in enumerate(stars):
+    newX = set()
+    for star_idx, star in enumerate(stars):
         if star_idx not in new_graph:
             new_graph[star_idx] = set()
-    return new_graph, cross_stars_edges
+        if X and star.center in X:
+            newX.add(star_idx)
+    return new_graph, cross_stars_edges, newX
 
 
 def galaxy_maker(graph, max_iter, output_name=None, short=False, **kwargs):
@@ -165,9 +178,10 @@ def galaxy_maker(graph, max_iter, output_name=None, short=False, **kwargs):
                                             first_iter)
             full_membership, original_node = long_res
         edges -= {e for star_edges in inner_edges for e in star_edges}
-        new_graph, outer_edges = collapse_stars(current_graph, edges, stars,
-                                                star_membership, edges_trad,
-                                                centrality)
+        new_graph, outer_edges, X = collapse_stars(current_graph, edges,
+                                                   stars, star_membership,
+                                                   edges_trad, centrality)
+        kwargs['X'] = X
         new_trad = {}
         for this_level, prev_level in outer_edges.items():
             new_trad[this_level] = edges_trad[prev_level]

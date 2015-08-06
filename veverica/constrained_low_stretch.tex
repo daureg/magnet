@@ -1,4 +1,4 @@
-\documentclass[a4paper,final,notitlepage,11pt,svgnames]{scrartcl}
+\documentclass[a4paper,draft,notitlepage,11pt,svgnames]{scrartcl}
 \input{../diary/preambule}
 \usepackage[vmargin=2cm]{geometry}
 % \addbibresource{../../../biblio/dist.bib}
@@ -8,10 +8,14 @@
 \usepackage{bbm}
 \usepackage{setspace}
 \usepackage{varioref}
+\usepackage{caption}
+\usepackage{subcaption}
 \title{Partial Low Stretch Trees}
 \author{Géraud Le Falher}
 \begin{document}
 \maketitle
+
+\section*{Problem}
 
 Let $G=(V,E,w)$ be an undirected weighted graph, $X \subset V$ a set of observed
 nodes, $\stcomp{X}$ its complement and \allst{} the set of spanning
@@ -23,35 +27,45 @@ trees of $G$. We are looking for
 	\label{eq:prob}
 \end{align}
 
-First note that by symmetry of \eqref{eq:prob}, we may assume that $|X| \leq
-\left| \stcomp{X}\right|$.
+Note that by symmetry of \eqref{eq:prob}, we may assume that $|X| \leq
+\left| \stcomp{X}\right|$. A variant of $f$ is $g$, which measures how closely
+a given tree $T$ project $\stcomp{X}$ onto $X$:
+\begin{align}
+	g(T)= \sum_{j \in \stcomp{X}} \min_{i \in X} \left| path_T(i, j) \right |
+\end{align}
+Contrary to $f$, $g$ is not symmetric in $X$ and $\stcomp{X}$: consider for
+instance the case were $X$ is a singleton.
+
+\section*{Methods}
 
 Let's first consider the unweighted case: $w=\boldsymbol{1}$. Here are three
 ideas on how to solve the problem:
-\begin{itemize}
+\begin{description}
 
-	\item The first one is quite natural albeit rather unpractical: for each $i
-		\in X$, we build a Breadth First Tree (BFT) rooted at $i$ (let's call
-		it $T_i$). This yields the shortest paths from $i$ to all $j \in
-		\stcomp{X}$, and we denote the sum of the lengths of these
-		$|\stcomp{X}|$ paths as $S_i$.  Therefore a (non tight) lower bound of
-		$f(T^*)$ is $\sum_{i\in X} S_i$.  The last step is then to merge these
-		$|X|$ BFT into a single spanning tree. Unfortunately I couldn't think
-		of a straightforward way to do that. One method would be to count by
-		how many BFT each edges is used, and use the opposite of these counts
-		as weights for a minimum spanning tree algorithm, the intuition being
-		that we want to preserve edges that are important for many nodes in
-		$X$.
+	\item[Merged $k$-BFTs] The first one is quite natural albeit rather
+		unpractical: for each $i \in X$, we build an arbitrary Breadth First
+		Tree (BFT) rooted at $i$ (let's call it $T_i$. There are several BFTs
+		rooted at $i$ hence we could build $k$ of them. In the following
+		experiments though, we set $k=1$). This yields the shortest paths from
+		$i$ to all $j \in \stcomp{X}$, and we denote the sum of the lengths of
+		these $|\stcomp{X}|$ paths as $S_i$. Therefore a (non tight) lower
+		bound of $f(T^*)$ is $\sum_{i\in X} S_i$. The last step is then to
+		merge these $|X|$ BFT into a single spanning tree. Unfortunately I
+		couldn't think of a straightforward way to do that. One method would be
+		to count by how many BFT each edges is used, and use the opposite of
+		these counts as weights for a minimum spanning tree algorithm, the
+		intuition being that we want to preserve edges that are important for
+		many nodes in $X$.
 
-	\item The second is based on the observation that, if $X = \{i\}$ is made of
-		a single node, then $T^* = T_i$. Thus if $|X| > 1$, we want to
-		extend that property by growing BFTs simultaneously from all $i \in X$.
-		To ensure we get a spanning tree at the end, we need to avoid creating
-		cycle. This can be done by maintaining information about the
-		connectivity between nodes in $X$. It's motivated by the cycle example
-		presented in \autoref{fig:cycle}~\vpageref{fig:cycle}. In that case,
-		this method will obtain the optimal solution as the farthest edge will
-		be the last to be reached and thus cut.
+	\item[Expanding BFTs] The second is based on the observation that, if $X =
+		\{i\}$ is made of a single node, then $T^* = T_i$. Thus if $|X| > 1$,
+		we want to extend that property by expanding BFTs simultaneously from
+		all $i \in X$. To ensure we get a spanning tree at the end, we need to
+		avoid creating cycle. This can be done by maintaining information about
+		the connectivity between nodes in $X$. It's motivated by the cycle
+		example presented in \autoref{fig:cycle}~\vpageref{fig:cycle}. In that
+		case, this method could obtain the optimal solution as the optimal edge
+		will be among the last to be reached and thus cut.
 
 		\begin{figure}[hbp]
 			\centering
@@ -63,30 +77,48 @@ ideas on how to solve the problem:
 				optimal edge to cut is the one farther away from $X$. \label{fig:cycle}}
 		\end{figure}
 
+		In practice, we maintain a forest of tree rooted at each node of $X$.
+		We expand them in a Breadth first manner while 
 		\emph{\textbf{the following part is unclear; refer to
 		\autoref{alg:mbfs} \vpageref{alg:mbfs} instead} More precisely, during the
 		construction, each node in $V$ is assigned the index of $i \in X$ from
 		which it has been discovered first. When two partial trees are about to
 		join, we check whether their respective label are already connected or not.}
 
-	\item Although BFTs enjoy alluring practical performances, they don't
-		provide any theoretical guarantees. Therefore we might adapt
+	\autoref{fig:cycle}~\vpageref{fig:cycle} also shows that between nodes 0
+	and 17, the optimal edge is farther from 0, suggesting than larger subtrees
+	(like the one starting at $0-1-2$) should grow faster. Taking into account
+	the \textbf{Momentum} of each subtree, upon dequeuing a node, we skip it
+	(i.e. enqueue it back) with probability based on the ratio of the size of
+	the subtree this node belongs and the size of the currently largest
+	subtree.
+
+	\item[Modified SGT] Although BFTs enjoy alluring practical performances,
+		they don't provide any theoretical guarantees. Therefore we might adapt
 		\emph{Galaxy Tree} construction to that setting, by choosing star
 		centers in priority in $X$. Practically, instead of sorting nodes by
 		their degree, we sort them in lexicographical order according to $(1 -
 		\mathbbm{1}_X, \textrm{degree})$ (that is we put all nodes of $X$
-		first). We also propagate membership to $X$ in the collapsed version of
-		$G$.
+		first). When collapsing the graph, we need to decide how to propagate
+		the information about membership to $X$. The simplest way (currently
+		implemented in the experiments) is to say that a star (i.e. a node in
+		the future collapsed graph) belongs to $X'$ (the successor of $X$ in
+		the new graph) if its center belongs to $X$. A more complicated method
+		would replace the binary indicator function by a real value
+		representing the strength of the tie with $X$ (for instance, a star
+		made only of nodes of $X$ should be more strongly associated to $X'$
+		than one with only one node in $X$). It's unclear whether this would
+		provide any gain.
 
-\end{itemize}
+\end{description}
 
-A variant of $f$ is $g$, which measures how closely a given tree $T$ project
-$\stcomp{X}$ onto $X$:
-\begin{align}
-	g(T)= \sum_{j \in \stcomp{X}} \min_{i \in X} \left| path_T(i, j) \right |
-\end{align}
-Contrary to $f$, $g$ is not symmetric in $X$ and $\stcomp{X}$: consider the
-case were $X$ is a singleton.
+In addition, we compare with some baselines that don't rely very much on $X$.
+
+\begin{description}
+	\item[BFT] A Breadth First tree rooted at (one of) the node with highest
+		degree in $X$.
+	\item[SGT] The good old short galaxy tree, completely ignoring $X$.
+\end{description}
 
 \begin{algorithm}
 	\caption{BFT from multiple roots \label{alg:mbfs}}
@@ -118,10 +150,108 @@ case were $X$ is a singleton.
 	\end{algorithmic}
 \end{algorithm}
 
+\end{document}
+
+\section*{Preliminary Results}
+
+\begin{figure}[htpb]
+	\centering
+	\begin{subfigure}[b]{0.45\textwidth}
+		\includegraphics[width=\textwidth]{cxcycle_35_baselinebft.pdf}
+		\caption{Baseline BFT}
+	\end{subfigure}~
+	\begin{subfigure}[b]{0.45\textwidth}
+		\includegraphics[width=\textwidth]{cxcycle_35_baselinesgt.pdf}
+		\caption{Baseline SGT}
+	\end{subfigure}
+
+	\begin{subfigure}[b]{0.45\textwidth}
+		\includegraphics[width=\textwidth]{cxcycle_35_expandingbfts.pdf}
+		\caption{Expanding BFTs}
+	\end{subfigure}~
+	\begin{subfigure}[b]{0.45\textwidth}
+		\includegraphics[width=\textwidth]{cxcycle_35_momentume-bfts.pdf}
+		\caption{Momentum BFTs}
+	\end{subfigure}
+
+	\begin{subfigure}[b]{0.45\textwidth}
+		\includegraphics[width=\textwidth]{cxcycle_35_mergedbfts.pdf}
+		\caption{Merged BFTS}
+	\end{subfigure}~
+	\begin{subfigure}[b]{0.45\textwidth}
+		\includegraphics[width=\textwidth]{cxcycle_35_modifiedsgt.pdf}
+		\caption{Modified SGT}
+	\end{subfigure}
+	\caption{Results of the different methods and baselines on a simple
+		cycle. \label{fig:rcycle}}
+\end{figure}
+
+
+\begin{figure}[htpb]
+	\centering
+	\begin{subfigure}[b]{0.45\textwidth}
+		\includegraphics[width=\textwidth]{cPA3_1024_baselinebft_5_14.pdf}
+		\caption{Baseline BFT: $5.14$}
+	\end{subfigure}~
+	\begin{subfigure}[b]{0.45\textwidth}
+		\includegraphics[width=\textwidth]{cPA3_1024_baselinesgt_5_17.pdf}
+		\caption{Baseline SGT: $5.17$}
+	\end{subfigure}
+
+	\begin{subfigure}[b]{0.45\textwidth}
+		\includegraphics[width=\textwidth]{cPA3_1024_expandingbfts_7_88.pdf}
+		\caption{Expanding BFTs: $7.88$}
+	\end{subfigure}~
+	\begin{subfigure}[b]{0.45\textwidth}
+		\includegraphics[width=\textwidth]{cPA3_1024_momentume-bfts_7_17.pdf}
+		\caption{Momentum BFTs: $7.17$}
+	\end{subfigure}
+
+	\begin{subfigure}[b]{0.45\textwidth}
+		\includegraphics[height=.3\textheight]{cPA3_1024_mergedbfts_8_46.pdf}
+		\caption{Merged BFTS: $8.46$}
+	\end{subfigure}~
+	\begin{subfigure}[b]{0.45\textwidth}
+		\includegraphics[height=.3\textheight]{cPA3_1024_modifiedsgt_6_26.pdf}
+		\caption{Modified SGT: $6.26$}
+	\end{subfigure}
+	\caption{Results of the different methods and baselines on a PA network.
+		\label{fig:rpa}}
+\end{figure}
+
+\begin{figure}[htpb]
+	\centering
+	\begin{subfigure}[b]{0.45\textwidth}
+		\includegraphics[width=\textwidth]{cGrid_32_baselinebft_35_96.pdf}
+		\caption{Baseline BFT: $35.96$}
+	\end{subfigure}~
+	\begin{subfigure}[b]{0.45\textwidth}
+		\includegraphics[width=\textwidth]{cGrid_32_baselinesgt_43_96.pdf}
+		\caption{Baseline SGT: $43.96$}
+	\end{subfigure}
+
+	\begin{subfigure}[b]{0.45\textwidth}
+		\includegraphics[width=\textwidth]{cGrid_32_expandingbfts_51_62.pdf}
+		\caption{Expanding BFTs: $51.62$}
+	\end{subfigure}~
+	\begin{subfigure}[b]{0.45\textwidth}
+		\includegraphics[width=\textwidth]{cGrid_32_momentume-bfts_46_93.pdf}
+		\caption{Momentum BFTs: $46.93$}
+	\end{subfigure}
+
+	\begin{subfigure}[b]{0.45\textwidth}
+		\includegraphics[width=\textwidth]{cGrid_32_mergedbfts_52_34.pdf}
+		\caption{Merged BFTS: $52.34$}
+	\end{subfigure}~
+	\begin{subfigure}[b]{0.45\textwidth}
+		\includegraphics[width=\textwidth]{cGrid_32_modifiedsgt_52_43.pdf}
+		\caption{Modified SGT: $52.43$}
+	\end{subfigure}
+	\caption{Results of the different methods and baselines on a grid network.
+		\label{fig:rgrid}}
+\end{figure}
 % \begingroup
 % \setstretch{0.9}
 % \setlength\bibitemsep{2pt}
 % \printbibliography
 % \endgroup
-
-\end{document}

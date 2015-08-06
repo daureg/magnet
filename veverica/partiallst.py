@@ -9,6 +9,10 @@ import random
 from heap.heap import heap
 
 
+def profile(func): return func
+
+
+@profile
 def get_mbfs_tree(G, X, momentum=False):
     tree = []
     q = deque()
@@ -18,12 +22,14 @@ def get_mbfs_tree(G, X, momentum=False):
     # but they would grow onto each other anyway (except since both nodes are
     # already labeled, the edge wouldn't be added in the while loop)
     for i in X:
-        for j in G[i]:
-            if j in X and i < j:
-                update_connectivity(conn, i, j)
+        for j in (j for j in G[i] if j in X and i < j):
+            if j not in conn[i]:
                 tree.append((i, j))
+            update_connectivity(conn, i, j)
         q.append(i)
-    max_component_size = max((len(_) for _ in conn.values()))
+
+    def xmax(seq): return 0 if not seq else max(seq)
+    max_component_size = xmax([len(_) for _ in conn.values()])
     while q:
         v = q.popleft()
         label_v = label[v]
@@ -49,22 +55,23 @@ def get_mbfs_tree(G, X, momentum=False):
             else:
                 tree.append((v, w) if v < w else (w, v))
                 update_connectivity(conn, a, b)
-                max_component_size = max((len(_) for _ in conn.values()))
+                max_component_size = xmax([len(_) for _ in conn.values()])
     return tree
 
 
+@profile
 def update_connectivity(conn, a, b):
     """`a` < `b` got connected inside X, which mean `conn` might get new True
     entries"""
     # it could be cheapest to compute component max_size here
-    for v in conn[a]:
-        conn[v].add(b)
-        conn[b].add(v)
-    conn[a].add(b)
-    for v in conn[b]:
-        conn[v].add(a)
-        conn[a].add(v)
-    conn[b].add(a)
+    component_a = conn[a].union((a, b))
+    component_b = conn[b].union((b, a))
+    for v in component_a:
+        conn[v].update(component_b)
+    for v in component_b:
+        conn[v].update(component_a)
+    conn[a].remove(a)
+    conn[b].remove(b)
 
 
 def get_one_bfs_tree(G, X):
@@ -111,4 +118,18 @@ def minimum_spanning_tree(graph, weights, root=0):
 
 if __name__ == '__main__':
     # pylint: disable=C0103
-    pass
+    import convert_experiment as cexp
+    from timeit import default_timer as clock
+    timings = []
+    n = 500
+    for i in range(30):
+        cexp.fast_preferential_attachment(n, m=3, bonus_neighbor_prob=.13)
+        G, N = cexp.redensify.G, cexp.redensify.N
+        X = set(random.sample(list(G.keys()), int(.1*N)))
+        start = clock()
+        tree = get_mbfs_tree(G, X)
+        timings.append(clock() - start)
+        print(timings[-1])
+        assert len(tree) == N-1, i
+    # print(timings)
+    print('--\n{:.4f}'.format(sum(timings)/len(timings)))

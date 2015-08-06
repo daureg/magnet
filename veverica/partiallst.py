@@ -4,6 +4,7 @@
 import sys
 from collections import deque, defaultdict
 from grid_stretch import perturbed_bfs
+from pred_on_tree import get_dfs_tree
 from new_galaxy import galaxy_maker
 import random
 from heap.heap import heap
@@ -80,6 +81,14 @@ def get_one_bfs_tree(G, X):
     roots = [node for node, deg in degrees.items() if deg == max_degree]
     root = random.choice(roots)
     return perturbed_bfs(G, root)
+
+
+def get_one_dfs_tree(G, X):
+    degrees = {node: len(G[node]) for node in X}
+    max_degree = max(degrees.values())
+    roots = [node for node, deg in degrees.items() if deg == max_degree]
+    root = random.choice(roots)
+    return get_dfs_tree(G, root)
 
 
 def get_short_galaxy_tree(G, X=None):

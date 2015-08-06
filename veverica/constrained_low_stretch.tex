@@ -1,4 +1,4 @@
-\documentclass[a4paper,draft,notitlepage,11pt,svgnames]{scrartcl}
+\documentclass[a4paper,final,notitlepage,11pt,svgnames]{scrartcl}
 \input{../diary/preambule}
 \usepackage[vmargin=2cm]{geometry}
 % \addbibresource{../../../biblio/dist.bib}
@@ -29,12 +29,12 @@ trees of $G$. We are looking for
 
 Note that by symmetry of \eqref{eq:prob}, we may assume that $|X| \leq
 \left| \stcomp{X}\right|$. A variant of $f$ is $g$, which measures how closely
-a given tree $T$ project $\stcomp{X}$ onto $X$:
+a given tree $T$ projects $\stcomp{X}$ onto $X$:
 \begin{align}
 	g(T)= \sum_{j \in \stcomp{X}} \min_{i \in X} \left| path_T(i, j) \right |
 \end{align}
 Contrary to $f$, $g$ is not symmetric in $X$ and $\stcomp{X}$: consider for
-instance the case were $X$ is a singleton.
+instance the case where $X$ is a singleton.
 
 \section*{Methods}
 
@@ -50,9 +50,9 @@ ideas on how to solve the problem:
 		$i$ to all $j \in \stcomp{X}$, and we denote the sum of the lengths of
 		these $|\stcomp{X}|$ paths as $S_i$. Therefore a (non tight) lower
 		bound of $f(T^*)$ is $\sum_{i\in X} S_i$. The last step is then to
-		merge these $|X|$ BFT into a single spanning tree. Unfortunately I
+		merge these $|X|$ BFTs into a single spanning tree. Unfortunately I
 		couldn't think of a straightforward way to do that. One method would be
-		to count by how many BFT each edges is used, and use the opposite of
+		to count by how many BFTs each edges is used, and use the opposite of
 		these counts as weights for a minimum spanning tree algorithm, the
 		intuition being that we want to preserve edges that are important for
 		many nodes in $X$.
@@ -60,38 +60,41 @@ ideas on how to solve the problem:
 	\item[Expanding BFTs] The second is based on the observation that, if $X =
 		\{i\}$ is made of a single node, then $T^* = T_i$. Thus if $|X| > 1$,
 		we want to extend that property by expanding BFTs simultaneously from
-		all $i \in X$. To ensure we get a spanning tree at the end, we need to
-		avoid creating cycle. This can be done by maintaining information about
-		the connectivity between nodes in $X$. It's motivated by the cycle
-		example presented in \autoref{fig:cycle}~\vpageref{fig:cycle}. In that
-		case, this method could obtain the optimal solution as the optimal edge
-		will be among the last to be reached and thus cut.
+		all $i \in X$. Yet to ensure we get a spanning tree at the end, we need
+		to avoid creating cycle. It's motivated by the cycle example presented
+		in \autoref{fig:cycle}~\vpageref{fig:cycle}. In that case, this method
+		could find $T^*$ since the optimal edge will be among the last to be
+		reached and thus cut.
 
 		\begin{figure}[hbp]
 			\centering
-			\includegraphics[width=0.85\linewidth]{cpcycle.pdf}
+			\includegraphics[width=0.8\linewidth]{cpcycle.pdf}
 			\caption{In a simple cycle, drawing a spanning tree $T_e$ amounts
 				to cutting one edge $e$. Here $X$ is in orange and the label of
-				each edge $e$ is the cost $f(T_e)$ of the associate tree.
-				Although I didn't prove it, it makes sense that the
-				optimal edge to cut is the one farther away from $X$. \label{fig:cycle}}
+				each edge $e$ is the cost $f(T_e)$ of the associated tree. The
+				optimal edge is between 0 and 17 yet we observe that because of
+				the concentration of $X$ nodes around 0, the edge is pushed
+				closer to 17. \label{fig:cycle}}
 		\end{figure}
 
-		In practice, we maintain a forest of tree rooted at each node of $X$.
-		We expand them in a Breadth first manner while 
-		\emph{\textbf{the following part is unclear; refer to
-		\autoref{alg:mbfs} \vpageref{alg:mbfs} instead} More precisely, during the
-		construction, each node in $V$ is assigned the index of $i \in X$ from
-		which it has been discovered first. When two partial trees are about to
-		join, we check whether their respective label are already connected or not.}
+		In practice, we maintain a tree rooted at each node of $X$ (line 7).
+		We expand them in a Breadth first manner (line 9--20) as long as they
+		don't encounter nodes belonging to another tree. When that happened,
+		there are two cases. Either these two trees joined previously and there
+		is nothing to do (line 16). Otherwise, we add an edge between the two
+		tree and we make note that there is now a path between them (connecting
+		all the others trees they may have encounter before).  The formal
+		description is provided in \autoref{alg:mbfs} \vpageref{alg:mbfs}.
 
-	\autoref{fig:cycle}~\vpageref{fig:cycle} also shows that between nodes 0
-	and 17, the optimal edge is farther from 0, suggesting than larger subtrees
-	(like the one starting at $0-1-2$) should grow faster. Taking into account
-	the \textbf{Momentum} of each subtree, upon dequeuing a node, we skip it
-	(i.e. enqueue it back) with probability based on the ratio of the size of
-	the subtree this node belongs and the size of the currently largest
-	subtree.
+		As said in the caption of \autoref{fig:cycle}, the optimal edge is
+		farther from 0, suggesting that larger subtrees (as defined by the
+		number of nodes of $X$ they contain) should grow faster ( for instance
+		the one starting from $0-1-2$). Taking into account this
+		\enquote{\textbf{Momentum}} of each subtree, upon dequeuing a node at
+		line 10, we skip it (i.e. enqueue it back) with probability based on
+		the ratio of the size of the subtree this node belongs and the size of
+		the currently largest subtree. This process favor the growth of subtree
+		that contains more $X$ nodes.
 
 	\item[Modified SGT] Although BFTs enjoy alluring practical performances,
 		they don't provide any theoretical guarantees. Therefore we might adapt
@@ -122,7 +125,7 @@ In addition, we compare with some baselines that don't rely very much on $X$.
 
 \begin{algorithm}
 	\caption{BFT from multiple roots \label{alg:mbfs}}
-	\begin{algorithmic}[0]
+	\begin{algorithmic}[1]
 		\State \textsc{Input:} $G=(V, E), X \subset V$
 		\State \textsc{Output:} $T$ a spanning tree of $G$
 		\State $T \gets$ an empty tree, $Q \gets$ an empty queue
@@ -150,9 +153,21 @@ In addition, we compare with some baselines that don't rely very much on $X$.
 	\end{algorithmic}
 \end{algorithm}
 
-\end{document}
 
 \section*{Preliminary Results}
+
+We test these methods on a toy example in
+\autoref{fig:rcycle}~\vpageref{fig:rcycle} (the small cycle of
+\autoref{fig:cycle}) and on two small ($n=1024$) graph: preferential
+attachment \autoref{fig:rpa}~\vpageref{fig:rpa} and a grid
+\autoref{fig:rgrid}~\vpageref{fig:rgrid}. 
+
+On these last two, more realistic examples, we see that the baselines
+outperforms all other methods introduced previously, especially the simple
+BFT. It also seems that the momentum heuristic improve the solution cost.
+
+What it suggest to me is that it could be easier to start from the baseline BFT
+and see how it can be greedily improved based on path length computations.
 
 \begin{figure}[htpb]
 	\centering
@@ -250,6 +265,7 @@ In addition, we compare with some baselines that don't rely very much on $X$.
 	\caption{Results of the different methods and baselines on a grid network.
 		\label{fig:rgrid}}
 \end{figure}
+\end{document}
 % \begingroup
 % \setstretch{0.9}
 % \setlength\bibitemsep{2pt}

@@ -1,0 +1,21 @@
+\begin{table}[htpb]
+	\centering
+	\label{tab:label}
+	\begin{tabulary}{1.35\textwidth}{LLLLLLL}
+		\toprule
+		ref & data & method & output & city & results & code/demo \\
+		\midrule
+		\autocite{cranshaw2010seeing} & 500k venues & assign venues to a
+		grid and run LDA on their categories & the proportion of topics in each
+		grid cell but no explicit neighborhood (see Figure 1 of paper) & 12 US
+		cities (NYC, LA, SF, …) & Topic 21: Winery, Bed\&Breakfast, Wine Bar,
+		Vineyard, New American, Wine Shop, Resort & no \\
+		\autocite{UrbanStory12} & 700k tweets, 38k venues and 20k users from \autocite{dataset11} & LDA, documents are hour of the week and words are check-ins & topics are called urban activities, and they can be visualized in space (without clearly defining neighborhoods though) & NYC & functional area in section 5.5 \includegraphics[width=2cm,angle=90]{NYCurbanstory.png} & no \\
+		\autocite{Livehoods12} & 18M checkins & run spectral clustering on an affinities matrix of venues. Each venue is connected to $m$ closest ones with strength based on similarity in user distribution & A spatial clustering of venues, i.e. neighborhoods & NYC, SF, … & according to interviews they make sense & \href{http://livehoods.org/maps/nyc}{livehoods.org} \\
+		\autocite{Hoodsquare13} & 900k checkins and 39k venues & Venues are described by category and peak time activity They are clustered in hotspots along all these dimensions by the \textsc{OPTICS} algorithm. The city is divided into a grid, with cells described by their hotspot density for each feature.  Similar cells are clustered into neighborhoods & neighborhoods & NYC, SF, London & set of polygons with complicated twitter evaluation & \href{http://pizza.cl.cam.ac.uk/hoodsquare/NewYork}{hoodsquare.org} \\
+		\autocite{Kafsi2015} & 8M Flickr photos & probalisticaly assigned photos tags to 1 of 3 levels in the spatial hierarchy. Node in the geo-tree are associated with a multinomial distribution over tags. Model's parameters are estimated with EM. & tags classification as neighborhood-describing or not (indeed neighborhood used are the administrative ones) & NYC, SF & Table 1, can also find similar neighborhood and tell which tags they share. Evaluate accuracy on synthetic data and qualitative users study and survey & no \\
+		\autocite{ICWSM1510580} & around 20K venues per city & grid over city, graph of the cells. find a labelling assigning specific label (low level Foursquare category) to each cell, yet maintaining homogenity across neighborhing cell. bottom up clustering approach, merging and labeling greedily to improve cost function & gridded segmentation of the city with labeled neighborhoods & Barcelona, Milan, London & Evaluated as in Correlation Clustering \includegraphics[width=2cm]{LondonTask.png} & \href{http://researchswinger.org/tbscan/}{soon?} \\
+		\autocite{spectralLandUseTwitter14} & geotagged tweets & Self organizing map to cluster the tweets, neighborhood are Voronoi cell. Compute tweets activity across time for each segment, build a cosine similarity matrix of all segments and run $k$ spectral clustering on it. Each neighborhood is then characterized by the cluster it belongs ($k$ is 4 or 5) & labeled neighborhoods & NYC, London, Madrid & Compared with official land use catalog \includegraphics[width=3.2cm]{LondonLandUse.png} & no \\
+		\bottomrule
+	\end{tabulary}
+\end{table}

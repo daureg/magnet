@@ -1,0 +1,70 @@
+\documentclass[a4paper,final,notitlepage,11pt,svgnames]{scrartcl}
+\input{preambule}
+\usepackage{geometry}
+\addbibresource{bibexport.bib}
+\usepackage{setspace}
+\usepackage{caption}
+\usepackage{pdflscape}
+\usepackage{afterpage}
+\usepackage{tabulary}
+
+\title{Related work on identifying neighborhoods}
+\author{Géraud Le Falher}
+\begin{document}
+\maketitle
+
+\section*{Comments}
+
+We can sort these work along several dimensions:
+\begin{itemize}
+	\item Type of inputs:
+		\begin{itemize}
+			\item venues and checkins: \autocites{cranshaw2010seeing}{UrbanStory12}{Livehoods12}{Hoodsquare13}{ICWSM1510580}
+			\item geotagged content:
+				\autocites[photos][]{Kafsi2015}[tweets][]{spectralLandUseTwitter14}[photos and tags][]{NonGaussianTopicKling14}[phone calls][]{CompareCitiesPhone15}
+			\item GPS trajectories: \autocites{zoneTrajectories15}{taxiChina15}
+		\end{itemize}
+	\item Type of output:
+		\begin{itemize}
+			\item neighborhoods (i.e cluster): \autocites{Livehoods12}{Hoodsquare13}{ICWSM1510580}{spectralLandUseTwitter14}{zoneTrajectories15}{taxiChina15}{CompareCitiesPhone15}
+			\item something else: \autocites{cranshaw2010seeing}{UrbanStory12}{Kafsi2015}{NonGaussianTopicKling14}
+		\end{itemize}
+	\item methods:
+		\begin{itemize}
+			\item probabilistic models: \autocites{cranshaw2010seeing}{UrbanStory12}{Kafsi2015}{NonGaussianTopicKling14}
+			\item simple clustering: \autocites{Livehoods12}{Hoodsquare13}{ICWSM1510580}{spectralLandUseTwitter14}{zoneTrajectories15}{taxiChina15}{CompareCitiesPhone15}
+		\end{itemize}
+\end{itemize}
+
+\paragraph{Evaluation strategy} most works evaluate their results
+qualitatively, although they sometimes conduct thorough interviews. The most
+common city is be New-York.
+
+\section*{Tables}
+\afterpage{%
+\pagestyle{empty}
+\newgeometry{hmargin=.35cm,vmargin=.35cm}
+\begin{landscape}
+	\input{table_neighborhoods}
+\end{landscape}
+\clearpage
+\restoregeometry
+}
+
+\afterpage{%
+\pagestyle{empty}
+\newgeometry{hmargin=.35cm,vmargin=.35cm}
+\begin{landscape}
+	\input{table_neighborhoods2}
+\end{landscape}
+\clearpage
+\restoregeometry
+}
+
+\clearpage
+\begingroup
+\setstretch{0.9}
+\setlength\bibitemsep{2pt}
+\printbibliography
+\endgroup
+\end{document}

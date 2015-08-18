@@ -1,0 +1,13 @@
+\begin{table}[htpb]
+	\centering
+	\begin{tabulary}{1.35\textwidth}{LLLLLLL}
+		\toprule
+		paper & data & method & output & city & results & code/demo \\
+		\midrule
+		\autocite{zoneTrajectories15} & 330K venues, 10M taxi and public transport trips & Divide city in regions based on road network, aggregate trip by regions and time, represent region by venues distribution in a latent space. Regions, trips and activities are documents, words and topics in a LDA and Dirichlet Multinomial Regression model (i.e add latent metadata to documents). & zone of cohesive socioeconomics activity & Beijing & Evaluated by users study \includegraphics[width=3.2cm]{beijingtaxi.png} & \href{http://1drv.ms/1lhQ4xn}{not anymore} \\
+		\autocite{NonGaussianTopicKling14} & Flickr tagged photos & Extend Hierachical Dirichlet Process \autocite{TehHDP06} to spatial data (it's rather involved but almost fully non-parametric [except for the number of regions]) & Word and space distribution for each topic & N/A & Evaluated with perplexity scores and user study \includegraphics[width=4.5cm]{mgtm.png}& \href{http://c-kling.de/mgtm/}{c-kling.de/mgtm} \\
+		\autocite{taxiChina15} & taxi trips & segment city using roads, make a graph out of it with edge weight based on the number of trips between two regions and run Infomap community detection to get a clustering & neighborhood & Beijing & \includegraphics[width=3cm]{beijinginfomap.png} & no \\
+		\autocite{CompareCitiesPhone15} & ten months of mobile network data & clustering aggregated timelines & gridded clusters & NYC, LA, London, HK & 4 kind: residential, mixed, commercial, core business & \href{http://www.manycities.org/}{manycities.org} \\
+		\bottomrule
+	\end{tabulary}
+\end{table}

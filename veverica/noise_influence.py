@@ -10,6 +10,7 @@ import os
 import pred_on_tree as pot
 # import cc_pivot as cc
 PA = True
+BALANCED = True
 ROOTS_ER = [12, 34, 39, 42, 43, 47, 95, 128, 136, 169, 170, 209, 225, 251, 280,
             280, 317, 349, 351, 369, 399, 406, 433, 458, 476, 484, 498, 499,
             503, 506, 543, 553, 561, 565, 579, 621, 666, 676, 687, 739, 789,
@@ -146,8 +147,7 @@ if __name__ == '__main__':
     import sys
     from copy import deepcopy
     noise = int(sys.argv[1])
-    balanced = True
-    gt_graph, dst_mat = get_graph(balanced=balanced)
+    gt_graph, dst_mat = get_graph(balanced=BALANCED)
     orig_g = deepcopy(redensify.G)
     orig_es = deepcopy(redensify.EDGES_SIGN)
 
@@ -188,7 +188,7 @@ if __name__ == '__main__':
             edge_signs[e] = not sign if random.random() < p else sign
         edge_noises.append(edge_signs)
     noise_level = [noise, ]
-    seeds = [100*s + 57 for s in range(n_rep)]
+    seeds = [100*s + (32 if BALANCED else 57) for s in range(n_rep)]
     name = '\multirow{{4}}{{*}}{{{:.2f}}}'.format(noise/100)
     for p in noise_level:
         p /= 100
@@ -206,13 +206,13 @@ if __name__ == '__main__':
         # continue
         nodes_mappings = []
         for s in seeds:
-            get_graph(balanced=balanced)
+            get_graph(balanced=BALANCED)
             nodes_mappings.append(shuffle_nodes(s))
             compute_trees(s)
         for k in range(K):
             gtx_res = np.zeros((n_rep*n_noise_gtx_rep, 3))
             for i, s in enumerate(seeds):
-                get_graph(balanced=balanced)
+                get_graph(balanced=BALANCED)
                 _ = shuffle_nodes(s)
                 assert _ == nodes_mappings[i], i
                 for j in range(n_noise_gtx_rep):

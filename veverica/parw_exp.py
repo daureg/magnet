@@ -17,5 +17,5 @@ if __name__ == '__main__':
         for _ in range(num_exp):
             start = clock()
             name = '{}_{}_{}'.format(f, noise, _)
-            scratch.process_graph(G, Enoisy, noise, name, asym=False)
+            scratch.process_graph(G, Enoisy, noise, name, asym=True)
             print('{}{:.1f} secs'.format(name.ljust(60), clock() - start))

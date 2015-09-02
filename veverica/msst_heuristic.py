@@ -144,8 +144,6 @@ def replacement_cost(removed_edge, added_edge, X, tree_adj, tree):
 
 @profile
 def improve_tree(tree_edges, tree_adj, G, X):
-    tree_root = max(((node, len(adj)) for node, adj in tree_adj.items()),
-                     key=lambda x: x[1])[0]
     nb_iter = 0
     infos, prt = augmented_ancestor(tree_adj, X)
     current_cost = fast_cost(infos, X, tree_edges)
@@ -163,11 +161,11 @@ def improve_tree(tree_edges, tree_adj, G, X):
         e, (c, ne) = candidate_edges[0]
         remove_edge(tree_adj, *e)
         gs.add_edge(tree_adj, *ne)
-        print('replace {} by {}: {:.3f}'.format(e, ne, current_cost - c))
+        # print('replace {} by {}: {:.3f}'.format(e, ne, current_cost - c))
         tree_edges = [(u, v) for u in tree_adj for v in tree_adj[u] if u < v]
         infos, prt = augmented_ancestor(tree_adj, X)
         current_cost = fast_cost(infos, X, tree_edges)
-        print('end iter {}: {:.4f}'.format(nb_iter, current_cost))
+        # print('end iter {}: {:.4f}'.format(nb_iter, current_cost))
     return current_cost, tree_edges, tree_adj
 
 

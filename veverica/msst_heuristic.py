@@ -144,45 +144,30 @@ def replacement_cost(removed_edge, added_edge, X, tree_adj, tree):
 
 @profile
 def improve_tree(tree_edges, tree_adj, G, X):
-    can_be_improved = True
     tree_root = max(((node, len(adj)) for node, adj in tree_adj.items()),
                      key=lambda x: x[1])[0]
     nb_iter = 0
-    while can_be_improved and nb_iter < 20:
+    infos, prt = augmented_ancestor(tree_adj, X)
+    current_cost = fast_cost(infos, X, tree_edges)
+    while True:
         nb_iter += 1
-        infos, prt = augmented_ancestor(tree_adj, X)
-        current_cost = fast_cost(infos, X, tree_edges)
         # print('begin iter {}: {:.4f}'.format(nb_iter, current_cost))
-        init_cost = current_cost
         improv = {e: edge_improvement(e, X, G, tree_adj, prt, tree_edges)
                   for e in tree_edges}
         candidate_edges = sorted({e: info for e, info in improv.items() 
-                                  if info[0] < .999*current_cost}.items(), 
+                                  if info[0] < .9999*current_cost}.items(), 
                                  key=lambda x: x[1][0])
         can_be_improved = len(candidate_edges) > 0
-        added_edges = set()
-        for e, (c, ne) in candidate_edges[:1]:
-            tree_edges = [(u, v) for u in tree_adj for v in tree_adj[u] if u < v]
-            already_done = ne in added_edges
-            if already_done:
-                continue
-            tree_edges = [(u, v) for u in tree_adj for v in tree_adj[u] if u < v]
-            potential_cost = replacement_cost(e, ne, X, tree_adj, tree_edges)
-            no_improvement = potential_cost >= current_cost
-            if no_improvement:
-                # print('replacing {} by {} would bring negative improvement ({} instead of predicted {:.3f}'.format(e, ne, current_cost - potential_cost, init_cost - c))
-                continue
-            remove_edge(tree_adj, *e)
-            gs.add_edge(tree_adj, *ne)
-            # print('replace {} by {}: {:.3f}/{:.3f}'.format(e, ne, current_cost - potential_cost, init_cost - c))
-            added_edges.add(ne)
-            infos, prt = augmented_ancestor(tree_adj, X)
-            current_cost = fast_cost(infos, X, tree_edges)
+        if not can_be_improved:
+            break
+        e, (c, ne) = candidate_edges[0]
+        remove_edge(tree_adj, *e)
+        gs.add_edge(tree_adj, *ne)
+        print('replace {} by {}: {:.3f}'.format(e, ne, current_cost - c))
         tree_edges = [(u, v) for u in tree_adj for v in tree_adj[u] if u < v]
+        infos, prt = augmented_ancestor(tree_adj, X)
         current_cost = fast_cost(infos, X, tree_edges)
-        # print('one more round: {:.3f} ({})'.format(init_cost - current_cost,
-        #                                             candidate_edges))
-        # print('end iter {}: {:.4f}'.format(nb_iter, current_cost))
+        print('end iter {}: {:.4f}'.format(nb_iter, current_cost))
     return current_cost, tree_edges, tree_adj
 
 

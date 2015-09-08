@@ -1,0 +1,190 @@
+\section{Scientific work}\label{scientific-work}
+
+\subsection{Context}\label{context}
+
+Graphs are simple yet powerful abstractions to model relationships between
+entities. Hence, they have been used to represent social networks, linked data
+on the web, human cortex, scientific collaboration, physical networks like
+roads or power grid, proteins interactions and so on. In many cases, these
+graphs adhere to the homophily assumption, meaning that nodes of the graph are
+connected because they share similar properties. In social context, this is
+known as ``birds of a feather flock together'' \autocite{homophily01}. Machine
+Learning algorithms rely on this assumption to perform classification.
+
+However, already in the fifties, sociologists have extended this model to take
+negative relationships into account \autocites{harary1953}{Cartwright56},
+namely link expressing the dissimilarity between two nodes. In social network,
+this can be viewed as distrust or dislike between two users. More broadly, one
+protein may hinder the action of another, and the rise of a city popularity may
+negatively affect its neighbors.
+
+\emph{talk about Ising model? Facchetti, G., Iacono, G., \& Altafini, C.
+(2011). Computing global structural balance in large-scale signed social
+networks. Proceedings of the National Academy of Sciences.
+doi:10.1073/pnas.1109521108}
+
+This extension --- named signed graph --- calls for specialized algorithms and
+in this context, we will focus on two problems arising from signed graphs:
+Correlation Clustering (CC) and Link Classification (LC).
+
+\subsection{Problems}\label{problems}
+
+In Correlation Clustering \autocite{Bansal2002}, given a signed graph as input,
+we want to find a partition of the nodes minimizing the number of
+\emph{disagreement edges} (i.e.~positive edges between clusters and negative
+edges within clusters). This is useful to perform entities resolution (merging
+the records from several databases that refer to the same instance using side
+information), to find co-references in text, to aggregate several clustering of
+the same data or to identify genes relationship.
+
+In Link Classification \autocite{Leskovec2010}, we are also given a signed
+graph, but some signs are hidden and we want to predict them, given the graph
+structure and the known signs of the other edges. Examples of application
+include understanding trust dynamic and communities formation, testing social
+theories at a large scale and recommending products from feedback in bipartite
+users/products graphs.
+
+\subsection{State of the art}\label{state-of-the-art}
+
+\subsubsection{Correlation Clustering}\label{correlation-clustering}
+
+CC is a APX-hard (i.e.~there exists $c>1$ such that it is NP-hard to
+approximate with a ratio of $c$). There are several lines of research to go
+around this fundamental limitation:
+
+\begin{itemize}
+ \item
+
+ approximation algorithms, which are based on Linear or Semi-definite
+ Programming (for complete or general graphs respectively). The best
+ approximation ratios to date are $(2.06 - \epsilon)$ for complete graphs
+ \autocite{Chawla2014} and $O(\log n)$ for general graphs
+ \autocite{Demaine2006}. Also worth mentioning is a simple randomized
+ combinatorial algorithm (called \kwik{}) with an expected ratio of 3 for
+ complete graph \autocite{Ailon2008}. On a practical side, a recent trend seems
+ to be considering any graph as complete by assuming that its missing edges are
+ negative.
+
+ \item
+ heuristic approaches, which do not come with theoretical guarantees
+ yet provide good performances \autocites{Elsner2009}{Levorato2015}.
+\end{itemize}
+
+As current graphs can be very large, scalability becomes an issue and requires
+new approaches. For instance parallel computation, which takes advantage of the
+multi cores of modern hardware architecture \autocites{Pan2014}{Levorato2015}.
+When the graph is too large to fit in the memory of a single machine, it is
+possible to partition it and use MapReduce formalism to compute a solution in
+several rounds of message passing \autocite{Chierichetti2014}. Yet another idea
+is to stream the edges of the graph \autocite{Ahn2015}.
+
+Although CC formulation is slightly different, it is also related with two other
+well establish graph problems, which have been recently extended to handle
+negative links: community detection
+\autocites{Yang2007}{Traag2009}{Amelio2013}{Chen14} and spectral clustering
+\autocites{Luca10}{Gallier15}.
+
+\subsubsection{Link Classification}\label{link-classification}
+
+After the work of \textcite{Leskovec2010}, who trained a logistic regression on
+triangle patterns of each edge, there have been more supervised approaches
+looking at higher order cycles \autocite{LowRankCompletion14}, training SVM on
+graphlets (small subgraph) \autocite{Papaoikonomou2014}, embedding them in low
+dimensional space \autocite{Qian2014}, or using transfer learning
+\autocite{SNTransfer13}.
+
+Departing from the batch setting, some works focus on the active scenario.
+There, the learner can first select some edges --- whose signs will be revealed
+--- before starting to make prediction \autocite{Cesa-Bianchi2012a},
+\autocite{Cesa-Bianchi2013}. The goal is therefore to select as few edges as
+possible while minimizing the prediction error on the testing set.
+
+\subsection{First results}\label{first-results}
+
+I started working on CC, first by writing a state of the art, which is
+summarized above. Then we studied how to transfer the combinatorial algorithm
+\kwik{} to general graphs while preserving the $O(\log n)$ approximation. The
+idea was to add missing edges with a sign that did not introduce bad triangles
+(i.e.~triangle with a single negative edge, as they always incur a disagreement
+no matter the clustering). This dependency on triangles proved to be costly on
+the running time, hurting the scalability. Furthermore, experimental results
+were mixed, showing capricious performances with respect to the order with
+which edges were added. Therefore, we put this direction on hold for the
+moment.
+
+This summer, I supervised Paul Dennetiere's internship in our team. He
+implemented the parallel version of \kwik{} described in \autocite{Pan2014}, as
+well as a common post processing method (which merges clusters resulting in the
+biggest cost function gain). This will provide a useful baseline for later
+comparisons, as well as a principled starting point to improve parallelization
+efficiency.
+
+In January, we decided to focus on Link Classification in the active setting.
+Namely, we wanted to build a spanning tree $T$ of the graph and query all its
+edge signs. In the two clusters case, this allow predicting the sign of
+$e=(i, j) \in E$ as the product of the signs of edge along the path in $T$ from
+$i$ to $j$. Defining the stretch of $T$ as $stretch = \frac{1}{|E \setminus T|}
+\sum_{(u,v) \in E \setminus T} |path^T_{u,v}|$; ensuring low error rate amounts
+to minimizing the stretch, a long open standing problem known as Low Stretch
+Spanning Tree \autocite{Abraham2012}.  Although the theory is not fully ready,
+experimental results show that our construction is generally competitive with a
+simple yet efficient baseline and outperforms it for some class of graphs.
+
+\section{Roadmap}\label{roadmap}
+
+\emph{for the next two years with the expected contributions and a
+schedule}
+
+In a nutshell, \kwik{} proceeds by choosing a distinguished node uniformly at
+random and putting it in one cluster along with all its positive neighbors,
+until exhaustion of the graph. A natural extension would be to consider
+extended neighborhoods. Although the proof might be more challenging, it could
+reduce the number of disagreements. Moreover, it would also be interesting to
+study further parallelization and scaling issues.
+
+In Link Classification, an intriguing direction in the batch supervised setting
+would be to generate features using deep learning architecture
+\autocites{Perozzi2014}{Yanardag2015}.
+
+Moving a bit away from signed graphs, but related to building graph
+sparsifiers, we also plan to work on node classification by extending the work
+of \textcite{Vitale2012}. For instance, a fruitful variation of the Low Stretch
+Spanning Tree problem is to consider a graph where some nodes ($X \subset V$)
+are distinguished (or revealed) and try to minimize the distances between all
+pair of points in $X \times \overline{X}$. In the network design community,
+this is known as the Minimum Cost Routing Tree problem
+\autocites{Johnson1978}{Connamacher2003}.
+
+\emph{maybe I could add stuff from the international team proposal?}
+
+I also plan to work on some follow-ups of my Master Thesis at Aalto
+about mining urban data.
+
+\section{Dissemination policy}\label{dissemination-policy}
+
+\emph{A statement of policy regarding results dissemination in terms of
+publications and software production}???
+
+I don't mind putting everything on github and under creative common
+license if that's the point of the question
+
+\section{Professional project}\label{professional-project}
+
+\emph{A section (1/2 page max) with the professional project and
+training/tracks to follow or already followed to complete this
+professional project.}
+
+I would rather work in the industry after my PhD. This desire has been
+reinforced by having taken the self evaluation guide offered by the ABG
+and the university of Lille. During this year, I had the occasion to
+talk with members of various companies at ICML and during my summer
+school, as well as with my adviser, who spent some time in the industry.
+Later, I plan to apply for the Doctoriales and if that's compatible with
+Inria policy, do an internship during my third year.
+
+However, it would be wasteful to ignore the academic environment I'm currently
+working in. Therefore I have followed a training on scientific communication in
+Nancy and modestly started getting involved in the community by being a
+volunteer at ICML, helping for the organization of Cap and partially reviewing
+two papers for NIPS\footnote{can I truly say that?}. Finally I will start
+teaching next year, and I would like to get some formation on that as well.

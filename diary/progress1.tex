@@ -108,9 +108,9 @@ disagreement edge no matter the clustering). This dependency on triangles
 proved to be costly on the running time, hurting the scalability. Furthermore,
 experimental results were mixed. Namely, performances strongly varied with
 respect to the order in which edges were added, in ways that we were not able
-to fully explained. Therefore, we concluded that the problem was too ambitious
-to be solved at once and decided that in the future, we will rather focus on a
-subproblem (for instance a specific class of graphs).
+to fully explained. Therefore, we concluded that this long open standing
+problem should be attacked first by focusing on interesting subclass of graphs
+that have yet to be identified.
 
 This summer, I supervised Paul Dennetiere's internship in our team. He
 implemented the parallel version of \kwik{} described in \autocite{Pan2014}, as
@@ -137,29 +137,40 @@ In March, I spent three weeks visiting Claudio Gentile at the Universita'
 dell'Insubria, Varese, Italy. Professor Gentile was involved in my thesis topic
 definition and has close links with our research team. We worked on a related
 problem regarding similarity between the nodes of a graph across different
-context.
+contexts.
 
 \section{Roadmap}\label{roadmap}
 
 During the second year, we plan to deepen our understanding of our problems and
 our methods, by gaining theoretical and experimental insights, which could lead
-to publications in workshops or national conference such as Cap. In the third
-year, more ambitious venues and practical applications are envisioned.
+to publications in international workshops or European conferences such as
+ECML. In the third year, we envisioned more ambitious venues as well as
+practical applications (e.g. shedding some light on massive real data through
+our methods). Here are some directions along which we would like to proceed:
 
-% \emph{for the next two years with the expected contributions and a
-% schedule}
-
-In a nutshell, \kwik{} proceeds by choosing a distinguished node uniformly at
-random and putting it in one cluster along with all its positive neighbors,
-until exhaustion of the graph. A natural extension would be to consider larger
+\kwik{} proceeds by choosing a distinguished node uniformly at random and
+putting it in one cluster along with all its positive neighbors, until
+exhaustion of the graph. A natural extension would be to consider larger
 neighborhoods, such as nodes at distance at most 2 from the pivot. Although the
 proof would be more challenging, it could reduce the number of disagreements.
 Moreover, it would also be interesting to study further parallelization and
 scaling issues.
 
+In Link Classification, we mentioned that signs can be extended, going from one
+binary label per edge to a more holistic approach where the similarity between
+two nodes is measured across different contexts. These contexts are represented
+by vectors whose dimension matches the dimension of unknown feature vectors
+associated with each node. The goal is to answer query of the form: how similar
+are nodes $i$ and $j$ along context $\vec{x}$. We first plan to validate the
+relevance of this modelling on real problem, then test baseline methods on
+synthetic and real data before looking for a more effective, online prediction
+method.
+
+\iffalse
 In Link Classification, an intriguing direction in the batch supervised setting
 would be to generate features using deep learning architecture
 \autocites{Perozzi2014}{Yanardag2015}.
+\fi
 
 As hinted in the introduction, signed graphs are also amenable to node
 classification. By leveraging our work on graph sparsifiers, we plan
@@ -206,7 +217,7 @@ volunteer at ICML, helping for the organization of Cap and partially reviewing
 two papers for NIPS. Finally I will start teaching next year, and I would like
 to get some formations on this topic as well.
 
-\vspace{6em}
+\vspace{4em}
 \begin{center}
     Villeneuve d'Ascq, 09.09.2015 \\
     Géraud Le Falher \hspace{10em} Marc Tommasi

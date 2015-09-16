@@ -39,7 +39,8 @@
 \usepackage{xcolor}
 \usepackage{varioref}
 
-% \DeclareMathOperator*{\argmax}{argmax}
+\DeclareMathOperator*{\argmax}{argmax}
+\DeclareMathOperator*{\argmin}{argmin}
 % \newcommand{\argmax}[1]{\arg\underset{#1}{\max}\;}
 % \newcommand{\equiv}{ \Leftrightarrow}
 % \newcommand\numberthis{\addtocounter{equation}{1}\tag{\theequation}}
@@ -59,7 +60,8 @@
 % \usepgfplotslibrary{external}
 % \usetikzlibrary{calc,arrows}
 
-\usepackage[backref=true,citestyle=authoryear-comp,bibstyle=ieee,isbn=false,maxcitenames=1,mincitenames=1,sorting=nyt,backend=biber,defernumbers=true]{biblatex}
+%backref=true,
+\usepackage[citestyle=numeric-comp,bibstyle=ieee,isbn=false,maxnames=1,minnames=1,sorting=none,backend=bibtex,defernumbers=true]{biblatex}
 
 \AtEveryBibitem{
    \clearfield{arxivId}

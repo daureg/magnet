@@ -7,18 +7,30 @@ along direction $x$? To better model real situations, we introduce a further
 bias: along all (\comment{relevant?}) directions, there are only a small number
 of users clusters.
 
-Formally, there are $n$ users $u_1, \ldots, u_n \in \mathbb{R}^d$ (\comment{and
-$||u_i|| = \;1 \forall i$ ?}). Directions are also unit vector of
-$\mathbb{R}^d$. Thus, $u_i\cdot x$ literally measures the alignment of $u_i$
-with the direction $x$. For instance, $x$ may be the features of an item and
-$u_i\cdot x$ a rating. The similarity between $u_i$ and $u_j$ along $x$ is
-$sim(u_i, u_j) = \left( |u_i\cdot x - u_j\cdot x| < t \right) \in \{0, 1\}$,
-where $t \in \mathbb{R}^+$ is a threshold.
+\begin{center}
+	\itshape\small
+	This actually defines the 3 outlined research questions:
+	\begin{enumerate}
+		\item which situations are we modelling
+		\item answer $(i,j,\bm{x})$ similarity query (online)
+		\item recover the $\bm{u_i}$s
+	\end{enumerate}
+\end{center}
 
-As input, we are given a set of positive examples $\{(u_{i_k}, u_{j_k},
-x_k)\}_{k=1\ldots D}$ that we represent as a multigraph: nodes are users, edges
+Formally, there are $n$ users $\bm{u_1}, \ldots, \bm{u_n} \in \mathbb{R}^d$
+(\comment{and $||\bm{u_i}|| = 1\; \forall i$ ?}). Directions are a finite set
+of unit vector of $\mathbb{R}^d$ ($S=\{\bm{x_1}, \bm{x_2}, \ldots,
+\bm{x_{|S|}}\}$). Thus, $\bm{u_i}\cdot \bm{x}$ literally measures the alignment
+of $\bm{u_i}$ with the direction $\bm{x}$. For instance, $\bm{x}$ may be the
+features of an item and $\bm{u_i}\cdot \bm{x}$ a rating. The similarity between
+$\bm{u_i}$ and $\bm{u_j}$ along $\bm{x}$ is $sim(\bm{u_i}, \bm{u_j}) = \left( |
+\bm{u_i} \cdot \bm{x} - \bm{u_j} \cdot \bm{x}| < t \right) \in \{0, 1\}$, where
+$t \in \mathbb{R}^+$ is a threshold (\comment(or absolute value can be replaced
+by the square function).
+
+As input, we are given a set of positive examples $\{(i_k, j_k, \bm{x^k}\in
+S)\}_{k=1\ldots D}$ that we represent as a multigraph: nodes are users, edges
 are labelled by the direction along which they represent similarity.
-
 
 \section{Settings}
 
@@ -38,8 +50,8 @@ rating matrix and later fill missing entries by answering similarity queries
 (although if ratings from both users are missing, then we can only say whether
 they are equal or not, but not their value)
 
-The second is social networks. Here users have also features (some of them are
-known, like demographics) and they like contents. \comment(and then what?)
+The second is social networks. Here users also have features (some of them are
+known, like demographics) and they like contents. \comment{(and then what?)}
 
 \section{Related work}
 
@@ -65,26 +77,28 @@ known, like demographics) and they like contents. \comment(and then what?)
 	\item online similarity/dissimilarity prediction on graph \autocite{Gentile2013}
 	\item coclustering \autocite{Dhillon2001} (except there's no notion of
 		user/item features there)
+	% graph based semi supervised ?
 \end{itemize}
 
 \section{Approaches}
 
 \subsection{Baselines}
-A natural way to recover the $u$ vectors is to solve the following
+A natural way to recover the $\bm{u}$ vectors is to solve the following
 optimization problem:
 \begin{equation}
-	\min \sum_{k=1}^D \left( (u_{i_k} - u_{j_k} ) \cdot x_k \right )^2
+	\min \sum_{k=1}^D \left( (\bm{u_{i_k}} - \bm{u_{j_k}} ) \cdot \bm{x^k} \right )^2
 	\label{eq:optim}
 \end{equation}
-which can also be expressed as a quadratic program, denoting by $\tilde{u}$ the
+which can also be expressed as a quadratic program, denoting by $\bm{\tilde{u}}$ the
 concatenation of all users vectors:
+%TODO: wrote explicitly Q and c
 \begin{equation*}
-	\tilde{u}^T \mathbf{Q} \tilde{u} + c^T \tilde{u}
+	\bm{\tilde{u}^T} Q \bm{\tilde{u}} + \bm{c}^T \bm{\tilde{u}}
 \end{equation*}
 A caveat of this method is lack of scalability. Furthermore, we need to impose
-constraints to avoid the trivial solution $\tilde{u} = 0$. If we constrain $u$
-to be unit norm, the problem is not convex. An alternative is to fix some
-values: either we already know some user profiles or some dimension.
+constraints to avoid the trivial solution $\bm{\tilde{u}} = 0$. If we constrain
+$\bm{u}$ to be unit norm, the problem is not convex. An alternative is to fix
+some values: either we already know some user profiles or some dimension.
 
 Another immediate idea is to solve $d$ separate problems, one across each
 dimension, and somehow combine the results. Yet this is also not very
@@ -93,11 +107,13 @@ satisfactory, as it looses all cross dimension information.
 \subsection{Approximation}
 
 To simplify the problem, we could transform it from vector to scalar by using
-random projection. Indeed, let $a \in \{-1,1\}^d$ be a vector drawn uniformly
-at random. Then $\mathbf{E}_{a \in \{-1,1\}^d}\left[(u\cdot a)\times (x \cdot
-a)\right] = u\cdot x$ and we get a weighted version of \eqref{eq:optim}:
+random projections. Indeed, let $\bm{a} \in \{-1,1\}^d$ be a vector drawn uniformly
+at random. Then $\mathbf{E}_{\bm{a} \in \{-1,1\}^d}\left[(\bm{u}\cdot \bm{a})\times
+(\bm{x} \cdot \bm{a})\right] = \bm{u}\cdot \bm{x}$ and we get a weighted
+version of \eqref{eq:optim}:
 \begin{equation*}
-	\min \sum_{k=1}^D (x_k\cdot a)^2 \left( (u_{i_k} - u_{j_k} ) \cdot a \right )^2
+	\min \sum_{k=1}^D (\bm{x_k}\cdot \bm{a})^2
+	\left( (\bm{u_{i_k}} - \bm{u_{j_k}} ) \cdot \bm{a} \right )^2
 	\label{eq:random-optim}
 \end{equation*}
 
@@ -108,6 +124,29 @@ in mind that the input is a multigraph, whose edges labels are vectors and not
 mere weights. One idea could be to cluster the set of all directions of the
 training set using $k$-means and work on these $k$ induced graphs.
 
+Instead of random $\bm{a}$, we could also use directions in $S$. Indeed, let's
+define the loss incurred by our estimated profiles by projecting over all $S$:
+\begin{equation*}
+	\mathcal{L} = \sum_{i,j \in E} \sum_{\bm{x_l} \in S}
+	(\bm{x_{ij}}\cdot \bm{x_l}) \left( (\bm{u_i} - \bm{u_j} ) \cdot \bm{x_{ij}} \right )^2
+\end{equation*}
+where we drop the square as we assume that all directions in $S$ are in the
+positive orthant of $\mathbb{R}^d$.
+
+By inverting the summation signs and considering that $E$ is union of the edge
+sets $E_m$ induced by each of the directions in $S$, we have
+
+\begin{align*}
+	\mathcal{L}        & = \sum_{\bm{x_l} \in S} \sum_{\bm{x_m} \in S} \bm{x_l}\cdot\bm{x_m}
+	\sum_{i,j \in E_m} \left( (\bm{u_i} - \bm{u_j} ) \cdot \bm{x_m} \right )^2 \\
+                       & = \sum_{l=1}^{|S|} V_l^T M_l V_l \\
+	\shortintertext{where:}
+	M_l                & = \sum_{m=1}^{|S|} (X_m^T X_l) L_m
+	\tag{$L_m$ is the laplacian of $E_m$} \\
+	V_l                & = U^T X_l \\
+	U                  & = [\bm{u_1} | \bm{u_2} | \ldots | \bm{u_n} ]
+\end{align*}
+
 \section{First practical steps}
 
 \comment{This part is quite messy…}
@@ -116,14 +155,14 @@ training set using $k$-means and work on these $k$ induced graphs.
 
 \subsubsection{real}
 
-MovieLens 1M
+textbf{MovieLens 1M}\footnote{%
 \href{http://files.grouplens.org/datasets/movielens/ml-1m-README.txt}%
-{http://files.grouplens.org/datasets/movielens/ml-1m-README.txt} contains
+{http://files.grouplens.org/datasets/movielens/ml-1m-README.txt}} contains
 demographics information about 6040 users, namely age bracket, job (converted
 to median income), gender and ZIP code (converted to population density),
-whereas hetrec2011-movielens-2k
+whereas \textbf{hetrec2011-movielens-2k}\footnote{%
 \href{http://ir.ii.uam.es/hetrec2011/datasets/movielens/readme.txt}%
-{http://ir.ii.uam.es/hetrec2011/datasets/movielens/readme.txt} contains the
+{http://ir.ii.uam.es/hetrec2011/datasets/movielens/readme.txt}} contains the
 following information on a subset of movies: release year, nationality
 (converted to 0: US,UK,CA,AUS; 1: EU; 2: others), number of critics ratings on
 rottentomatoes\footnote{\href{http://www.rottentomatoes.com/}{rottentomatoes.com}},
@@ -137,9 +176,9 @@ model\footnote{\href{http://scikit-learn.org/stable/modules/generated/sklearn.li
 {\texttt{sklearn.linear\_model.Ridge}}}, which add a dimension to store the
 intercept parameter.
 
-R6A - Yahoo! Front Page Today Module User Click Log Dataset
+\textbf{R6A - Yahoo! Front Page Today Module User Click Log Dataset}\footnote{%
 \href{http://webscope.sandbox.yahoo.com/catalog.php?datatype=r}%
-{\url{http://webscope.sandbox.yahoo.com/catalog.php?datatype=r}}.
+{http://webscope.sandbox.yahoo.com/catalog.php}}.
 While it was originally very rich, we only observe the result of a heavy pre
 processing described in \autocite{YahooNews09}. Users and articles are
 described by 6 features and there is also binary feedback: article cliked or
@@ -153,16 +192,16 @@ we turn to synthetic data.
 \subsubsection{synthetic}
 
 We generate $n$ users and $m$ items as uniform random unit vectors. Then we
-discretize all $u_i\cdot x_j$ to get ratings between 1 and 5 and finally we
-set a proportion $t$ of ratings to 0 (unobserved). \comment{This doesn't take
-the clustering assumption into account}.
+discretize all $\bm{u_i}\cdot \bm{x_j}$ to get ratings between 1 and 5 and
+finally we set a proportion $z$ of ratings to 0 (unobserved). \comment{This
+doesn't take the clustering assumption into account}.
 
 We then sample 50\% of the non zero entries. Items hit by this process are in
 the train set while the others will be used for test. Users hit will later be
 divided into train and test set, while the others are excluded (since we
 didn't observe anything about them, we can't learn anything about them either).
 Then we infer user profiles from available data (\comment{this time I use a
-noisy version of the original $u$ vectors, which is admittedly an easier
+noisy version of the original $\bm{u$} vectors, which is admittedly an easier
 setting}).
 
 Now we can build the input multigraph, where there is an edge between two users

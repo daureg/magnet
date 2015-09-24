@@ -137,13 +137,12 @@ By inverting the summation signs and considering that $E$ is union of the edge
 sets $E_m$ induced by each of the directions in $S$, we have
 
 \begin{align*}
-	\mathcal{L}        & = \sum_{\bm{x_l} \in S} \sum_{\bm{x_m} \in S} \bm{x_l}\cdot\bm{x_m}
+	\mathcal{L}        & = \sum_{\bm{x_m} \in S} \sum_{\bm{x_l} \in S} \bm{x_l}\cdot\bm{x_m}
 	\sum_{i,j \in E_m} \left( (\bm{u_i} - \bm{u_j} ) \cdot \bm{x_m} \right )^2 \\
-                       & = \sum_{l=1}^{|S|} V_l^T M_l V_l \\
+                       & = \sum_{m=1}^{|S|} V_m^T L_m V_m \sum_{\bm{x_l} \in S}\bm{x_l}\cdot\bm{x_m}\\
 	\shortintertext{where:}
-	M_l                & = \sum_{m=1}^{|S|} (X_m^T X_l) L_m
-	\tag{$L_m$ is the laplacian of $E_m$} \\
-	V_l                & = U^T X_l \\
+	L_m                & \, \text{is the laplacian of $E_m$} \\
+	V_m                & = U^T X_m \\
 	U                  & = [\bm{u_1} | \bm{u_2} | \ldots | \bm{u_n} ]
 \end{align*}
 

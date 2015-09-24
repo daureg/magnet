@@ -32,6 +32,18 @@ As input, we are given a set of positive examples $\{(i_k, j_k, \bm{x^k}\in
 S)\}_{k=1\ldots D}$ that we represent as a multigraph: nodes are users, edges
 are labelled by the direction along which they represent similarity.
 
+% users[[184, 225],:]
+% array([[-0.69608423, -0.37026163, -0.32568577,  0.5218255 ],
+%        [ 0.29180816, -0.62938127,  0.56439425, -0.44742188]])
+%
+% (users[184,:] - users[225,:])
+% array([-0.98789239,  0.25911965, -0.89008002,  0.96924738])
+% xs[5,:]
+% array([ 0.27750472,  0.13204246,  0.56459283,  0.76602275])
+%
+% D[38220, dir_id]
+% 2.7420386526366691e-06
+
 \section{Settings}
 
 In the following we consider batch setting, with a fully observed graph as test

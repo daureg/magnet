@@ -1,6 +1,6 @@
 # vim: set fileencoding=utf-8
 # pylint: disable=no-member
-from collections import Counter
+from collections import Counter, defaultdict
 from grid_stretch import add_edge
 from heap.heap import heap
 from itertools import combinations, product
@@ -10,6 +10,7 @@ from warnings import warn
 import baseline as bl
 import cvxpy as cvx
 import numpy as np
+import random
 
 
 def create_graph(users, xs):
@@ -21,12 +22,28 @@ def create_graph(users, xs):
     heads = np.array(heads)
     tails = np.array(tails)
     D = np.abs(C[heads,:] - C[tails,:])
-    best_dir = np.argmin(D, 1).astype(int)
-    final_E = {}
+    not_relevant = np.logical_or(C[heads,:]<1e-4, C[tails,:]<1e-4)
+    D[D<1e-5] = 2
+    D[not_relevant] = 2
     sc = SpectralClustering(n_clusters=4, affinity='precomputed', n_init=20)
+    best_dirs = np.argsort(D, 1).astype(int)
+    final_E = defaultdict(list)
+    for k in range(2):
+        dir_edges = create_edges_for_one_dir(xs, D, best_dirs[:, k], sc,
+                                             within_size, across_size_, heads,
+                                             tails)
+        for (u, v), d in dir_edges.items():
+            final_E[(u, v)].append(d)
+    return final_E
+
+
+def create_edges_for_one_dir(xs, D, best_dir, sc, within_size, across_size_,
+                             heads, tails):
+    final_E = {}
     for dir_id in range(xs.shape[0]):
-        t = np.percentile(D[best_dir == dir_id, dir_id], 50)
-        mask = np.logical_and(best_dir == dir_id, D[:, dir_id]<t)
+        mask = D[best_dir == dir_id, dir_id] < 2
+        t = min(1, np.percentile(D[best_dir == dir_id, dir_id][mask], 50))
+        mask = np.logical_and(best_dir == dir_id, D[:, dir_id] < t)
         edges_idx = np.where(mask)[0]
         node_in_dir = set(tails[edges_idx]).union(set(heads[edges_idx]))
         this_dir_to_nodes = {i: v for i, v in enumerate(sorted(node_in_dir))}
@@ -60,7 +77,7 @@ def create_graph(users, xs):
             if u > v:
                 u, v = v, u
             cu, cv = labels[u], labels[v]
-            add_within = cu==cv and inner_size[cu] < inner_target[cu]
+            add_within = cu == cv and inner_size[cu] < inner_target[cu]
             pair = (cu, cv) if cu < cv else (cv, cu)
             add_across = cu != cv and across_size[pair] < across_target[pair]
             if add_within or add_across:
@@ -76,9 +93,9 @@ def create_graph(users, xs):
                                for k, v in across_size.items()))
             if done_within and done_across:
                 break
-
         final_E.update({(this_dir_to_nodes[u], this_dir_to_nodes[v]): dir_id
                         for u, v in nE})
+
     return final_E
 
 
@@ -98,14 +115,21 @@ def to_graph_tool_simple(orig):
     return graph, mapping
 
 
-def generate_random_data(n=300, d=4, nx=6):
+def generate_random_data(n=300, d=4, nx=6, sparse=False):
     """There are $n$ nodes, each associated with a $d$ dimensional unit norm
     feature vectors. In addition we pick $nx$ directions at random in
-    $\mathbb{R}^{+d}$."""
-    def norm_rand_matrix(rows, columns):
+    $\mathbb{R}^{+d}$.
+    If sparse is True, set between $d-10$ and $d-3$ features to 0"""
+    def norm_rand_matrix(rows, columns, sparse=False):
         _ = 2*np.random.random((rows, columns))-1
+        if sparse:
+            for i in range(rows):
+                num_zero_features = random.randint(d-10, d-3)
+                zeroed = np.random.permutation(d)[:num_zero_features]
+                _[i, zeroed] = 0
         return _ / np.sqrt((_ ** 2).sum(-1))[..., np.newaxis]
-    users = norm_rand_matrix(n, d)
+    assert not sparse or d > 10, "need more feature to make matrix sparse"
+    users = norm_rand_matrix(n, d, sparse)
     xs = np.abs(norm_rand_matrix(nx, d))
     return users, xs
 
@@ -114,13 +138,14 @@ def laplacian_from_edges(E, n, nodes_to_idx=None, nb_dir=None):
     """Compute the `nb_dir` Laplacians of `E`"""
     nb_dir = nb_dir or len(set(E.values()))
     L = np.zeros((nb_dir, n, n), dtype=int)
-    for (u, v), k in E.items():
+    for (u, v), dirs in E.items():
         if nodes_to_idx:
             u, v = nodes_to_idx[u], nodes_to_idx[v]
-        L[k][u][u] += 1
-        L[k][v][v] += 1
-        L[k][u][v] = -1
-        L[k][v][u] = -1
+        for k in dirs:
+            L[k][u][u] += 1
+            L[k][v][v] += 1
+            L[k][u][v] = -1
+            L[k][v][u] = -1
     return L
 
 
@@ -185,6 +210,7 @@ def evaluate_solution(users, urecovered, observed_index, xs=None, E=None,
                              urecovered[observed_index, :])
     if hidden_edges is None or len(hidden_edges) < 1:
         return mse, None
+    # TODO: sort directions actually
     gold = np.array([E[e] for e in sorted(hidden_edges)])
     eh = sorted(hidden_edges)
     heads, tails = zip(*eh)
@@ -196,8 +222,8 @@ def evaluate_solution(users, urecovered, observed_index, xs=None, E=None,
 
 def hide_edges(G, E, vis, fraction=.1):
     """hide some edges involving hidden node without deconnecting the graph"""
-    degrees = {u: len(adj) for u, adj in G.items()}
-    h_degrees = heap({u: -len(adj) for u, adj in G.items()
+    degrees = {u: sum(adj.values()) for u, adj in G.items()}
+    h_degrees = heap({u: -sum(adj.values()) for u, adj in G.items()
                       if not vis[u]})
     edges_hidden = set()
     num_edges_to_hid = int(fraction*len(E))
@@ -217,15 +243,4 @@ def hide_edges(G, E, vis, fraction=.1):
     return edges_hidden
 
 if __name__ == '__main__':
-    # We build the adjacency list considering edges from all directions
-    G={}
-    for u, v in E:
-        add_edge(G, u, v)
-    # Then hide some users, keeping visible a dominating set of the graph so that
-    # every node has a visible neighbors and thus is not trivially 0
-    dms = bl.greedy_dominating_set(G, n)
-    uo, vis = bl.hide_some_users(G, n, fraction_of_hidden=.2, visible_seed=dms)
-
-    E = create_graph(users, xs)
-    L = laplacian_from_edges(E, n)
-    L = laplacian_from_edges({e:k for e,k in E.items() if k not in edges_hidden}, n)
+    pass

@@ -22,13 +22,14 @@ def create_graph(users, xs):
     heads = np.array(heads)
     tails = np.array(tails)
     D = np.abs(C[heads,:] - C[tails,:])
-    not_relevant = np.logical_or(C[heads,:]<1e-4, C[tails,:]<1e-4)
+    not_relevant = np.logical_or(np.abs(C[heads,:])<1e-4,
+                                 np.abs(C[tails,:])<1e-4)
     D[D<1e-5] = 2
     D[not_relevant] = 2
     sc = SpectralClustering(n_clusters=4, affinity='precomputed', n_init=20)
     best_dirs = np.argsort(D, 1).astype(int)
     final_E = defaultdict(list)
-    for k in range(2):
+    for k in range(1):
         dir_edges = create_edges_for_one_dir(xs, D, best_dirs[:, k], sc,
                                              within_size, across_size_, heads,
                                              tails)
@@ -136,7 +137,7 @@ def generate_random_data(n=300, d=4, nx=6, sparse=False):
 
 def laplacian_from_edges(E, n, nodes_to_idx=None, nb_dir=None):
     """Compute the `nb_dir` Laplacians of `E`"""
-    nb_dir = nb_dir or len(set(E.values()))
+    nb_dir = nb_dir or len(set((k for dirs in E.values() for k in dirs)))
     L = np.zeros((nb_dir, n, n), dtype=int)
     for (u, v), dirs in E.items():
         if nodes_to_idx:
@@ -242,5 +243,55 @@ def hide_edges(G, E, vis, fraction=.1):
                 break
     return edges_hidden
 
-if __name__ == '__main__':
-    pass
+
+def construct_optimization_matrix(users, xs, edges, visibility, user_order,
+                                  weights):
+    d = users.shape[1]
+    nn = len(user_order)*d
+    Q = np.zeros((nn, nn))
+    c = np.zeros((nn, 1))
+    for i, j, k in ((u, v, k) for (u, v, dirs) in edges.items()
+                    for k in dirs):
+        if i > j:
+            i, j = j, i
+        oi, oj = i, j
+        ui = users[oi, :]
+        uj = users[oj, :]
+        xij = xs[k, :]
+        i_known = visibility[i]
+        j_known = visibility[j]
+        i_unknown = not i_known
+        j_unknown = not j_known
+        w = weights[k]
+        if i_known and j_known:
+            continue
+        if i_unknown:
+            i = user_order.index(i)
+        if j_unknown:
+            j = user_order.index(j)
+        if i_unknown and j_unknown:
+            # both vectors are unknown
+            # add cross product terms
+            for k, l in product(range(d), range(d)):
+                Q[d*i+k, d*j+l] += w*-xij[k]*xij[l]
+        if i_unknown:
+            # add ui.xij ² contribution
+            for k, l in combinations(range(d), 2):
+                Q[d*i+k, d*i+l] += w*xij[k]*xij[l]
+            for k in range(d):
+                Q[d*i+k, d*i+k] += w*xij[k]*xij[k]/2
+        if j_unknown:
+            # add uj⋅xij ² contribution
+            for k, l in combinations(range(d), 2):
+                Q[d*j+k, d*j+l] += w*xij[k]*xij[l]
+            for k in range(d):
+                Q[d*j+k, d*j+k] += w*xij[k]*xij[k]/2
+        if i_known:
+            # add cross term when u_i is constant
+            ui_xij = w*np.dot(ui, xij)
+            c[d*j:d*(j+1)] += np.reshape(-2*xij.T*ui_xij, (d, 1))
+        if j_known:
+            # add cross term when u_j is constant
+            uj_xij = w*np.dot(uj, xij)
+            c[d*i:d*(i+1)] += np.reshape(-2*xij.T*uj_xij, (d, 1))
+    return Q.T + Q, c

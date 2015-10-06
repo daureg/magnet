@@ -6,6 +6,8 @@ from heap.heap import heap
 from itertools import combinations, product
 from sklearn.cluster import SpectralClustering
 from sklearn.metrics import mean_squared_error, f1_score
+from sklearn.preprocessing import MultiLabelBinarizer
+from timeit import default_timer as clock
 from warnings import warn
 import baseline as bl
 import cvxpy as cvx
@@ -29,7 +31,7 @@ def create_graph(users, xs):
     sc = SpectralClustering(n_clusters=4, affinity='precomputed', n_init=20)
     best_dirs = np.argsort(D, 1).astype(int)
     final_E = defaultdict(list)
-    for k in range(1):
+    for k in range(2):
         dir_edges = create_edges_for_one_dir(xs, D, best_dirs[:, k], sc,
                                              within_size, across_size_, heads,
                                              tails)
@@ -177,7 +179,7 @@ def setup_constraints(users, vis, noise_level=0.0):
     return Ux, constraints
 
 
-def setup_optim(users, xs, L, Ux, constraints):
+def setup_optim(users, xs, L, Ux, constraints, uo, lambda_=1e-2):
     """Compute all terms needed to define the optimization problem"""
     (n, d), nx = users.shape, xs.shape[0]
     weight = np.dot(np.ones(nx), np.dot(xs, xs.T))
@@ -186,15 +188,19 @@ def setup_optim(users, xs, L, Ux, constraints):
         k = np.matrix(np.kron(np.eye(n), xm[:, np.newaxis]))
         vm = k.T*Ux
         laps.append(cvx.quad_form(vm, L[m]))
-    obj = cvx.Minimize(sum((w*l for w, l in zip(weight, laps))))
+    weighted_laplacian = sum((w*l for w, l in zip(weight, laps)))
+    visible_users = sorted(set(range(n)) - set(uo))
+    visible_l1_norm = np.abs(users[visible_users, :]).sum()
+    regul = lambda_*(cvx.sum_entries(cvx.abs(Ux)) - visible_l1_norm)
+    obj = cvx.Minimize(weighted_laplacian + regul)
     return cvx.Problem(obj, constraints)
 
 
-def solve_optim(prob, Ux, verbose=True, normalize=True):
+def solve_optim(prob, Ux, verbose=True, normalize=True, eps=1e-3):
     """return the solution of the problem"""
     d = prob.constraints[0].size[0]
     n = Ux.size[0]//d
-    loss = prob.solve(verbose=verbose, solver=cvx.SCS)
+    loss = prob.solve(verbose=verbose, solver=cvx.SCS, eps=eps)
     uval = np.array(Ux.value).ravel()
     urecovered = uval.reshape(n, d)
     if normalize:
@@ -211,14 +217,25 @@ def evaluate_solution(users, urecovered, observed_index, xs=None, E=None,
                              urecovered[observed_index, :])
     if hidden_edges is None or len(hidden_edges) < 1:
         return mse, None
-    # TODO: sort directions actually
-    gold = np.array([E[e] for e in sorted(hidden_edges)])
+    labeler = MultiLabelBinarizer(classes=np.arange(xs.shape[1]))
+    gold = labeler.fit_transform([E[e] for e in sorted(hidden_edges)])
+    # gold = np.array([E[e] for e in sorted(hidden_edges)])
     eh = sorted(hidden_edges)
     heads, tails = zip(*eh)
     Cr = np.dot(urecovered, xs.T)
     Dr = np.abs(Cr[heads, :] - Cr[tails, :])
-    pred = np.argmin(Dr, 1).astype(int)
-    return mse, f1_score(gold, pred, average='weighted')
+    # TODO prediction here could be better: instead of predict the k best
+    # directions all the time, look at revealed edge to compute threshold of
+    # similarity (i.e replace 0.05)
+    best_dirs = np.argsort(Dr, 1).astype(int)[:, :2]
+    pred = []
+    for all_dir, suggestion in zip(Dr, best_dirs):
+        my_pred = [suggestion[0]]
+        if all_dir[suggestion[1]] < 0.05:
+            my_pred.append(suggestion[1])
+        pred.append(my_pred)
+    pred = labeler.fit_transform(pred)
+    return mse, f1_score(gold, pred, average='samples')
 
 
 def hide_edges(G, E, vis, fraction=.1):
@@ -244,13 +261,16 @@ def hide_edges(G, E, vis, fraction=.1):
     return edges_hidden
 
 
+# @profile
 def construct_optimization_matrix(users, xs, edges, visibility, user_order,
                                   weights):
     d = users.shape[1]
     nn = len(user_order)*d
     Q = np.zeros((nn, nn))
     c = np.zeros((nn, 1))
-    for i, j, k in ((u, v, k) for (u, v, dirs) in edges.items()
+    d_product = list(product(range(d), range(d)))
+    d_combinations = list(combinations(range(d), 2))
+    for i, j, k in ((u, v, k) for (u, v), dirs in edges.items()
                     for k in dirs):
         if i > j:
             i, j = j, i
@@ -272,17 +292,17 @@ def construct_optimization_matrix(users, xs, edges, visibility, user_order,
         if i_unknown and j_unknown:
             # both vectors are unknown
             # add cross product terms
-            for k, l in product(range(d), range(d)):
+            for k, l in d_product:
                 Q[d*i+k, d*j+l] += w*-xij[k]*xij[l]
         if i_unknown:
             # add ui.xij ² contribution
-            for k, l in combinations(range(d), 2):
+            for k, l in d_combinations:
                 Q[d*i+k, d*i+l] += w*xij[k]*xij[l]
             for k in range(d):
                 Q[d*i+k, d*i+k] += w*xij[k]*xij[k]/2
         if j_unknown:
             # add uj⋅xij ² contribution
-            for k, l in combinations(range(d), 2):
+            for k, l in d_combinations:
                 Q[d*j+k, d*j+l] += w*xij[k]*xij[l]
             for k in range(d):
                 Q[d*j+k, d*j+k] += w*xij[k]*xij[k]/2
@@ -295,3 +315,106 @@ def construct_optimization_matrix(users, xs, edges, visibility, user_order,
             uj_xij = w*np.dot(uj, xij)
             c[d*i:d*(i+1)] += np.reshape(-2*xij.T*uj_xij, (d, 1))
     return Q.T + Q, c
+
+
+def solve_by_SGD(users, directions, user_order, full_laplacian, eps_grad=1e-3,
+                 verbose=False, normalize=True):
+    num_dir = directions.shape[0]
+    total_user, user_dim = users.shape
+    weight = np.dot(np.ones(num_dir), np.dot(directions, directions.T))
+    weight = np.ones(num_dir)
+
+    def partial_grad_f(u, l):
+        """compute the gradient of the users matrix w.r.t user `l`"""
+        res = 0
+        for m, xm in enumerate(directions):
+            v = u.dot(xm)
+            res += v.T.dot(precomp[l][m])
+        return res
+    def obj_f(u):
+        res = 0
+        for w, (m, xm) in zip(weight, enumerate(directions)):
+            v = u.dot(xm)
+            res += w*v.T.dot(full_laplacian[m].dot(v))
+        return res
+
+    U_0 = users[np.random.permutation(total_user)[:len(user_order)], :]
+    U = np.copy(users)
+    U[user_order, :] = np.copy(U_0)
+    hidden_user_indices = user_order.copy()
+
+    start = clock()
+    # precompute some matrices used to compute gradient
+    precomp = {}
+    # bigA = np.zeros_like(users)
+    for i, l in enumerate(user_order):
+        # if i > 0:
+            # bigA[user_order[i-1], :] = 0
+        part = []
+        for w, (m, xm) in zip(weight, enumerate(directions)):
+            # bigA[l, :] = xm
+            # np.vstack([x*full_laplacian[m][:, l] for w in xm]).T
+            part.append(2*w*np.vstack([x*full_laplacian[m][:, l]
+                                       for x in xm]).T)
+            # part.append(2*w*full_laplacian[m].dot(bigA))
+        precomp[l] = part
+
+    # TODO use AdaDelta http://arxiv.org/abs/1212.5701
+    eta_0 = 2.3*1e-3
+    nb_iter, max_iter = 0, int(5e3)
+    T = 400
+    prev_grad = np.ones((len(user_order), user_dim))
+    msg = '{} ({:.3f}s): {:.4e}\t{:.4e}'
+    while nb_iter < max_iter:    
+        eta = eta_0#/(1+nb_iter/T)
+        if nb_iter > T:
+            eta = 0.8*eta_0
+        random.shuffle(hidden_user_indices)
+        for i, l in enumerate(hidden_user_indices):
+            grad = partial_grad_f(U, l)
+            prev_grad[i, :] = grad
+            U[l, :] -= eta*grad
+        if nb_iter % 80 == 0:
+            norm_grad = np.sqrt((prev_grad ** 2).sum(-1)).mean()
+            if norm_grad < eps_grad:
+                break
+            if norm_grad > 1e4:
+                # restart with lower learning rate
+                U[user_order, :] = np.copy(U_0)
+                eta_0 *= 0.7
+        if verbose and nb_iter % 80 == 0:
+            print(msg.format(nb_iter, clock() - start, obj_f(U), norm_grad))
+        nb_iter += 1
+    if verbose:
+        print(msg.format(nb_iter, clock() - start, obj_f(U), norm_grad))
+    if not normalize:
+        return U
+    return U / np.sqrt((U ** 2).sum(-1))[..., np.newaxis]
+
+if __name__ == '__main__':
+    from timeit import default_timer as clock
+    random.seed(456)
+    N, D, NX, TR = 200, 50, 5, 2
+    # users, directions = generate_random_data(N, D, NX, sparse=True)
+    # np.savez_compressed('__.npz', users=users, directions=directions)
+    with np.load('__.npz') as f:
+        users, directions = f['users'], f['directions']
+    # import sys
+    # sys.exit()
+    # E = create_graph(users, directions)
+    import persistent as p
+    # p.save_var('__.my', E)
+    E = p.load_var('__.my')
+    sG={} # merge all edges direction into one
+    for (u, v), dirs in E.items():
+        add_edge(sG, u, v)
+    # dms = bl.greedy_dominating_set(sG, N)
+    # uo, vis = bl.hide_some_users(sG, N, fraction_of_hidden=.2, visible_seed=dms)
+    # p.save_var('_uv.my', (uo, vis))
+    uo, vis = p.load_var('_uv.my')
+    weight = np.dot(np.ones(NX), np.dot(directions, directions.T))
+    s = clock()
+    Qa, ca= construct_optimization_matrix(users, directions, E,
+                                            visibility=vis, user_order=uo,
+                                            weights=weight)
+    print(clock()-s, np.linalg.norm(Qa))

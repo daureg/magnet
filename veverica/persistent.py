@@ -5,7 +5,7 @@ import pickle as pickle
 
 def save_var(filename, d):
     with open(filename, 'wb') as f:
-        pickle.dump(d, f, 2)
+        pickle.dump(d, f, pickle.HIGHEST_PROTOCOL)
 
 
 def load_var(filename):

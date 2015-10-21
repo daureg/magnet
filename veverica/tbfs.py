@@ -37,9 +37,12 @@ def tbfs(G, root):
     Q = deque()
     tree = set()
     reached = {u: False for u in G}
-    parents = {u: root for u in G[root]}
+    parents = {root: None}
     for v in G[root]:
-        found_edge((root, v) if root<v else (v,root), None)
+        edge = (root, v) if root < v else (v, root)
+        if len(get_common_neighbors(edge)) > 0:
+            parents[v] = root
+            found_edge(edge, None)
 
     while Q:
         e, p = Q.popleft()

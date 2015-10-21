@@ -14,7 +14,7 @@ def memoize(f):
     return memodict().__getitem__
 
 
-def tbfs(G, root_edge):
+def tbfs(G, root):
     @memoize
     def get_common_neighbors(nodes):
         return G[nodes[0]].intersection(G[nodes[1]])
@@ -34,15 +34,12 @@ def tbfs(G, root_edge):
         for v in G[just_reached]:
             if not reached[v]:
                 Q.append(((just_reached, v) if just_reached < v else (v, just_reached), added_edge))
-
     Q = deque()
     tree = set()
-    parents = {root_edge[1]: root_edge[0]}
     reached = {u: False for u in G}
-    u, v = root_edge
-    if u > v:
-        u, v = v, u
-    found_edge((u, v), None)
+    parents = {u: root for u in G[root]}
+    for v in G[root]:
+        found_edge((root, v) if root<v else (v,root), None)
 
     while Q:
         e, p = Q.popleft()
@@ -78,7 +75,7 @@ if __name__ == '__main__':
     import redensify
     import random
 
-    points = np.random.rand(50, 2)*4
+    points = np.random.rand(50, 2)*5
     k, pos = graph_tool.generation.triangulation(points, type='delaunay')
     name = k.new_vertex_property('string')
     for v in k.vertices():
@@ -86,8 +83,7 @@ if __name__ == '__main__':
 
     cexp.to_python_graph(k)
     G = redensify.G
-    root_node = max(G.items(), key=lambda x: len(x[1]))[0]
-    root = tuple(sorted([root_node, random.choice(list(G[root_node]))]))
+    root = max(G.items(), key=lambda x: len(x[1]))[0]
 
     def get_common_neighbors(nodes):
         return G[nodes[0]].intersection(G[nodes[1]])
@@ -118,14 +114,19 @@ if __name__ == '__main__':
     ecol, esize = du.color_graph(k, tree)
 
     for leaf in leaves:
-        path = actual_tree_path(leaf, root_node, parents)
+        path = actual_tree_path(leaf, root, parents)
         assert((find_shared_edge(e,f) is not None for e, f in zip(path, path[1:]))), (leaf, path)
 
-    path = actual_tree_path(random.choice(leaves), root_node, parents)
+    leaf = random.choice(leaves)
+    print(leaf)
+    path = actual_tree_path(leaf, root, parents)
     for e, f in zip(path, path[1:]):
-        color_edge(k, find_shared_edge((e, f))[1])
-
-    color_edge(k, root, du.red)
-    graph_tool.draw.graph_draw(k, output='tBFS.pdf', output_size=(1100,1100),
-                               vprops={'size': 25, 'fill_color': [1,1,1,.5], 'text': name},
+        shared_edge = find_shared_edge((e, f))[1]
+        color_edge(k, shared_edge,
+                   col=[.612, .153, .69, .9] if shared_edge in tree else du.bad_edge)
+    vhalo = k.new_vertex_property('boolean')
+    vhalo.a = np.arange(len(G)) == root
+    graph_tool.draw.graph_draw(k, output='tBFS.pdf', output_size=(1100, 1100),
+                               vprops={'size': 25, 'fill_color': [1,1,1,.5],
+                                       'text': name, 'halo': vhalo, 'halo_color': du.good_edge},
                                eprops={'color': ecol, 'pen_width': esize})

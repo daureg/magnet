@@ -54,8 +54,7 @@ def tbfs(G, root):
         cn = get_common_neighbors(p)
         if endpoint in cn:
             others_triangle_tips = get_common_neighbors(e)
-            others_triangle_tips.discard(u)
-            others_triangle_tips.discard(v)
+            others_triangle_tips.discard(attach)
             if others_triangle_tips:
                 found_edge(e, endpoint, attach)
             continue

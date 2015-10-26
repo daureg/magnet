@@ -1,7 +1,9 @@
 # coding: utf-8
+import random
 from grid_stretch import add_edge
 from pred_on_tree import get_bfs_tree
 from collections import defaultdict
+from real_world import reindex_nodes
 
 def compute_stats(labels, E):
     G = {}
@@ -48,7 +50,7 @@ def get_components_size(E, labels):
 def within_triangle(G, E):
     in_triangle = set()
     for u in G:
-        if u in in_triangle:
+        if u in in_triangle or len(G[u]) < 2:
             continue
         found = False
         for v in G[u]:
@@ -63,3 +65,87 @@ def within_triangle(G, E):
             if found:
                 break
     return in_triangle
+
+
+def triangle_subgraph(E, in_triangle):
+    """Return the subgraph of `E` induces by nodes belonging to at least one
+    triangle"""
+    tE = {(u, v) for u, v in E if u in in_triangle and v in in_triangle}
+    G = {}
+    for u, v in tE:
+        add_edge(G, u, v)
+    triangle_mapping = {u: i for i, u in enumerate(sorted(G))}
+    fG, fE = reindex_nodes(G, {e: 0 for e in tE}, triangle_mapping)
+    fE = set(fE.keys())
+    return fG, fE, triangle_mapping
+
+
+def synthetic_label(G, E, decay=.98, num_seeds=10):
+    """affect a label to each node of G"""
+    from multiprocessing import Pool
+    from collections import deque
+    common_neighbors = {nodes: G[nodes[0]].intersection(G[nodes[1]])
+                        for nodes in E}
+    # pool = Pool(14)
+    # common_neighbors = dict(pool.imap_unordered(lambda nodes: G[nodes[0]].intersection(G[nodes[1]]),
+    #                                             E, len(E)//14))
+    # pool.close()
+    # pool.join()
+    seed_edges = random.sample(list(E), num_seeds)
+    labels = {u: 0 for u in G}
+    first_ones = {u: 1 for edge in seed_edges for u in edge}
+    labels.update(first_ones)
+    visited = set(first_ones.keys())
+    queue = deque()
+    for u, v in seed_edges:
+        for w in common_neighbors[(u, v)]:
+            queue.append((u, w) if u < w else (w, u))
+            queue.append((v, w) if v < w else (w, v))
+    queue.append(None)
+    proba = decay
+    nb_iter = 0
+    nb_phases = 0
+    while len(visited) < 0.98*len(G) and nb_iter < 1.1*len(E):
+        nb_iter += 1
+        e = queue.popleft()
+        if e is None:
+            nb_phases += 1
+            if not queue:
+                break
+            print(len(queue))
+            proba *= decay
+            queue.append(None)
+            
+            continue
+        u, v = e
+        for w in common_neighbors[e]:
+            if w in visited:
+                continue
+            visited.add(w)
+            if random.random() < proba:
+                queue.append((u, w) if u < w else (w, u))
+                queue.append((v, w) if v < w else (w, v))
+                labels[w] = 1
+    print(nb_iter, nb_phases, len(visited))
+    return labels
+
+
+if __name__ == "__main__":
+    filename = '../../data/higgs/higgs-social_network.edgelist'
+    filename = '../../data/g_plusAnonymized.csv'
+    E = set()
+    with open(filename) as f:
+        for i, line in enumerate(f):
+            u, v = [int(_) for _ in line.strip().split(',')]
+            E.add((u, v) if u < v else (v, u))
+    from grid_stretch import add_edge
+    import persistent as p
+    G = {}
+    for u, v in E:
+        add_edge(G, u, v)
+    print(len(G), len(E))
+    from timeit import default_timer as clock
+    start = clock()
+    in_t = within_triangle(G, E)
+    print('{:.2f}% (in {:.2f}s)'.format(100*len(in_t)/len(G), clock() - start))
+    p.save_var('google_triangles.my', in_t)

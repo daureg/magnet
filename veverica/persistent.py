@@ -3,9 +3,9 @@
 import pickle as pickle
 
 
-def save_var(filename, d):
+def save_var(filename, d, proto=pickle.DEFAULT_PROTOCOL):
     with open(filename, 'wb') as f:
-        pickle.dump(d, f, pickle.HIGHEST_PROTOCOL)
+        pickle.dump(d, f, proto)
 
 
 def load_var(filename):
@@ -15,3 +15,8 @@ def load_var(filename):
     except IOError:
         raise
     return d
+
+def resave(filename, proto=pickle.DEFAULT_PROTOCOL):
+    data = load_var(filename)
+    save_var(filename, data, proto)
+

@@ -28,10 +28,10 @@ def add_neighbor(node, neighbor):
         G[node] = set([neighbor])
 
 
-def add_signed_edge(a, b, sign):
+def add_signed_edge(a, b, sign, directed=False):
     """Add a `sign`ed edge between `a` and `b`"""
     global INCONSISTENT
-    if a > b:
+    if a > b and not directed:
         a, b = b, a
     e = (a, b)
     if e in EDGE_SIGN:
@@ -46,15 +46,15 @@ def add_signed_edge(a, b, sign):
     EDGE_SIGN[e] = sign
 
 
-def remove_signed_edge(u, v):
-    if u > v:
+def remove_signed_edge(u, v, directed=False):
+    if u > v and not directed:
         u, v = v, u
     G[u].remove(v)
     G[v].remove(u)
     del EDGE_SIGN[(u, v)]
 
 
-def reindex_nodes(old_G, old_E, mapping):
+def reindex_nodes(old_G, old_E, mapping, directed=False):
     """Change nodes id according to `mapping`"""
     new_G = {}
     for n, adj in old_G.items():
@@ -62,11 +62,12 @@ def reindex_nodes(old_G, old_E, mapping):
     new_E = {}
     for e, s in old_E.items():
         u, v = mapping[e[0]], mapping[e[1]]
-        new_E[(u, v) if u < v else (v, u)] = s
+        ne = (u, v) if u < v or directed else (v, u)
+        new_E[ne] = s
     return new_G, new_E
 
 
-def read_original_graph(filename, seed=None, balanced=False):
+def read_original_graph(filename, seed=None, balanced=False, directed=False):
     """Read a signed graph from `filename` and compute its degree sequence.
     Optionally `shuffle` nodes ids"""
     global DEGREES, G, EDGE_SIGN, INCONSISTENT
@@ -78,21 +79,21 @@ def read_original_graph(filename, seed=None, balanced=False):
             i, j, sign = [int(_) for _ in line.split()]
             if i == j:
                 continue
-            add_signed_edge(i, j, sign > 0)
+            add_signed_edge(i, j, sign > 0, directed)
     # reindex nodes so they are sequential
     mapping = {v: i for i, v in enumerate(sorted(G.keys()))}
-    G, EDGE_SIGN = reindex_nodes(G, EDGE_SIGN, mapping)
+    G, EDGE_SIGN = reindex_nodes(G, EDGE_SIGN, mapping, directed)
     if balanced:
         import persistent
         to_delete = persistent.load_var(EDGE_TO_DELETE[filename])
         for edge in to_delete:
-            remove_signed_edge(*edge)
+            remove_signed_edge(*edge, directed)
     if isinstance(seed, int):
         r.seed(seed)
         rperm = list(G.keys())
         r.shuffle(rperm)
         rperm = {i: v for i, v in enumerate(rperm)}
-        G, EDGE_SIGN = reindex_nodes(G, EDGE_SIGN, rperm)
+        G, EDGE_SIGN = reindex_nodes(G, EDGE_SIGN, rperm, directed)
     DEGREES = sorted(((node, len(adj)) for node, adj in G.items()),
                      key=lambda x: x[1])
 

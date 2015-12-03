@@ -67,7 +67,7 @@ def evaluate_pred(gold, pred):
     acc = (tp + tn)/len(gold)
     f1 = 2*tp/(2*tp+fn+fp)
     mcc = (tp*tn - fp*fn)/sqrt((tp+fp)*(tp+fn)*(tn+fp)*(tn+fn))
-    return [acc, f1, mcc]
+    return [acc, f1, mcc, fp/len(pred), 0]
 
 
 def full_pipeline(G, E, alpha, strategy, threshold):

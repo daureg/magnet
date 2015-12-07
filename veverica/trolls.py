@@ -23,13 +23,16 @@ def balance_signs(G, E, seed=1489):
     return nG, nE
 
 
-def select_edges(G, E, alpha, strategy):
+def select_edges(G, E, alpha, strategy, directed=False):
     if strategy == 'random':
         return dict(random.sample(list(E.items()), int(alpha*len(E))))
     res = {}
     for u, adj in G.items():
-        nei = random.sample(list(adj), max(1, int(alpha*len(adj))))
-        edges = {(u, v) if u < v else (v, u) for v in nei}
+        nei = random.sample(list(adj), max(min(len(adj), 1), int(alpha*len(adj))))
+        if directed:
+            edges = {(u, v) if (u, v) in E else (v, u) for v in nei}
+        else:
+            edges = {(u, v) if u < v else (v, u) for v in nei}
         res.update({e: E[e] for e in edges})
     return res
 

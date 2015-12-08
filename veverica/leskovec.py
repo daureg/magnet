@@ -68,6 +68,8 @@ def compute_more_features(din, dout, common_nei, G, E, Esign):
         (knows_indices if (u, v) in Esign else pred_indices).append(i)
     return features, signs, knows_indices, pred_indices
 
+def us_predict(features):
+    return np.logical_or(features[:, 0] < .305, features[:, 1] < .13)
 
 if __name__ == '__main__':
     # pylint: disable=C0103
@@ -76,8 +78,8 @@ if __name__ == '__main__':
     import time
     import sys
     import persistent as p
-    num_threads = 15
-    num_rep = 12
+    num_threads = 16
+    num_rep = int(sys.argv[2])
 
     matthews_scorer = make_scorer(matthews_corrcoef)
     # rf = RandomForestClassifier(80, n_jobs=num_threads, max_features=.5,
@@ -151,8 +153,8 @@ if __name__ == '__main__':
             dt.fit(Xa[train, 15:17], ya[train])
             p.save_var('dt/{}_{}_{:02}_{}.my'.format(pref, start, int(100*alpha), _), dt)
             pred = dt.predict(Xa[test, 15:17])
-            proba = dt.predict_proba(Xa[test, 15:17])
-            auc = roc_auc_score(ya[test], proba[:, 1])
+            # proba = dt.predict_proba(Xa[test, 15:17])
+            auc = 0#roc_auc_score(ya[test], proba[:, 1])
             fp = confusion_matrix(ya[test], pred)[0, 1]/len(pred)
             dlr.append([accuracy_score(ya[test], pred), f1_score(ya[test], pred),
                         matthews_corrcoef(ya[test], pred), fp, auc, frac])
@@ -165,12 +167,16 @@ if __name__ == '__main__':
             # fp = confusion_matrix(ya[test], pred)[0, 1]/len(pred)
             # rrf.append([accuracy_score(ya[test], pred), f1_score(ya[test], pred),
             #             matthews_corrcoef(ya[test], pred), fp, auc, frac])
-            rrf.append([0,0,0,0,0,0])
+            pred = us_predict(Xa[test, 15:17])
+            fp = confusion_matrix(ya[test], pred)[0, 1]/len(pred)
+            rrf.append([accuracy_score(ya[test], pred), f1_score(ya[test], pred),
+                        matthews_corrcoef(ya[test], pred), fp, auc, frac])
+            # rrf.append([0,0,0,0,0,0])
 
             lr.fit(Xa[train_feat], ya[train])
             pred = lr.predict(Xa[test_feat])
-            proba = lr.predict_proba(Xa[test_feat])
-            auc = roc_auc_score(ya[test], proba[:, 1])
+            # proba = lr.predict_proba(Xa[test_feat])
+            auc = 0#roc_auc_score(ya[test], proba[:, 1])
             fp = confusion_matrix(ya[test], pred)[0, 1]/len(pred)
             rlr.append([accuracy_score(ya[test], pred), f1_score(ya[test], pred),
                         matthews_corrcoef(ya[test], pred), fp, auc, frac])

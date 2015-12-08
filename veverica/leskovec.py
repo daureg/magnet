@@ -53,16 +53,16 @@ def compute_more_features(din, dout, common_nei, G, E, Esign):
         #            din_plus[u], din_minus[v], dout_plus[u], dout_minus[v]]
         degrees = [dout[u], din[v], len(common_nei[(u, v)]),
                    din_plus[u], din_minus[v], dout_plus[u], dout_minus[v],
-                   din[u], dout[v], 
+                   din[u], dout[v],
                    din_plus[v], din_minus[u], dout_plus[v], dout_minus[u],
                    dout_minus[u]/dout[u], din_minus[v]/din[v],
                    0 if known_out == 0 else dout_minus[u]/known_out,
                    0 if known_in == 0 else din_minus[v]/known_in,
                    ]
         triads = 16*[0, ]
-        # for w in common_nei[(u, v)]:
-        #     for t in triads_indices(u, v, w, Esign):
-        #         triads[t] += 1
+        for w in common_nei[(u, v)]:
+            for t in triads_indices(u, v, w, Esign):
+                triads[t] += 1
         features.append(degrees+triads)
         signs.append(int(sign))
         (knows_indices if (u, v) in Esign else pred_indices).append(i)
@@ -70,6 +70,9 @@ def compute_more_features(din, dout, common_nei, G, E, Esign):
 
 def us_predict(features):
     return np.logical_or(features[:, 0] < .305, features[:, 1] < .13)
+
+def us_predict2(features):
+    return np.logical_or(features[:, 1] < .387, features[:, 0] < .02)
 
 if __name__ == '__main__':
     # pylint: disable=C0103
@@ -84,9 +87,9 @@ if __name__ == '__main__':
     matthews_scorer = make_scorer(matthews_corrcoef)
     # rf = RandomForestClassifier(80, n_jobs=num_threads, max_features=.5,
     #                             criterion='entropy', class_weight='balanced')
-    lr = LogisticRegressionCV(Cs=np.logspace(0, 4, 5), n_jobs=num_threads, cv=5,
+    lr = LogisticRegressionCV(Cs=np.logspace(-3, 4, 8), n_jobs=num_threads, cv=5,
                               scoring=matthews_scorer, solver='lbfgs',
-                              class_weight='balanced')
+                              class_weight={0: 1.4, 1: 1})
     dt = DecisionTreeClassifier(criterion='gini', max_features=None,
                                 max_depth=2, class_weight={0: 1.4, 1: 1})
     data = {'WIK': 'soc-wiki.txt',
@@ -148,7 +151,11 @@ if __name__ == '__main__':
             # fp = confusion_matrix(ya[test], pred)[0, 1]/len(pred)
             # drf.append([accuracy_score(ya[test], pred), f1_score(ya[test], pred),
             #             matthews_corrcoef(ya[test], pred), fp, auc, frac])
-            drf.append([0,0,0,0,0,0])
+            # drf.append([0,0,0,0,0,0])
+            pred = us_predict2(Xa[test, 15:17])
+            fp = confusion_matrix(ya[test], pred)[0, 1]/len(pred)
+            drf.append([accuracy_score(ya[test], pred), f1_score(ya[test], pred),
+                        matthews_corrcoef(ya[test], pred), fp, auc, frac])
 
             dt.fit(Xa[train, 15:17], ya[train])
             p.save_var('dt/{}_{}_{:02}_{}.my'.format(pref, start, int(100*alpha), _), dt)

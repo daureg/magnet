@@ -34,7 +34,7 @@ def triads_indices(u, v, w, Esign):
         yield 8*u_is_endpoint + 4*v_is_endpoint + 2*se + sf
 
 
-def compute_more_features(din, dout, common_nei, G, E, Esign):
+def compute_more_features(din, dout, common_nei, G, E, Esign, with_triads=True):
     knows_indices, pred_indices = [], []
     features, signs = [], []
     din_plus, dout_plus = defaultdict(int), defaultdict(int)
@@ -60,9 +60,10 @@ def compute_more_features(din, dout, common_nei, G, E, Esign):
                    0 if known_in == 0 else din_minus[v]/known_in,
                    ]
         triads = 16*[0, ]
-        for w in common_nei[(u, v)]:
-            for t in triads_indices(u, v, w, Esign):
-                triads[t] += 1
+        if with_triads:
+            for w in common_nei[(u, v)]:
+                for t in triads_indices(u, v, w, Esign):
+                    triads[t] += 1
         features.append(degrees+triads)
         signs.append(int(sign))
         (knows_indices if (u, v) in Esign else pred_indices).append(i)
@@ -140,7 +141,8 @@ if __name__ == '__main__':
             frac = len(directed_edges)/len(Elcc)
             Xall, gold, train, test = compute_more_features(din, dout,
                                                             common_nei, G, Elcc,
-                                                            directed_edges)
+                                                            directed_edges,
+                                                            with_triads=False)
             Xa, ya = np.array(Xall), np.array(gold)
             train_feat = np.ix_(train, feats)
             test_feat = np.ix_(test, feats)
@@ -158,14 +160,15 @@ if __name__ == '__main__':
             drf.append([accuracy_score(ya[test], pred), f1_score(ya[test], pred),
                         matthews_corrcoef(ya[test], pred), fp, auc, frac])
 
-            dt.fit(Xa[train, 15:17], ya[train])
-            p.save_var('dt/{}_{}_{:02}_{}.my'.format(pref, start, int(100*alpha), _), dt)
-            pred = dt.predict(Xa[test, 15:17])
+            # dt.fit(Xa[train, 15:17], ya[train])
+            # p.save_var('dt/{}_{}_{:02}_{}.my'.format(pref, start, int(100*alpha), _), dt)
+            # pred = dt.predict(Xa[test, 15:17])
             # proba = dt.predict_proba(Xa[test, 15:17])
             auc = 0#roc_auc_score(ya[test], proba[:, 1])
-            fp = confusion_matrix(ya[test], pred)[0, 1]/len(pred)
-            dlr.append([accuracy_score(ya[test], pred), f1_score(ya[test], pred),
-                        matthews_corrcoef(ya[test], pred), fp, auc, frac])
+            # fp = confusion_matrix(ya[test], pred)[0, 1]/len(pred)
+            # dlr.append([accuracy_score(ya[test], pred), f1_score(ya[test], pred),
+            #             matthews_corrcoef(ya[test], pred), fp, auc, frac])
+            dlr.append([0,0,0,0,0,0])
 
 
             # rf.fit(Xa[train_feat], ya[train])
@@ -181,13 +184,14 @@ if __name__ == '__main__':
                         matthews_corrcoef(ya[test], pred), fp, auc, frac])
             # rrf.append([0,0,0,0,0,0])
 
-            lr.fit(Xa[train_feat], ya[train])
-            pred = lr.predict(Xa[test_feat])
+            # lr.fit(Xa[train_feat], ya[train])
+            # pred = lr.predict(Xa[test_feat])
             # proba = lr.predict_proba(Xa[test_feat])
             auc = 0#roc_auc_score(ya[test], proba[:, 1])
-            fp = confusion_matrix(ya[test], pred)[0, 1]/len(pred)
-            rlr.append([accuracy_score(ya[test], pred), f1_score(ya[test], pred),
-                        matthews_corrcoef(ya[test], pred), fp, auc, frac])
+            # fp = confusion_matrix(ya[test], pred)[0, 1]/len(pred)
+            # rlr.append([accuracy_score(ya[test], pred), f1_score(ya[test], pred),
+            #             matthews_corrcoef(ya[test], pred), fp, auc, frac])
+            rlr.append([0,0,0,0,0,0])
         res[0].append(us)
         res[1].append(rrf)
         res[2].append(rlr)

@@ -75,6 +75,9 @@ def us_predict(features):
 def us_predict2(features):
     return np.logical_or(features[:, 1] < .387, features[:, 0] < .02)
 
+def us_predict3(features):
+    return features[:, 1] < (.13 + (features[:, 0]<.31)*.35)
+
 if __name__ == '__main__':
     # pylint: disable=C0103
     from multiprocessing import Pool
@@ -133,7 +136,7 @@ if __name__ == '__main__':
             # frac = len(alphasign)/len(E_nodir)
             # g, pred = trolls.predict_signs(E_nodir, alphasign, .37)
             # us.append(trolls.evaluate_pred(g, pred)+[frac])
-            us.append([0,0,0,0,0,0])
+            # us.append([0,0,0,0,0,0])
 
             # directed_edges = {(e if e in Elcc else (e[1], e[0])): s for e, s in alphasign.items()}
             directed_edges = deepcopy(Ein)
@@ -147,6 +150,10 @@ if __name__ == '__main__':
             train_feat = np.ix_(train, feats)
             test_feat = np.ix_(test, feats)
 
+            pred = us_predict3(Xa[test, 15:17])
+            fp = confusion_matrix(ya[test], pred)[0, 1]/len(pred)
+            us.append([accuracy_score(ya[test], pred), f1_score(ya[test], pred),
+                        matthews_corrcoef(ya[test], pred), fp, auc, frac])
             # rf.fit(Xa[train, :17], ya[train])
             # pred = rf.predict(Xa[test, :17])
             # proba = rf.predict_proba(Xa[test, :17])

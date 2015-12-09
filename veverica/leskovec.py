@@ -121,6 +121,7 @@ if __name__ == '__main__':
     feats = list(range(7)) + list(range(17, 33))
     alphas = np.linspace(1, 91, 11)
     res = [[], [], [], [], []]
+    auc = 0
     for alpha in alphas:
         us, rrf, rlr, drf, dlr = [], [], [], [], []
         alpha /= 100.0

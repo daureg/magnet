@@ -76,7 +76,7 @@ def us_predict2(features):
     return np.logical_or(features[:, 1] < .387, features[:, 0] < .02)
 
 def us_predict3(features):
-    return features[:, 1] < (.13 + (features[:, 0]<.31)*.35)
+    return features[:, 1] < (.13 + (features[:, 0]<.3)*.54)
 
 if __name__ == '__main__':
     # pylint: disable=C0103

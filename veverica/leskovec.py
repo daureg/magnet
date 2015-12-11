@@ -153,7 +153,7 @@ if __name__ == '__main__':
             Xall, gold, train, test = compute_more_features(din, dout,
                                                             common_nei, G, Elcc,
                                                             directed_edges,
-                                                            with_triads=False)
+                                                            with_triads=True)
             Xa, ya = np.array(Xall), np.array(gold)
             train_feat = np.ix_(train, feats)
             test_feat = np.ix_(test, feats)

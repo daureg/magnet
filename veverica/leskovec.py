@@ -6,7 +6,7 @@ from collections import defaultdict
 from grid_stretch import add_edge, perturbed_bfs
 from itertools import product
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.linear_model import LogisticRegressionCV
+from sklearn.linear_model import LogisticRegressionCV, LogisticRegression
 from sklearn.metrics import accuracy_score, f1_score, matthews_corrcoef, make_scorer
 from sklearn.metrics import confusion_matrix, roc_auc_score
 from sklearn.tree import DecisionTreeClassifier
@@ -78,6 +78,8 @@ def us_predict2(features):
 def us_predict3(features):
     return features[:, 1] < (.13 + (features[:, 0]<.3)*.54)
 
+def us_predictlr(features):
+    return (-6.89*features[:, 0]-6.761*features[:, 1]+5.334) > 0.5
 if __name__ == '__main__':
     # pylint: disable=C0103
     from multiprocessing import Pool
@@ -85,6 +87,8 @@ if __name__ == '__main__':
     import time
     import sys
     import persistent as p
+    import socket
+    part = int(socket.gethostname()[-1])-1
     num_threads = 16
     num_rep = int(sys.argv[2])
 
@@ -94,6 +98,7 @@ if __name__ == '__main__':
     lr = LogisticRegressionCV(Cs=np.logspace(-3, 4, 8), n_jobs=num_threads, cv=5,
                               scoring=matthews_scorer, solver='lbfgs',
                               class_weight={0: 1.4, 1: 1})
+    nlr = LogisticRegression(C=5.455, solver='lbfgs', n_jobs=num_threads)
     dt = DecisionTreeClassifier(criterion='gini', max_features=None,
                                 max_depth=2, class_weight={0: 1.4, 1: 1})
     data = {'WIK': 'soc-wiki.txt',
@@ -162,7 +167,7 @@ if __name__ == '__main__':
             # drf.append([accuracy_score(ya[test], pred), f1_score(ya[test], pred),
             #             matthews_corrcoef(ya[test], pred), fp, auc, frac])
             # drf.append([0,0,0,0,0,0])
-            pred = us_predict2(Xa[test, 15:17])
+            pred = us_predictlr(Xa[test, 15:17])
             fp = confusion_matrix(ya[test], pred)[0, 1]/len(pred)
             drf.append([accuracy_score(ya[test], pred), f1_score(ya[test], pred),
                         matthews_corrcoef(ya[test], pred), fp, auc, frac])
@@ -191,14 +196,15 @@ if __name__ == '__main__':
                         matthews_corrcoef(ya[test], pred), fp, auc, frac])
             # rrf.append([0,0,0,0,0,0])
 
-            # lr.fit(Xa[train_feat], ya[train])
-            # pred = lr.predict(Xa[test_feat])
+            nlr.fit(Xa[train, 15:17], ya[train])
+            p.save_var('nlr/{}_{}_{:02}_{}_{}.my'.format(pref, start, int(100*alpha), _, part), nlr)
+            pred = nlr.predict(Xa[test,15:17])
             # proba = lr.predict_proba(Xa[test_feat])
             auc = 0#roc_auc_score(ya[test], proba[:, 1])
-            # fp = confusion_matrix(ya[test], pred)[0, 1]/len(pred)
-            # rlr.append([accuracy_score(ya[test], pred), f1_score(ya[test], pred),
-            #             matthews_corrcoef(ya[test], pred), fp, auc, frac])
-            rlr.append([0,0,0,0,0,0])
+            fp = confusion_matrix(ya[test], pred)[0, 1]/len(pred)
+            rlr.append([accuracy_score(ya[test], pred), f1_score(ya[test], pred),
+                        matthews_corrcoef(ya[test], pred), fp, auc, frac])
+            # rlr.append([0,0,0,0,0,0])
         res[0].append(us)
         res[1].append(rrf)
         res[2].append(rlr)

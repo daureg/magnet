@@ -78,8 +78,10 @@ def us_predict2(features):
 def us_predict3(features):
     return features[:, 1] < (.13 + (features[:, 0]<.3)*.54)
 
-def us_predictlr(features):
-    return (-6.89*features[:, 0]-6.761*features[:, 1]+5.334) > 0.5
+def us_predictlr(features, frac=1):
+    coeff = (1-(1-frac)*(-.1))
+    return (-6.89*features[:, 0]-6.761*features[:, 1]+5.334) > 0.5/coeff
+
 if __name__ == '__main__':
     # pylint: disable=C0103
     from multiprocessing import Pool
@@ -98,7 +100,8 @@ if __name__ == '__main__':
     lr = LogisticRegressionCV(Cs=np.logspace(-3, 4, 8), n_jobs=num_threads, cv=5,
                               scoring=matthews_scorer, solver='lbfgs',
                               class_weight={0: 1.4, 1: 1})
-    nlr = LogisticRegression(C=5.455, solver='lbfgs', n_jobs=num_threads)
+    nlr = LogisticRegression(C=5.455, solver='lbfgs', n_jobs=num_threads,
+                             warm_start=True)
     dt = DecisionTreeClassifier(criterion='gini', max_features=None,
                                 max_depth=2, class_weight={0: 1.4, 1: 1})
     data = {'WIK': 'soc-wiki.txt',
@@ -128,7 +131,7 @@ if __name__ == '__main__':
 
     start = (int(time.time()-(2015-1970)*365.25*24*60*60))//60
     feats = list(range(7)) + list(range(17, 33))
-    alphas = np.linspace(1, 91, 11)
+    alphas = np.linspace(1, 80, 10)
     res = [[], [], [], [], []]
     auc = 0
     for alpha in alphas:
@@ -167,7 +170,7 @@ if __name__ == '__main__':
             # drf.append([accuracy_score(ya[test], pred), f1_score(ya[test], pred),
             #             matthews_corrcoef(ya[test], pred), fp, auc, frac])
             # drf.append([0,0,0,0,0,0])
-            pred = us_predictlr(Xa[test, 15:17])
+            pred = us_predictlr(Xa[test, 15:17], frac)
             fp = confusion_matrix(ya[test], pred)[0, 1]/len(pred)
             drf.append([accuracy_score(ya[test], pred), f1_score(ya[test], pred),
                         matthews_corrcoef(ya[test], pred), fp, auc, frac])
@@ -197,7 +200,7 @@ if __name__ == '__main__':
             # rrf.append([0,0,0,0,0,0])
 
             nlr.fit(Xa[train, 15:17], ya[train])
-            p.save_var('nlr/{}_{}_{:02}_{}_{}.my'.format(pref, start, int(100*alpha), _, part), nlr)
+            # p.save_var('nlr/{}_{}_{:02}_{}_{}.my'.format(pref, start, int(100*alpha), _, part), nlr)
             pred = nlr.predict(Xa[test,15:17])
             # proba = lr.predict_proba(Xa[test_feat])
             auc = 0#roc_auc_score(ya[test], proba[:, 1])
@@ -210,4 +213,4 @@ if __name__ == '__main__':
         res[2].append(rlr)
         res[3].append(drf)
         res[4].append(dlr)
-    p.save_var('{}_{}_{}.my'.format(pref, start, False), (alphas, res))
+    p.save_var('{}_{}_{}.my'.format(pref, start, part+1), (alphas, res))

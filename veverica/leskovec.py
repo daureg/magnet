@@ -97,9 +97,9 @@ if __name__ == '__main__':
     matthews_scorer = make_scorer(matthews_corrcoef)
     # rf = RandomForestClassifier(80, n_jobs=num_threads, max_features=.5,
     #                             criterion='entropy', class_weight='balanced')
-    lr = LogisticRegressionCV(Cs=np.logspace(-3, 4, 8), n_jobs=num_threads, cv=5,
+    lr = LogisticRegressionCV(Cs=np.logspace(-3, 4, 10), n_jobs=num_threads, cv=4,
                               scoring=matthews_scorer, solver='lbfgs',
-                              class_weight={0: 1.4, 1: 1})
+                              class_weight={0: 1.4, 1: 1}, warm_start=True)
     nlr = LogisticRegression(C=5.455, solver='lbfgs', n_jobs=num_threads,
                              warm_start=True)
     dt = DecisionTreeClassifier(criterion='gini', max_features=None,
@@ -157,6 +157,9 @@ if __name__ == '__main__':
             Xa, ya = np.array(Xall), np.array(gold)
             train_feat = np.ix_(train, feats)
             test_feat = np.ix_(test, feats)
+            lr.fit(Xa[train_feat], ya[train])
+            p.save_var('nlr/{}_{}_{:02}_{}_{}.my'.format(pref, start, int(100*alpha), _, part), lr)
+            continue
 
             pred = us_predict3(Xa[test, 15:17])
             fp = confusion_matrix(ya[test], pred)[0, 1]/len(pred)
@@ -208,6 +211,8 @@ if __name__ == '__main__':
             rlr.append([accuracy_score(ya[test], pred), f1_score(ya[test], pred),
                         matthews_corrcoef(ya[test], pred), fp, auc, frac])
             # rlr.append([0,0,0,0,0,0])
+
+
         res[0].append(us)
         res[1].append(rrf)
         res[2].append(rlr)

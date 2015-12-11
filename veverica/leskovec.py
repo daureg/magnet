@@ -99,7 +99,7 @@ if __name__ == '__main__':
     #                             criterion='entropy', class_weight='balanced')
     lr = LogisticRegressionCV(Cs=np.logspace(-3, 4, 10), n_jobs=num_threads, cv=4,
                               scoring=matthews_scorer, solver='lbfgs',
-                              class_weight={0: 1.4, 1: 1}, warm_start=True)
+                              class_weight={0: 1.4, 1: 1})
     nlr = LogisticRegression(C=5.455, solver='lbfgs', n_jobs=num_threads,
                              warm_start=True)
     dt = DecisionTreeClassifier(criterion='gini', max_features=None,

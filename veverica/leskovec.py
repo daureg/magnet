@@ -82,6 +82,28 @@ def us_predictlr(features, frac=1):
     coeff = (1-(1-frac)*(-.1))
     return (-6.89*features[:, 0]-6.761*features[:, 1]+5.334) > 0.5/coeff
 
+
+def pred_simplest(features):
+    return features[:, 0] < .5
+
+
+def pred_fixed(features):
+    return features[:, 1] < (.5 + (features[:, 0] < .5)*1)
+
+
+def pred_tuned(features):
+    return np.logical_or(features[:, 0] < .315, features[:, 1] < .096)
+
+
+def pred_tuned_cmx(features):
+    return features[:, 1] < (.096 + (features[:, 0]<.316)*(.759-.096))
+
+
+def append_res(prev_res, s, end, pred, gold, frac):
+    fp = confusion_matrix(gold, pred)[0, 1]/len(pred)
+    prev_res.append([accuracy_score(gold, pred), f1_score(gold, pred),
+                     matthews_corrcoef(gold, pred), fp, end-s, frac])
+
 if __name__ == '__main__':
     # pylint: disable=C0103
     from multiprocessing import Pool
@@ -90,6 +112,7 @@ if __name__ == '__main__':
     import sys
     import persistent as p
     import socket
+    from timeit import default_timer as clock
     part = int(socket.gethostname()[-1])-1
     num_threads = 16
     num_rep = int(sys.argv[2])
@@ -97,10 +120,12 @@ if __name__ == '__main__':
     matthews_scorer = make_scorer(matthews_corrcoef)
     # rf = RandomForestClassifier(80, n_jobs=num_threads, max_features=.5,
     #                             criterion='entropy', class_weight='balanced')
-    lr = LogisticRegressionCV(Cs=np.logspace(-3, 4, 10), n_jobs=num_threads, cv=4,
-                              scoring=matthews_scorer, solver='lbfgs',
-                              class_weight={0: 1.4, 1: 1})
-    nlr = LogisticRegression(C=5.455, solver='lbfgs', n_jobs=num_threads,
+    # lr = LogisticRegressionCV(Cs=np.logspace(-3, 4, 10), n_jobs=num_threads, cv=4,
+    #                           scoring=matthews_scorer, solver='lbfgs',
+    #                           class_weight={0: 1.4, 1: 1})
+    olr = LogisticRegression(C=5.455, solver='lbfgs', n_jobs=num_threads,
+                             warm_start=True)
+    llr = LogisticRegression(C=1e-3, solver='lbfgs', n_jobs=num_threads,
                              warm_start=True)
     dt = DecisionTreeClassifier(criterion='gini', max_features=None,
                                 max_depth=2, class_weight={0: 1.4, 1: 1})
@@ -131,22 +156,15 @@ if __name__ == '__main__':
 
     start = (int(time.time()-(2015-1970)*365.25*24*60*60))//60
     feats = list(range(7)) + list(range(17, 33))
-    alphas = np.linspace(1, 80, 10)
-    res = [[], [], [], [], []]
+    alphas = np.linspace(0, 65, 10)
+    res = [[], [], [], [], [], [], []]
     auc = 0
     for alpha in alphas:
-        us, rrf, rlr, drf, dlr = [], [], [], [], []
+        lesko, fixed, simple_fixed, tuned, cmp_tuned, dectree, logreg = [], [], [], [], [], [] ,[]
         alpha /= 100.0
         for _ in range(num_rep):
             Eout = trolls.select_edges(Gout, Elcc, alpha, 'uniform', True)
             Ein = trolls.select_edges(Gin, Elcc, alpha, 'uniform', True)
-            # alphasign = trolls.select_edges(Glcc, E_nodir, alpha, 'uniform')
-            # frac = len(alphasign)/len(E_nodir)
-            # g, pred = trolls.predict_signs(E_nodir, alphasign, .37)
-            # us.append(trolls.evaluate_pred(g, pred)+[frac])
-            # us.append([0,0,0,0,0,0])
-
-            # directed_edges = {(e if e in Elcc else (e[1], e[0])): s for e, s in alphasign.items()}
             directed_edges = deepcopy(Ein)
             directed_edges.update(Eout)
             frac = len(directed_edges)/len(Elcc)
@@ -157,65 +175,51 @@ if __name__ == '__main__':
             Xa, ya = np.array(Xall), np.array(gold)
             train_feat = np.ix_(train, feats)
             test_feat = np.ix_(test, feats)
-            lr.fit(Xa[train_feat], ya[train])
-            p.save_var('nlr/{}_{}_{:02}_{}_{}.my'.format(pref, start, int(100*alpha), _, part), lr)
-            continue
 
-            pred = us_predict3(Xa[test, 15:17])
-            fp = confusion_matrix(ya[test], pred)[0, 1]/len(pred)
-            us.append([accuracy_score(ya[test], pred), f1_score(ya[test], pred),
-                        matthews_corrcoef(ya[test], pred), fp, auc, frac])
-            # rf.fit(Xa[train, :17], ya[train])
-            # pred = rf.predict(Xa[test, :17])
-            # proba = rf.predict_proba(Xa[test, :17])
-            # auc = roc_auc_score(ya[test], proba[:, 1])
-            # fp = confusion_matrix(ya[test], pred)[0, 1]/len(pred)
-            # drf.append([accuracy_score(ya[test], pred), f1_score(ya[test], pred),
-            #             matthews_corrcoef(ya[test], pred), fp, auc, frac])
-            # drf.append([0,0,0,0,0,0])
-            pred = us_predictlr(Xa[test, 15:17], frac)
-            fp = confusion_matrix(ya[test], pred)[0, 1]/len(pred)
-            drf.append([accuracy_score(ya[test], pred), f1_score(ya[test], pred),
-                        matthews_corrcoef(ya[test], pred), fp, auc, frac])
+            s = clock()
+            pred = pred_fixed(Xa[test, 15:17])
+            end = clock()
+            append_res(fixed, s, end, pred, ya[test], frac)
 
-            # dt.fit(Xa[train, 15:17], ya[train])
-            # p.save_var('dt/{}_{}_{:02}_{}.my'.format(pref, start, int(100*alpha), _), dt)
-            # pred = dt.predict(Xa[test, 15:17])
-            # proba = dt.predict_proba(Xa[test, 15:17])
-            auc = 0#roc_auc_score(ya[test], proba[:, 1])
-            # fp = confusion_matrix(ya[test], pred)[0, 1]/len(pred)
-            # dlr.append([accuracy_score(ya[test], pred), f1_score(ya[test], pred),
-            #             matthews_corrcoef(ya[test], pred), fp, auc, frac])
-            dlr.append([0,0,0,0,0,0])
+            s = clock()
+            pred = pred_simplest(Xa[test, 15:17])
+            end = clock()
+            append_res(simple_fixed, s, end, pred, ya[test], frac)
 
+            s = clock()
+            pred = pred_tuned(Xa[test, 15:17])
+            end = clock()
+            append_res(tuned, s, end, pred, ya[test], frac)
 
-            # rf.fit(Xa[train_feat], ya[train])
-            # pred = rf.predict(Xa[test_feat])
-            # proba = rf.predict_proba(Xa[test_feat])
-            # auc = roc_auc_score(ya[test], proba[:, 1])
-            # fp = confusion_matrix(ya[test], pred)[0, 1]/len(pred)
-            # rrf.append([accuracy_score(ya[test], pred), f1_score(ya[test], pred),
-            #             matthews_corrcoef(ya[test], pred), fp, auc, frac])
-            pred = us_predict(Xa[test, 15:17])
-            fp = confusion_matrix(ya[test], pred)[0, 1]/len(pred)
-            rrf.append([accuracy_score(ya[test], pred), f1_score(ya[test], pred),
-                        matthews_corrcoef(ya[test], pred), fp, auc, frac])
-            # rrf.append([0,0,0,0,0,0])
+            s = clock()
+            pred = pred_tuned_cmx(Xa[test, 15:17])
+            end = clock()
+            append_res(cmp_tuned, s, end, pred, ya[test], frac)
 
-            nlr.fit(Xa[train, 15:17], ya[train])
-            # p.save_var('nlr/{}_{}_{:02}_{}_{}.my'.format(pref, start, int(100*alpha), _, part), nlr)
-            pred = nlr.predict(Xa[test,15:17])
-            # proba = lr.predict_proba(Xa[test_feat])
-            auc = 0#roc_auc_score(ya[test], proba[:, 1])
-            fp = confusion_matrix(ya[test], pred)[0, 1]/len(pred)
-            rlr.append([accuracy_score(ya[test], pred), f1_score(ya[test], pred),
-                        matthews_corrcoef(ya[test], pred), fp, auc, frac])
-            # rlr.append([0,0,0,0,0,0])
+            s = clock()
+            llr.fit(Xa[train_feat], ya[train])
+            pred = llr.predict(Xa[test_feat])
+            end = clock()
+            append_res(lesko, s, end, pred, ya[test], frac)
 
+            s = clock()
+            olr.fit(Xa[train, 15:17], ya[train])
+            pred = olr.predict(Xa[test, 15:17])
+            end = clock()
+            append_res(logreg, s, end, pred, ya[test], frac)
 
-        res[0].append(us)
-        res[1].append(rrf)
-        res[2].append(rlr)
-        res[3].append(drf)
-        res[4].append(dlr)
+            s = clock()
+            dt.fit(Xa[train, 15:17], ya[train])
+            pred = dt.predict(Xa[test, 15:17])
+            end = clock()
+            append_res(dectree, s, end, pred, ya[test], frac)
+
+        res[0].append(lesko)
+        res[1].append(fixed)
+        res[2].append(simple_fixed)
+        res[3].append(tuned)
+        res[4].append(cmp_tuned)
+        res[5].append(logreg)
+        res[6].append(dectree)
+
     p.save_var('{}_{}_{}.my'.format(pref, start, part+1), (alphas, res))

@@ -91,6 +91,14 @@ def pred_fixed(features):
     return features[:, 1] < (.5 + (features[:, 0] < .5)*1)
 
 
+def pred_left_fixed(features):
+    return (features[:, 1] < .5) + (features[:, 0] < .5) > 1.5
+
+
+def pred_rev_fixed(features):
+    return features[:, 0] < (.5 + (features[:, 1] < .5)*1)
+
+
 def pred_tuned(features):
     return np.logical_or(features[:, 0] < .315, features[:, 1] < .096)
 
@@ -169,10 +177,10 @@ if __name__ == '__main__':
     start = (int(time.time()-(2015-1970)*365.25*24*60*60))//60
     feats = list(range(7)) + list(range(17, 33))
     alphas = np.linspace(0, 65, 10)
-    res = [[], [], [], [], [], [], []]
+    res = [[], [], [], [], [], [], [], [], []]
     auc = 0
     for alpha in alphas:
-        lesko, fixed, simple_fixed, tuned, cmp_tuned, dectree, logreg = [], [], [], [], [], [] ,[]
+        lesko, fixed, simple_fixed, tuned, cmp_tuned, dectree, logreg, left_fixed, rev_fixed = [], [], [], [], [], [] ,[], [] , []
         alpha /= 100.0
         for _ in range(num_rep):
             Eout = trolls.select_edges(Gout, Elcc, alpha, 'uniform', True)
@@ -192,6 +200,16 @@ if __name__ == '__main__':
             pred = pred_fixed(Xa[test, 15:17])
             end = clock()
             append_res(fixed, s, end, pred, ya[test], frac)
+
+            s = clock()
+            pred = pred_left_fixed(Xa[test, 15:17])
+            end = clock()
+            append_res(left_fixed, s, end, pred, ya[test], frac)
+
+            s = clock()
+            pred = pred_rev_fixed(Xa[test, 15:17])
+            end = clock()
+            append_res(rev_fixed, s, end, pred, ya[test], frac)
 
             s = clock()
             pred = pred_simplest(Xa[test, 15:17])
@@ -233,5 +251,7 @@ if __name__ == '__main__':
         res[4].append(cmp_tuned)
         res[5].append(logreg)
         res[6].append(dectree)
+        res[7].append(left_fixed)
+        res[8].append(rev_fixed)
 
     p.save_var('{}_{}_{}.my'.format(pref, start, part+1), (alphas, res))

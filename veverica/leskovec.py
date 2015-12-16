@@ -141,13 +141,14 @@ if __name__ == '__main__':
         dout[u] += 1
         din[v] += 1
 
-    rw.DEGREES[-1]
-    tree = perturbed_bfs(G, rw.DEGREES[-1][0])
-    h, t = zip(*tree)
-    lcc = set(h).union(set(t))
-    Elcc = {e: s for e, s in E.items() if e[0] in lcc or e[1] in lcc}
-    E_nodir =  {((u, v) if u < v else (v, u)): s for (u, v), s in Elcc.items()}
-    Glcc = {u: adj for u, adj in G.items() if u in lcc}
+    # rw.DEGREES[-1]
+    # tree = perturbed_bfs(G, rw.DEGREES[-1][0])
+    # h, t = zip(*tree)
+    # lcc = set(h).union(set(t))
+    # Elcc = {e: s for e, s in E.items() if e[0] in lcc or e[1] in lcc}
+    # E_nodir =  {((u, v) if u < v else (v, u)): s for (u, v), s in Elcc.items()}
+    # Glcc = {u: adj for u, adj in G.items() if u in lcc}
+    Glcc, Elcc = G, E
     common_nei = {e: G[e[0]].intersection(G[e[1]]) for e in Elcc}
     Gout, Gin = {}, {}
     for u, v in Elcc:

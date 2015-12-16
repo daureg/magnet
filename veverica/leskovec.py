@@ -113,9 +113,22 @@ if __name__ == '__main__':
     import persistent as p
     import socket
     from timeit import default_timer as clock
+    import argparse
     part = int(socket.gethostname()[-1])-1
     num_threads = 16
-    num_rep = int(sys.argv[2])
+
+    data = {'WIK': 'soc-wiki.txt',
+            'EPI': 'soc-sign-epinions.txt',
+            'SLA': 'soc-sign-Slashdot090221.txt'}
+    parser = argparse.ArgumentParser()
+    parser.add_argument("data", help="Which data to use",
+                        choices=data.keys(), default='WIK')
+    parser.add_argument("-b", "--balanced", action='store_true',
+                        help="Should there be 50/50 +/- edges")
+    parser.add_argument("-n", "--nrep", help="number of repetition", type=int,
+                        default=3)
+    args = parser.parse_args()
+    num_rep = args.nrep
 
     matthews_scorer = make_scorer(matthews_corrcoef)
     # rf = RandomForestClassifier(80, n_jobs=num_threads, max_features=.5,
@@ -129,12 +142,10 @@ if __name__ == '__main__':
                              warm_start=True)
     dt = DecisionTreeClassifier(criterion='gini', max_features=None,
                                 max_depth=2, class_weight={0: 1.4, 1: 1})
-    data = {'WIK': 'soc-wiki.txt',
-            'EPI': 'soc-sign-epinions.txt',
-            'SLA': 'soc-sign-Slashdot090221.txt'}
-    pref = sys.argv[1]
-    assert pref in data.keys()
-    rw.read_original_graph(data[pref], directed=True)
+    pref = args.data
+    rw.read_original_graph(data[pref], directed=True, balanced=args.balanced)
+    if args.balanced:
+        pref += '_bal'
     G, E = rw.G, rw.EDGE_SIGN
     dout, din = defaultdict(int), defaultdict(int)
     for u, v in E:

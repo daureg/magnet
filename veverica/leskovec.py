@@ -92,7 +92,7 @@ def pred_fixed(features):
 
 
 def pred_left_fixed(features):
-    return (features[:, 1] < .5) + (features[:, 0] < .5) > 1.5
+    return (features[:,0]<.5).astype(int) + (features[:,1]<.5).astype(int)>1
 
 
 def pred_rev_fixed(features):

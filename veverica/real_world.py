@@ -13,6 +13,9 @@ G = {}
 EDGE_SIGN = {}
 DEGREES = None
 INCONSISTENT = 0
+DIRECTED_TO_DELETE = {'soc-sign-Slashdot090221.txt': 'dt/sla_delete.my',
+                      'soc-sign-epinions.txt': 'dt/epi_delete.my',
+                      'soc-wiki.txt': 'dt/wik_delete.my'}
 EDGE_TO_DELETE = {'soc-sign-Slashdot090221.txt': 'universe/slash_delete.my',
                   'soc-sign-epinions.txt': 'universe/epi_delete.my',
                   'soc-mnist.txt': 'universe/mni_delete.my',
@@ -49,8 +52,8 @@ def add_signed_edge(a, b, sign, directed=False):
 def remove_signed_edge(u, v, directed=False):
     if u > v and not directed:
         u, v = v, u
-    G[u].remove(v)
-    G[v].remove(u)
+    G[u].discard(v)
+    G[v].discard(u)
     del EDGE_SIGN[(u, v)]
 
 
@@ -85,7 +88,8 @@ def read_original_graph(filename, seed=None, balanced=False, directed=False):
     G, EDGE_SIGN = reindex_nodes(G, EDGE_SIGN, mapping, directed)
     if balanced:
         import persistent
-        to_delete = persistent.load_var(EDGE_TO_DELETE[filename])
+        src = DIRECTED_TO_DELETE if directed else EDGE_TO_DELETE
+        to_delete = persistent.load_var(src[filename])
         for edge in to_delete:
             remove_signed_edge(*edge, directed)
     if isinstance(seed, int):

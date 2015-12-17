@@ -91,7 +91,7 @@ def read_original_graph(filename, seed=None, balanced=False, directed=False):
         src = DIRECTED_TO_DELETE if directed else EDGE_TO_DELETE
         to_delete = persistent.load_var(src[filename])
         for edge in to_delete:
-            remove_signed_edge(*edge, directed)
+            remove_signed_edge(*edge, directed=directed)
     if isinstance(seed, int):
         r.seed(seed)
         rperm = list(G.keys())

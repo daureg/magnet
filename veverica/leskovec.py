@@ -14,6 +14,11 @@ import numpy as np
 import real_world as rw
 import trolls
 
+lambdas = {'WIK': [0.31535, 0.77045, 0.09727],
+           'SLA': [0.32250, 0.74161, 0.11218],
+           'EPI': [0.31606, 0.73243, 0.09615]
+           }
+
 
 def add_neighbor(node, neighbor, G):
     """add `neighbor` to adjacency list of `node`"""
@@ -99,12 +104,14 @@ def pred_rev_fixed(features):
     return features[:, 0] < (.5 + (features[:, 1] < .5)*1)
 
 
-def pred_tuned(features):
-    return np.logical_or(features[:, 0] < .315, features[:, 1] < .096)
+def pred_tuned(features, pref):
+    cst = lambdas[pref]
+    return np.logical_or(features[:, 0] < cst[0], features[:, 1] < cst[2])
 
 
-def pred_tuned_cmx(features):
-    return features[:, 1] < (.096 + (features[:, 0]<.316)*(.759-.096))
+def pred_tuned_cmx(features, pref):
+    cst = lambdas[pref]
+    return features[:, 1] < (cst[2] + (features[:, 0]<cst[0])*(cst[1]-cst[2]))
 
 
 def append_res(prev_res, s, end, pred, gold, frac):
@@ -217,12 +224,12 @@ if __name__ == '__main__':
             append_res(simple_fixed, s, end, pred, ya[test], frac)
 
             s = clock()
-            pred = pred_tuned(Xa[test, 15:17])
+            pred = pred_tuned(Xa[test, 15:17], pref)
             end = clock()
             append_res(tuned, s, end, pred, ya[test], frac)
 
             s = clock()
-            pred = pred_tuned_cmx(Xa[test, 15:17])
+            pred = pred_tuned_cmx(Xa[test, 15:17], pref)
             end = clock()
             append_res(cmp_tuned, s, end, pred, ya[test], frac)
 

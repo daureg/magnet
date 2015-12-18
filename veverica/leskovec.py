@@ -115,9 +115,10 @@ def pred_tuned_cmx(features, pref):
 
 
 def append_res(prev_res, s, end, pred, gold, frac):
-    fp = confusion_matrix(gold, pred)[0, 1]/len(pred)
+    C = confusion_matrix(gold, pred)
+    fp, tn = C[0, 1], C[0, 0]
     prev_res.append([accuracy_score(gold, pred), f1_score(gold, pred),
-                     matthews_corrcoef(gold, pred), fp, end-s, frac])
+                     matthews_corrcoef(gold, pred), fp/(fp+tn), end-s, frac])
 
 if __name__ == '__main__':
     # pylint: disable=C0103

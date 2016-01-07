@@ -30,17 +30,32 @@ def load_packed_graph(filename):
 
 
 def build_graph(graph_as_list):
-    return {node: adj for node, adj in graph_as_list}
+    return {node: set(adj) for node, adj in graph_as_list}
 
 
 def load_graph(filename):
     return build_graph(load_packed_graph(filename))
 
 if __name__ == '__main__':
+    import persistent as p
+    # start = clock()
+    # G, _ = p.load_var('twitter_triangle_graph.my')
+    # print(clock()-start)
+    # save_packed_graph([(k, tuple(v)) for k, v in G.items()], 'twitter.pack')
+    # import sys
+    # sys.exit()
     # do it once
     # save_packed_graph(read_text_graph('soc-sign-epinions.txt'), 'epi.pack')
     start = clock()
-    G = load_graph('epi.pack')
+    G = load_graph('twitter.pack')
+    nb_nodes = len(G)
+    nb_edges = sum((len(adj) for adj in G.values())) // 2
+    end = clock() - start
+    print('loaded {} nodes and {} edges in {:.3f} seconds'.format(nb_nodes,
+                                                                  nb_edges,
+                                                                  end))
+    start = clock()
+    G, E = p.load_var('twitter_triangle_graph.my')
     end = clock() - start
     nb_nodes = len(G)
     nb_edges = sum((len(adj) for adj in G.values())) // 2

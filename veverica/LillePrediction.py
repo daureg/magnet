@@ -6,12 +6,13 @@ import leskovec as l
 from copy import deepcopy
 
 class LillePrediction(lp.LinkPrediction):
-    """Docstring for LillePrediction."""
+    """My implementation of LinkPrediction"""
 
     def load_data(self, dataset, balanced=False):
         l.rw.read_original_graph(lp.FILENAMES[dataset], directed=True,
                                  balanced=balanced)
         Gfull, E = l.rw.G, l.rw.EDGE_SIGN
+        self.order = len(Gfull)
         self.dout, self.din = l.defaultdict(int), l.defaultdict(int)
         for u, v in E:
             self.dout[u] += 1
@@ -24,14 +25,20 @@ class LillePrediction(lp.LinkPrediction):
         self.G = self.Gout
         self.E = E
 
-    def select_train_set(self, *params):
-        alpha = params[0]
-        Eout = l.trolls.select_edges(self.Gout, self.E, alpha, 'uniform', True)
-        Ein = l.trolls.select_edges(self.Gin, self.E, alpha, 'uniform', True)
-        directed_edges = deepcopy(Ein)
-        directed_edges.update(Eout)
-        self.Esign = directed_edges
-        return directed_edges
+    def select_train_set(self, **params):
+        if 'batch' in params:
+            alpha = params['batch']*self.order/len(self.E)
+            self.Esign = l.trolls.select_edges(None, self.E, alpha, 'random')
+            return self.Esign
+        else:
+            alpha = params.get('alpha', 0)
+            sf = params.get('sampling')
+            Eout = l.trolls.select_edges(self.Gout, self.E, alpha, 'uniform', True, sf)
+            Ein = l.trolls.select_edges(self.Gin, self.E, alpha, 'uniform', True, sf)
+            directed_edges = deepcopy(Ein)
+            directed_edges.update(Eout)
+            self.Esign = directed_edges
+            return directed_edges
 
     def compute_global_features(self):
         self.din_plus, self.dout_plus = l.defaultdict(int), l.defaultdict(int)

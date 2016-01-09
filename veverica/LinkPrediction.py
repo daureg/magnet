@@ -2,6 +2,7 @@
 """."""
 from enum import Enum
 from timeit import default_timer as clock
+import numpy as np
 DATASETS = Enum('Dataset', 'Wikipedia Slashdot Epinion')
 FILENAMES = {DATASETS.Wikipedia: 'soc-wiki.txt',
              DATASETS.Slashdot: 'soc-sign-epinions.txt',
@@ -42,13 +43,16 @@ class LinkPrediction(object):
 
     def compute_features(self):
         self.compute_global_features()
+        self.edge_order = {e: i for i, e in enumerate(sorted(self.E))}
         knows_indices, pred_indices = [], []
         features, signs = [], []
-        for i, ((u, v), sign) in enumerate(self.E.items()):
+        for i, ((u, v), sign) in enumerate(sorted(self.E.items(),
+                                                  key=lambda x: x[0])):
             feature = self.compute_one_edge_feature((u, v))
             features.append(feature)
             signs.append(int(sign))
             (knows_indices if (u, v) in self.Esign else pred_indices).append(i)
+        self.features = np.array(features)
         return features, signs, knows_indices, pred_indices
 
     def get_adjacency_matrix(self):
@@ -73,7 +77,7 @@ class LinkPrediction(object):
 
     def test_and_evaluate(self, pred_function, pred_data, gold):
         from timeit import default_timer as clock
-        frac = gold.size/len(self.E)
+        frac = 1-gold.size/len(self.E)
         s = clock()
         pred = pred_function(pred_data)
         self.time_used += clock() - s

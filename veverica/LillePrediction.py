@@ -43,13 +43,32 @@ class LillePrediction(lp.LinkPrediction):
     def compute_global_features(self):
         self.din_plus, self.dout_plus = l.defaultdict(int), l.defaultdict(int)
         self.din_minus, self.dout_minus = l.defaultdict(int), l.defaultdict(int)
-        for (u, v), sign in self.Esign.items():
+        self.compute_in_out_degree(self.Esign)
+
+    def compute_in_out_degree(self, edges):
+        for (u, v), sign in edges.items():
             if sign is True:
                 self.din_plus[v] += 1
                 self.dout_plus[u] += 1
             else:
                 self.din_minus[v] += 1
                 self.dout_minus[u] += 1
+
+    def online_mode(self, edges):
+        # partial update of global feature and all edges including u and v
+        self.compute_in_out_degree(edges)
+        to_update = set(edges)
+        more_update = set()
+        if self.with_triads:
+            for u, v in to_update:
+                for w in self.common_nei[(u, v)]:
+                    assert (u, w) or (w, u) in self.E
+                    assert (v, w) or (w, v) in self.E
+                    more_update.add((u, w) if (u, w) in self.E else (w, u))
+                    more_update.add((v, w) if (v, w) in self.E else (w, v))
+        to_update.update(more_update)
+        for edge in to_update:
+            self.features[self.edge_order[edge], :] = self.compute_one_edge_feature(edge)
 
         
     def compute_one_edge_feature(self, edge):
@@ -131,10 +150,10 @@ if __name__ == '__main__':
               {'sampling': lambda d: int(ceil(log(d)))},
               {'sampling': lambda d: 1 if d==1 else max(1, int(ceil(log(log(d)))))},
               ]
-    batch = [#{'batch': 2},
-             # {'batch': 4},
+    batch = [{'batch': 2},
+             {'batch': 4},
              {'batch': 8},
-             # {'batch': int(log(graph.order))},
+             {'batch': int(log(graph.order))},
              # {'batch': int(sqrt(graph.order))},
             ]
     lambdas = l.lambdas[pref]

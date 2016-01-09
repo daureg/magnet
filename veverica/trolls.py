@@ -33,7 +33,7 @@ def select_edges(G, E, alpha, strategy, directed=False, sampling=None):
         sampling = lambda d: int(alpha*d)
     for u, adj in G.items():
         num_to_sample = max(min(len(adj), 1), sampling(len(adj)))
-        nei = random.sample(list(adj), num_to_sample)
+        nei = random.sample(list(adj), min(len(adj), num_to_sample))
         if directed:
             edges = {(u, v) if (u, v) in E else (v, u) for v in nei}
         else:

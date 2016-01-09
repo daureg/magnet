@@ -1,6 +1,7 @@
 # vim: set fileencoding=utf-8
 """."""
 from enum import Enum
+from timeit import default_timer as clock
 DATASETS = Enum('Dataset', 'Wikipedia Slashdot Epinion')
 FILENAMES = {DATASETS.Wikipedia: 'soc-wiki.txt',
              DATASETS.Slashdot: 'soc-sign-epinions.txt',
@@ -21,6 +22,7 @@ class LinkPrediction(object):
     def __init__(self, use_triads=False):
         self.G, self.E = {}, {}
         self.with_triads = use_triads
+        self.time_used = 0
         
     def load_data(self, dataset, balanced=False):
         """Load one of the 3 dataset to fill G and E"""
@@ -61,21 +63,24 @@ class LinkPrediction(object):
         return A
 
     def train(self, model, *args):
+        self.time_used = 0
         if hasattr(model, 'fit'):
-            model.fit(args)
+            s = clock()
+            model.fit(*args)
+            self.time_used += clock() - s
             return model.predict
         return model
 
     def test_and_evaluate(self, pred_function, pred_data, gold):
         from timeit import default_timer as clock
-        frac = 1.0 - len(pred_data)/len(E)
+        frac = gold.size/len(self.E)
         s = clock()
         pred = pred_function(pred_data)
-        end = clock()
+        self.time_used += clock() - s
         C = confusion_matrix(gold, pred)
         fp, tn = C[0, 1], C[0, 0]
         return [accuracy_score(gold, pred), f1_score(gold, pred),
-                matthews_corrcoef(gold, pred), fp/(fp+tn), end-s, frac]
+                matthews_corrcoef(gold, pred), fp/(fp+tn), self.time_used, frac]
 
     # def online_mode(self, edge):
     #     # partial update of global feature and all edges including u and v

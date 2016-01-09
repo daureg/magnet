@@ -27,7 +27,7 @@ class LillePrediction(lp.LinkPrediction):
 
     def select_train_set(self, **params):
         if 'batch' in params:
-            alpha = params['batch']*self.order/len(self.E)
+            alpha = min(params['batch']*self.order/len(self.E), 1.0)
             self.Esign = l.trolls.select_edges(None, self.E, alpha, 'random')
             return self.Esign
         else:
@@ -73,7 +73,181 @@ class LillePrediction(lp.LinkPrediction):
                     triads[t] += 1
         return degrees+triads
 
+def tree_prediction(features, cst, troll_first=True):
+    if troll_first:
+        return features[:, 1] < (cst[2] + (features[:, 0]<cst[0])*(cst[1]-cst[2]))
+    return features[:, 0] < (cst[2] + (features[:, 1]<cst[0])*(cst[1]-cst[2]))
+
 if __name__ == '__main__':
     # pylint: disable=C0103
+    from math import log, sqrt, ceil
+    import numpy as np
+    import time
+    import persistent as p
+    import socket
+    import argparse
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.tree import DecisionTreeClassifier
+    part = int(socket.gethostname()[-1])-1
+    num_threads = 16
+
+    data = {'WIK': lp.DATASETS.Wikipedia,
+            'EPI': lp.DATASETS.Epinion,
+            'SLA': lp.DATASETS.Slashdot}
+    parser = argparse.ArgumentParser()
+    parser.add_argument("data", help="Which data to use",
+                        choices=data.keys(), default='WIK')
+    parser.add_argument("-b", "--balanced", action='store_true',
+                        help="Should there be 50/50 +/- edges")
+    parser.add_argument("-a", "--active", action='store_true',
+                        help="Use active sampling strategy")
+    parser.add_argument("-n", "--nrep", help="number of repetition", type=int,
+                        default=3)
+    args = parser.parse_args()
+    pref = args.data
+    num_rep = args.nrep
+
     graph = LillePrediction(use_triads=True)
-    graph.load_data(lp.DATASETS.Wikipedia)
+    graph.load_data(data[pref], args.balanced)
+    olr = LogisticRegression(C=5.455, solver='lbfgs', n_jobs=num_threads,
+                             warm_start=True)
+    llr = LogisticRegression(C=1e-3, solver='lbfgs', n_jobs=num_threads,
+                             warm_start=True)
+    dt = DecisionTreeClassifier(criterion='gini', max_features=None,
+                                max_depth=2, class_weight={0: 1.4, 1: 1})
+    sdt = DecisionTreeClassifier(criterion='gini', max_features=None,
+                                 max_depth=1, class_weight={0: 1.4, 1: 1})
+    if args.balanced:
+        pref += '_bal'
+
+    start = (int(time.time()-(2015-1970)*365.25*24*60*60))//60
+    feats = list(range(7)) + list(range(17, 33))
+    fres = [[] for _ in range(19)]
+    active = [{'sampling': lambda d: 1},
+              {'sampling': lambda d: 3},
+              {'sampling': lambda d: int(.1*d)},
+              {'sampling': lambda d: int(.3*d)},
+              {'sampling': lambda d: int(.6*d)},
+              {'sampling': lambda d: int(ceil(log(d)))},
+              {'sampling': lambda d: 1 if d==1 else max(1, int(ceil(log(log(d)))))},
+              ]
+    batch = [#{'batch': 2},
+             # {'batch': 4},
+             {'batch': 8},
+             # {'batch': int(log(graph.order))},
+             # {'batch': int(sqrt(graph.order))},
+            ]
+    lambdas = l.lambdas[pref]
+    for params in active if args.active else batch:
+        full_troll_fixed, left_troll_fixed, right_troll_fixed, simple_troll_fixed = [], [], [], []
+        full_pleas_fixed, left_pleas_fixed, right_pleas_fixed, simple_pleas_fixed = [], [], [], []
+        full_troll_tuned, left_troll_tuned, right_troll_tuned, simple_troll_tuned = [], [], [], []
+        full_learned, troll_learned, pleas_learned = [], [], []
+        lesko, logreg = [], []
+        allones, randompred = [], []
+        for _ in range(num_rep):
+            graph.select_train_set(**params)
+            Xl, yl, train_set, test_set = graph.compute_features()
+            Xa, ya = np.array(Xl), np.array(yl)
+            train_feat = np.ix_(train_set, feats)
+            test_feat = np.ix_(test_set, feats)
+            gold = ya[test_set]
+
+            cst = [.5, .5, .5]
+            pred_function = graph.train(lambda features: tree_prediction(features, cst, True))
+            res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold)
+            full_troll_fixed.append(res)
+            cst = [.5, .5, .0]
+            pred_function = graph.train(lambda features: tree_prediction(features, cst, True))
+            res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold)
+            left_troll_fixed.append(res)
+            cst = [.5, 1, .5]
+            pred_function = graph.train(lambda features: tree_prediction(features, cst, True))
+            res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold)
+            right_troll_fixed.append(res)
+            cst = [.5, 1, .0]
+            pred_function = graph.train(lambda features: tree_prediction(features, cst, True))
+            res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold)
+            simple_troll_fixed.append(res)
+
+            cst = lambdas.copy()
+            pred_function = graph.train(lambda features: tree_prediction(features, cst, True))
+            res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold)
+            full_troll_tuned.append(res)
+            cst = lambdas.copy(); cst[2] = 0
+            pred_function = graph.train(lambda features: tree_prediction(features, cst, True))
+            res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold)
+            left_troll_tuned.append(res)
+            cst = lambdas.copy(); cst[1] = 1
+            pred_function = graph.train(lambda features: tree_prediction(features, cst, True))
+            res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold)
+            right_troll_tuned.append(res)
+            cst = lambdas.copy(); cst[1] = 1; cst[2] = 0
+            pred_function = graph.train(lambda features: tree_prediction(features, cst, True))
+            res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold)
+            simple_troll_tuned.append(res)
+
+            cst = [.5, .5, .5]
+            pred_function = graph.train(lambda features: tree_prediction(features, cst, False))
+            res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold)
+            full_pleas_fixed.append(res)
+            cst = [.5, .5, .0]
+            pred_function = graph.train(lambda features: tree_prediction(features, cst, False))
+            res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold)
+            left_pleas_fixed.append(res)
+            cst = [.5, 1, .5]
+            pred_function = graph.train(lambda features: tree_prediction(features, cst, False))
+            res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold)
+            right_pleas_fixed.append(res)
+            cst = [.5, 1, .0]
+            pred_function = graph.train(lambda features: tree_prediction(features, cst, False))
+            res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold)
+            simple_pleas_fixed.append(res)
+
+            pred_function = graph.train(dt, Xa[train_set, 15:17], ya[train_set])
+            res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold)
+            full_learned.append(res)
+            pred_function = graph.train(sdt, Xa[train_set, 15:16], ya[train_set])
+            res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:16], gold)
+            troll_learned.append(res)
+            pred_function = graph.train(sdt, Xa[train_set, 16:17], ya[train_set])
+            res = graph.test_and_evaluate(pred_function, Xa[test_set, 16:17], gold)
+            pleas_learned.append(res)
+
+            pred_function = graph.train(llr, Xa[train_feat], ya[train_set])
+            res = graph.test_and_evaluate(pred_function, Xa[test_feat], gold)
+            lesko.append(res)
+            pred_function = graph.train(olr, Xa[train_set, 15:17], ya[train_set])
+            res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold)
+            logreg.append(res)
+
+            pred_function = graph.train(lambda features: [0]+[1,]*(features.shape[0]-1))
+            res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold)
+            allones.append(res)
+
+            pred_function = graph.train(lambda features: np.random.rand(features.shape[0])>.5)
+            res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold)
+            randompred.append(res)
+        fres[0].append(full_troll_fixed)
+        fres[1].append(left_troll_fixed)
+        fres[2].append(right_troll_fixed)
+        fres[3].append(simple_troll_fixed)
+        fres[4].append(full_pleas_fixed)
+        fres[5].append(left_pleas_fixed)
+        fres[6].append(right_pleas_fixed)
+        fres[7].append(simple_pleas_fixed)
+        fres[8].append(full_troll_tuned)
+        fres[9].append(left_troll_tuned)
+        fres[10].append(right_troll_tuned)
+        fres[11].append(simple_troll_tuned)
+        fres[12].append(full_learned)
+        fres[13].append(troll_learned)
+        fres[14].append(pleas_learned)
+        fres[15].append(lesko)
+        fres[16].append(logreg)
+        fres[17].append(allones)
+        fres[18].append(randompred)
+
+    if args.active:
+        pref += '_active'
+    p.save_var('{}_{}_{}.my'.format(pref, start, part+1), (None, fres))

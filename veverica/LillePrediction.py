@@ -66,7 +66,9 @@ class LillePrediction(lp.LinkPrediction):
                     assert (v, w) or (w, v) in self.E
                     more_update.add((u, w) if (u, w) in self.E else (w, u))
                     more_update.add((v, w) if (v, w) in self.E else (w, v))
+        print('{} new edges'.format(len(edges)))
         to_update.update(more_update)
+        print('{} to update in total'.format(len(to_update)))
         for edge in to_update:
             self.features[self.edge_order[edge], :] = self.compute_one_edge_feature(edge)
 
@@ -150,10 +152,12 @@ if __name__ == '__main__':
               {'sampling': lambda d: int(ceil(log(d)))},
               {'sampling': lambda d: 1 if d==1 else max(1, int(ceil(log(log(d)))))},
               ]
+    n, m = graph.order, len(graph.E)
+    logc = 1 if n*log(n) < m else 0.4
     batch = [{'batch': 2},
              {'batch': 4},
              {'batch': 8},
-             {'batch': int(log(graph.order))},
+             {'batch': int(logc*log(graph.order))},
              # {'batch': int(sqrt(graph.order))},
             ]
     lambdas = l.lambdas[pref]

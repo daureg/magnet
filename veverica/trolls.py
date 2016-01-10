@@ -26,9 +26,19 @@ def balance_signs(G, E, seed=1489):
 def select_edges(G, E, alpha, strategy, directed=False, sampling=None):
     """if provided, sampling is a function which take the degree of the node
     and return an integer: number of edge to query"""
-    if strategy == 'random':
-        return dict(random.sample(list(E.items()), int(alpha*len(E))))
     res = {}
+    def prune_training_set():
+        num_unseen = len(E) - len(res)
+        if num_unseen < 1000:
+            to_delete = set()
+            for e, i in zip(res, range(1000-num_unseen)):
+                to_delete.add(e)
+            for e in to_delete:
+                del res[e]
+    if strategy == 'random':
+        res = dict(random.sample(list(E.items()), int(alpha*len(E))))
+        prune_training_set()
+        return res
     if sampling is None:
         sampling = lambda d: int(alpha*d)
     for u, adj in G.items():
@@ -39,6 +49,7 @@ def select_edges(G, E, alpha, strategy, directed=False, sampling=None):
         else:
             edges = {(u, v) if u < v else (v, u) for v in nei}
         res.update({e: E[e] for e in edges})
+    prune_training_set()
     return res
 
 

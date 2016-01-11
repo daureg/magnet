@@ -2,8 +2,13 @@
 # vim: set fileencoding=utf-8
 """."""
 import LinkPrediction as lp
+from sklearn.linear_model import LogisticRegression, LogisticRegressionCV
+from sklearn.tree import DecisionTreeClassifier
 import leskovec as l
 from copy import deepcopy
+import random
+import numpy as np
+import persistent as p
 
 class LillePrediction(lp.LinkPrediction):
     """My implementation of LinkPrediction"""
@@ -66,9 +71,7 @@ class LillePrediction(lp.LinkPrediction):
                     assert (v, w) or (w, v) in self.E
                     more_update.add((u, w) if (u, w) in self.E else (w, u))
                     more_update.add((v, w) if (v, w) in self.E else (w, v))
-        print('{} new edges'.format(len(edges)))
         to_update.update(more_update)
-        print('{} to update in total'.format(len(to_update)))
         for edge in to_update:
             self.features[self.edge_order[edge], :] = self.compute_one_edge_feature(edge)
 
@@ -99,16 +102,116 @@ def tree_prediction(features, cst, troll_first=True):
         return features[:, 1] < (cst[2] + (features[:, 0]<cst[0])*(cst[1]-cst[2]))
     return features[:, 0] < (cst[2] + (features[:, 1]<cst[0])*(cst[1]-cst[2]))
 
+
+def online_exp(graph, pref, start, part, batch_size=500):
+    num_threads = 16
+    graph.Esign = dict(random.sample(list(graph.E.items()), 400))
+    Xl, yl, train_set, test_set = graph.compute_features()
+    Xa, ya = np.array(Xl), np.array(yl)
+    seen = len(graph.Esign)
+    lambdas = l.lambdas[pref]
+    fres = [[] for _ in range(19)]
+    olr = LogisticRegression(C=5.455, solver='lbfgs', n_jobs=num_threads,
+                             warm_start=True)
+    # llr = LogisticRegressionCV(Cs=8, cv=4, solver='lbfgs', n_jobs=num_threads,
+    llr = LogisticRegression(C=0.02, solver='lbfgs', n_jobs=num_threads,
+                             warm_start=True)
+    dt = DecisionTreeClassifier(criterion='gini', max_features=None,
+                                max_depth=2, class_weight={0: 1.4, 1: 1})
+    tdt = DecisionTreeClassifier(criterion='gini', max_features=None,
+                                 max_depth=1, class_weight={0: 1.4, 1: 1})
+    pdt = DecisionTreeClassifier(criterion='gini', max_features=None,
+                                 max_depth=1, class_weight={0: 1.4, 1: 1})
+    olr.fit(Xa[train_set, 15:17], ya[train_set])
+    dt.fit(Xa[train_set, 15:17], ya[train_set])
+    tdt.fit(Xa[train_set, 15:16], ya[train_set])
+    pdt.fit(Xa[train_set, 16:17], ya[train_set])
+    feats = list(range(7)) + list(range(17, 33))
+    train_feat = np.ix_(train_set, feats)
+    llr.fit(Xa[train_feat], ya[train_set])
+    idx2edge = {i: e for e, i in graph.edge_order.items()}
+    while seen < .8*len(graph.E) - batch_size:
+        indices = random.sample(test_set, batch_size)
+        new_edges = indices
+        gold = ya[indices]
+
+        cst = [.5, .5, .5]
+        pred = tree_prediction(Xa[new_edges, 15:17], cst, True)
+        fres[0].append((pred != gold).sum())
+        cst = [.5, .5, .0]
+        pred = tree_prediction(Xa[new_edges, 15:17], cst, True)
+        fres[1].append((pred != gold).sum())
+        cst = [.5, 1, .5]
+        pred = tree_prediction(Xa[new_edges, 15:17], cst, True)
+        fres[2].append((pred != gold).sum())
+        cst = [.5, 1, .0]
+        pred = tree_prediction(Xa[new_edges, 15:17], cst, True)
+        fres[3].append((pred != gold).sum())
+
+        cst = lambdas.copy()
+        pred = tree_prediction(Xa[new_edges, 15:17], cst, True)
+        fres[4].append((pred != gold).sum())
+        cst = lambdas.copy(); cst[2] = 0
+        pred = tree_prediction(Xa[new_edges, 15:17], cst, True)
+        fres[5].append((pred != gold).sum())
+        cst = lambdas.copy(); cst[1] = 1
+        pred = tree_prediction(Xa[new_edges, 15:17], cst, True)
+        fres[6].append((pred != gold).sum())
+        cst = lambdas.copy(); cst[1] = 1; cst[2] = 0
+        pred = tree_prediction(Xa[new_edges, 15:17], cst, True)
+        fres[7].append((pred != gold).sum())
+
+        cst = [.5, .5, .5]
+        pred = tree_prediction(Xa[new_edges, 15:17], cst, False)
+        fres[8].append((pred != gold).sum())
+        cst = [.5, .5, .0]
+        pred = tree_prediction(Xa[new_edges, 15:17], cst, False)
+        fres[9].append((pred != gold).sum())
+        cst = [.5, 1, .5]
+        pred = tree_prediction(Xa[new_edges, 15:17], cst, False)
+        fres[10].append((pred != gold).sum())
+        cst = [.5, 1, .0]
+        pred = tree_prediction(Xa[new_edges, 15:17], cst, False)
+        fres[11].append((pred != gold).sum())
+
+        pred = dt.predict(Xa[new_edges, 15:17])
+        fres[12].append((pred != gold).sum())
+        pred = tdt.predict(Xa[new_edges, 15:16])
+        fres[13].append((pred != gold).sum())
+        pred = pdt.predict(Xa[new_edges, 16:17])
+        fres[14].append((pred != gold).sum())
+
+        test_feat = np.ix_(sorted(indices), feats)
+        pred = llr.predict(Xa[test_feat])
+        fres[15].append((pred != gold).sum())
+        pred = olr.predict(Xa[new_edges, 15:17])
+        fres[16].append((pred != gold).sum())
+
+        fres[17].append((np.ones(batch_size)!=gold).sum())
+        fres[18].append(((np.random.rand(batch_size)>.5)!=gold).sum())
+
+        new_edges = {idx2edge[i]: graph.E[idx2edge[i]] for i in indices}
+        graph.online_mode(new_edges)
+        Xa = graph.features
+        print(seen// batch_size)
+        train_set = sorted(train_set + indices)
+        indices = set(indices)
+        test_set = [i for i in test_set if i not in indices]
+        olr.fit(Xa[train_set, 15:17], ya[train_set])
+        dt.fit(Xa[train_set, 15:17], ya[train_set])
+        tdt.fit(Xa[train_set, 15:16], ya[train_set])
+        pdt.fit(Xa[train_set, 16:17], ya[train_set])
+        train_feat = np.ix_(train_set, feats)
+        llr.fit(Xa[train_feat], ya[train_set])
+        seen += len(new_edges)
+    return fres
+
 if __name__ == '__main__':
     # pylint: disable=C0103
     from math import log, sqrt, ceil
-    import numpy as np
     import time
-    import persistent as p
     import socket
     import argparse
-    from sklearn.linear_model import LogisticRegression
-    from sklearn.tree import DecisionTreeClassifier
     part = int(socket.gethostname()[-1])-1
     num_threads = 16
 
@@ -122,6 +225,8 @@ if __name__ == '__main__':
                         help="Should there be 50/50 +/- edges")
     parser.add_argument("-a", "--active", action='store_true',
                         help="Use active sampling strategy")
+    parser.add_argument("-o", "--online", type=int,
+                        help="set the batch size of online mode")
     parser.add_argument("-n", "--nrep", help="number of repetition", type=int,
                         default=3)
     args = parser.parse_args()
@@ -152,6 +257,12 @@ if __name__ == '__main__':
               {'sampling': lambda d: int(ceil(log(d)))},
               {'sampling': lambda d: 1 if d==1 else max(1, int(ceil(log(log(d)))))},
               ]
+    active = [{'sampling': lambda d: int(.1*d)},
+              {'sampling': lambda d: int(.22*d)},
+              {'sampling': lambda d: int(.34*d)},
+              {'sampling': lambda d: int(.46*d)},
+              {'sampling': lambda d: int(.58*d)},
+              {'sampling': lambda d: int(.70*d)}]
     n, m = graph.order, len(graph.E)
     logc = 1 if n*log(n) < m else 0.4
     batch = [{'batch': 2},
@@ -161,6 +272,12 @@ if __name__ == '__main__':
              # {'batch': int(sqrt(graph.order))},
             ]
     lambdas = l.lambdas[pref]
+    if args.online:
+        fres = [online_exp(graph, pref, start, part, args.online)
+                for _ in range(num_rep)]
+        p.save_var('{}_online_{}_{}.my'.format(pref, start, part+1), np.array(fres))
+        import sys
+        sys.exit()
     for params in active if args.active else batch:
         full_troll_fixed, left_troll_fixed, right_troll_fixed, simple_troll_fixed = [], [], [], []
         full_pleas_fixed, left_pleas_fixed, right_pleas_fixed, simple_pleas_fixed = [], [], [], []

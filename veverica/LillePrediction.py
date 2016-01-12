@@ -132,7 +132,7 @@ def online_exp(graph, pref, start, part, batch_size=500):
     idx2edge = {i: e for e, i in graph.edge_order.items()}
     while seen < .8*len(graph.E) - batch_size:
         indices = random.sample(test_set, batch_size)
-        new_edges = indices
+        new_edges = sorted(indices)
         gold = ya[indices]
 
         cst = [.5, .5, .5]
@@ -181,7 +181,7 @@ def online_exp(graph, pref, start, part, batch_size=500):
         pred = pdt.predict(Xa[new_edges, 16:17])
         fres[14].append((pred != gold).sum())
 
-        test_feat = np.ix_(sorted(indices), feats)
+        test_feat = np.ix_(new_edges, feats)
         pred = llr.predict(Xa[test_feat])
         fres[15].append((pred != gold).sum())
         pred = olr.predict(Xa[new_edges, 15:17])
@@ -257,7 +257,8 @@ if __name__ == '__main__':
               {'sampling': lambda d: int(ceil(log(d)))},
               {'sampling': lambda d: 1 if d==1 else max(1, int(ceil(log(log(d)))))},
               ]
-    active = [{'sampling': lambda d: int(.1*d)},
+    active = [{'sampling': lambda d: int(.05*d)},
+              {'sampling': lambda d: int(.1*d)},
               {'sampling': lambda d: int(.22*d)},
               {'sampling': lambda d: int(.34*d)},
               {'sampling': lambda d: int(.46*d)},

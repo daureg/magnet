@@ -5,8 +5,8 @@ from timeit import default_timer as clock
 import numpy as np
 DATASETS = Enum('Dataset', 'Wikipedia Slashdot Epinion')
 FILENAMES = {DATASETS.Wikipedia: 'soc-wiki.txt',
-             DATASETS.Slashdot: 'soc-sign-epinions.txt',
-             DATASETS.Epinion: 'soc-sign-Slashdot090221.txt'}
+             DATASETS.Slashdot: 'soc-sign-Slashdot090221.txt',
+             DATASETS.Epinion: 'soc-sign-epinions.txt'}
 from sklearn.metrics import accuracy_score, f1_score, matthews_corrcoef
 from sklearn.metrics import confusion_matrix
 

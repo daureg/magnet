@@ -16,6 +16,16 @@ class LillePrediction(lp.LinkPrediction):
     def load_data(self, dataset, balanced=False):
         l.rw.read_original_graph(lp.FILENAMES[dataset], directed=True,
                                  balanced=balanced)
+        # conflicting = set()
+        # for (u, v), s in l.rw.EDGE_SIGN.items():
+        #     opposite_sign = l.rw.EDGE_SIGN.get((v, u))
+        #     if opposite_sign is not None and s != opposite_sign:
+        #         conflicting.add(tuple(sorted([u, v])))
+        # msg = 'Number of conflicting edges in {}: {}'
+        # print(msg.format(dataset, 2*len(conflicting)))
+        # for u, v in conflicting:
+        #     l.rw.remove_signed_edge(u, v, directed=True)
+        #     l.rw.remove_signed_edge(v, u, directed=True)
         Gfull, E = l.rw.G, l.rw.EDGE_SIGN
         self.order = len(Gfull)
         self.dout, self.din = l.defaultdict(int), l.defaultdict(int)

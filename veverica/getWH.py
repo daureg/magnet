@@ -8,7 +8,7 @@ http://jmlr.org/papers/v15/chiang14a.html."""
 import numpy as np
 from math import exp
 
-def getWH(A, rank_of_A=7, eta0=0.8, lmbda=3e-3):
+def getWH(A, rank_of_A=7, eta0=0.9, lmbda=1e-2):
     n = A.shape[0]
     edges = np.argwhere(A)
     E = edges.shape[0]
@@ -22,7 +22,8 @@ def getWH(A, rank_of_A=7, eta0=0.8, lmbda=3e-3):
         whij = W[i,:].dot(H[j,:].T)
         chosen_loss=1/(1+exp(aval*whij))        
         save_wi = W[i, :]
-        eta = eta0 / (1 + 1e-6*eta0*(t))
+        # eta = eta0 / (1 + (t//E)/(MAX_ITER//E))
+        eta = eta0
         step = eta*aval*chosen_loss*(1-chosen_loss)
         W[i,:] = (1-lmbda*eta)*W[i, :] + step*H[j,:]
         H[j,:] = (1-lmbda*eta)*H[j, :] + step*save_wi

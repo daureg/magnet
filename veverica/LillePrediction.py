@@ -56,6 +56,10 @@ class LillePrediction(lp.LinkPrediction):
             return directed_edges
 
     def compute_global_features(self):
+        self.edge_order = {e: i for i, e in enumerate(sorted(self.E))}
+        self.reciprocal = {ei: self.edge_order[(e[1], e[0])]
+                           for e, ei in self.edge_order.items()
+                           if (e[1], e[0]) in self.E}
         self.din_plus, self.dout_plus = l.defaultdict(int), l.defaultdict(int)
         self.din_minus, self.dout_minus = l.defaultdict(int), l.defaultdict(int)
         self.compute_in_out_degree(self.Esign)

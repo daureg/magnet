@@ -43,7 +43,6 @@ class LinkPrediction(object):
 
     def compute_features(self):
         self.compute_global_features()
-        self.edge_order = {e: i for i, e in enumerate(sorted(self.E))}
         knows_indices, pred_indices = [], []
         features, signs = [], []
         for i, ((u, v), sign) in enumerate(sorted(self.E.items(),

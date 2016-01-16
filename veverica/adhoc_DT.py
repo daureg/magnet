@@ -21,13 +21,13 @@ class AdhocDecisionTree(object):
         gap = .4
         trange = np.linspace(max(0, self.centers[0]-gap), 
                              min(1, self.centers[0]+gap), steps)
-        tt, l, r = find_split(features, labels, np.arange(n), self.order[0], trange, w)
+        tt, l, r = find_split(features[:, self.order[0]], labels, np.arange(n), trange, w)
         trange = np.linspace(max(0, self.centers[1]-gap), 
                              min(1, self.centers[1]+gap), steps)
-        tl, ll, lr = find_split(features, labels, l, self.order[1], trange, w)
+        tl, ll, lr = find_split(features[:, self.order[1]], labels, l, trange, w)
         trange = np.linspace(max(0, self.centers[2]-gap), 
                              min(1, self.centers[2]+gap), steps)
-        tr, rl, rr = find_split(features, labels, r, self.order[1], trange, w)
+        tr, rl, rr = find_split(features[:, self.order[1]], labels, r, trange, w)
         self.threshold = [tt, tl, tr]
         self.decision = [leaf_repartition(n, np.argwhere(sub).ravel(), labels[first], w)[0]
                          for sub, first in zip([ll, lr, rl, rr], [l, l, r, r])]
@@ -47,10 +47,10 @@ class AdhocDecisionTree(object):
         return pred
 
 
-def find_split(Xa, ya, samples, sfeat, trange, w):
+def find_split(Xa, ya, samples, trange, w):
     res = []
     for t in trange:
-        left, right=Xa[samples, sfeat]<=t, Xa[samples, sfeat]>t
+        left, right=Xa[samples]<=t, Xa[samples]>t
         sl = left.copy().astype(float)
         sl[np.logical_and(ya[samples]<.5, left)] *= w
         sr = right.copy().astype(float)
@@ -59,8 +59,8 @@ def find_split(Xa, ya, samples, sfeat, trange, w):
         gr = sr.sum()*compute_gini(ya[samples][right], ya[samples][right]>.5, w)
         res.append(gl+gr)
     threshold = trange[np.argmin(res)]
-    left = Xa[samples, sfeat]<=threshold
-    right = Xa[samples, sfeat]>threshold
+    left = Xa[samples]<=threshold
+    right = Xa[samples]>threshold
     return threshold, left, right
 
 

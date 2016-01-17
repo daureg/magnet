@@ -2,6 +2,7 @@
 # vim: set fileencoding=utf-8
 """Learn a depth 2, two features decision tree by brute force."""
 import numpy as np
+from multiprocessing import Pool
 
 CENTERS = {(1, 0): {False: [.28, .45, .14],
                     True: [.38, .58, .02]},
@@ -9,25 +10,27 @@ CENTERS = {(1, 0): {False: [.28, .45, .14],
                     True: [.29, .09, .67]}}
 
 class AdhocDecisionTree(object):
-    def __init__(self, negative_weight=1.4, troll_first=True, is_epinion=False):
+    def __init__(self, negative_weight=1.4, troll_first=True, is_epinion=False,
+                 num_threads=16):
         self.order = (0, 1) if troll_first else (1, 0)
         self.centers = CENTERS[self.order][is_epinion]
         self.neg_weight = negative_weight
+        self.pool = Pool(num_threads)
 
     def fit(self, features, labels):
         n = features.shape[0]
         w = self.neg_weight
-        steps = 40
+        steps = 16*8
         gap = .4
         trange = np.linspace(max(0, self.centers[0]-gap), 
                              min(1, self.centers[0]+gap), steps)
-        tt, l, r = find_split(features[:, self.order[0]], labels, np.arange(n), trange, w)
+        tt, l, r = find_split(self.pool, features[:, self.order[0]], labels, np.arange(n), trange, w)
         trange = np.linspace(max(0, self.centers[1]-gap), 
                              min(1, self.centers[1]+gap), steps)
-        tl, ll, lr = find_split(features[:, self.order[1]], labels, l, trange, w)
+        tl, ll, lr = find_split(self.pool, features[:, self.order[1]], labels, l, trange, w)
         trange = np.linspace(max(0, self.centers[2]-gap), 
                              min(1, self.centers[2]+gap), steps)
-        tr, rl, rr = find_split(features[:, self.order[1]], labels, r, trange, w)
+        tr, rl, rr = find_split(self.pool, features[:, self.order[1]], labels, r, trange, w)
         self.threshold = [tt, tl, tr]
         self.decision = [leaf_repartition(n, np.argwhere(sub).ravel(), labels[first], w)[0]
                          for sub, first in zip([ll, lr, rl, rr], [l, l, r, r])]
@@ -47,17 +50,30 @@ class AdhocDecisionTree(object):
         return pred
 
 
-def find_split(Xa, ya, samples, trange, w):
-    res = []
-    for t in trange:
-        left, right=Xa[samples]<=t, Xa[samples]>t
-        sl = left.copy().astype(float)
-        sl[np.logical_and(ya[samples]<.5, left)] *= w
-        sr = right.copy().astype(float)
-        sr[np.logical_and(ya[samples]<.5, right)] *= w
-        gl = sl.sum()*compute_gini(ya[samples][left], ya[samples][left]>.5, w)
-        gr = sr.sum()*compute_gini(ya[samples][right], ya[samples][right]>.5, w)
-        res.append(gl+gr)
+def inner_split(Xa, ya, samples, w, t):
+    left, right=Xa[samples]<=t, Xa[samples]>t
+    sl = left.copy().astype(float)
+    sl[np.logical_and(ya[samples]<.5, left)] *= w
+    sr = right.copy().astype(float)
+    sr[np.logical_and(ya[samples]<.5, right)] *= w
+    gl = sl.sum()*compute_gini(ya[samples][left], ya[samples][left]>.5, w)
+    gr = sr.sum()*compute_gini(ya[samples][right], ya[samples][right]>.5, w)
+    return gl+gr
+from itertools import repeat
+def find_split(pool, Xa, ya, samples, trange, w):
+    n = len(trange)
+    res = pool.starmap(inner_split,
+                        zip(repeat(Xa, n), repeat(ya, n), repeat(samples, n),
+                            repeat(w, n), trange), 3)
+    # for t in trange:
+    #     left, right=Xa[samples]<=t, Xa[samples]>t
+    #     sl = left.copy().astype(float)
+    #     sl[np.logical_and(ya[samples]<.5, left)] *= w
+    #     sr = right.copy().astype(float)
+    #     sr[np.logical_and(ya[samples]<.5, right)] *= w
+    #     gl = sl.sum()*compute_gini(ya[samples][left], ya[samples][left]>.5, w)
+    #     gr = sr.sum()*compute_gini(ya[samples][right], ya[samples][right]>.5, w)
+    #     res.append(gl+gr)
     threshold = trange[np.argmin(res)]
     left = Xa[samples]<=threshold
     right = Xa[samples]>threshold

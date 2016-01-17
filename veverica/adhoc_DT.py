@@ -1,39 +1,35 @@
 #! /usr/bin/env python
 # vim: set fileencoding=utf-8
-"""Learn a depth 2, two features decision tree by brute force."""
+"""Learn a depth 2, two features decision tree by using a
+DecisionTreeClassifier for each leaf."""
 import numpy as np
-from multiprocessing import Pool
-
-CENTERS = {(1, 0): {False: [.28, .45, .14],
-                    True: [.38, .58, .02]},
-           (0, 1): {False: [.305, .505, .12],
-                    True: [.29, .09, .67]}}
+from sklearn.tree import DecisionTreeClassifier
 
 class AdhocDecisionTree(object):
-    def __init__(self, negative_weight=1.4, troll_first=True, is_epinion=False,
-                 num_threads=16):
+    def __init__(self, negative_weight=1.4, troll_first=True, is_epinion=False):
         self.order = (0, 1) if troll_first else (1, 0)
-        self.centers = CENTERS[self.order][is_epinion]
-        self.neg_weight = negative_weight
-        self.pool = Pool(num_threads)
+        cw = {0: negative_weight, 1: 1}
+        self.top =  DecisionTreeClassifier(criterion='gini', max_features=None,
+                                           max_depth=1, class_weight=cw)
+        self.left_tree =  DecisionTreeClassifier(criterion='gini', max_depth=1,
+                                                 max_features=None, class_weight=cw)
+        self.right_tree =  DecisionTreeClassifier(criterion='gini', max_depth=1,
+                                                  max_features=None, class_weight=cw)
 
     def fit(self, features, labels):
-        n = features.shape[0]
-        w = self.neg_weight
-        steps = 16*8
-        gap = .4
-        trange = np.linspace(max(0, self.centers[0]-gap), 
-                             min(1, self.centers[0]+gap), steps)
-        tt, l, r = find_split(self.pool, features[:, self.order[0]], labels, np.arange(n), trange, w)
-        trange = np.linspace(max(0, self.centers[1]-gap), 
-                             min(1, self.centers[1]+gap), steps)
-        tl, ll, lr = find_split(self.pool, features[:, self.order[1]], labels, l, trange, w)
-        trange = np.linspace(max(0, self.centers[2]-gap), 
-                             min(1, self.centers[2]+gap), steps)
-        tr, rl, rr = find_split(self.pool, features[:, self.order[1]], labels, r, trange, w)
+        self.top.fit(features[:, self.order[0]][:,np.newaxis], labels)
+        tt = self.top.tree_.threshold[0]
+        l, r = features[:, self.order[0]] <= tt, features[:, self.order[0]] > tt
+        self.left_tree.fit(features[l, self.order[1]][:,np.newaxis], labels[l])
+        tl = self.left_tree.tree_.threshold[0]
+        decisionl = [int(c[1] > c[0])
+                     for c in self.left_tree.tree_.value.reshape((3,2))[[1,2],:]]
+        self.right_tree.fit(features[r, self.order[1]][:,np.newaxis], labels[r])
+        tr = self.right_tree.tree_.threshold[0]
+        decisionr = [int(c[1] > c[0])
+                     for c in self.right_tree.tree_.value.reshape((3,2))[[1,2],:]]
         self.threshold = [tt, tl, tr]
-        self.decision = [leaf_repartition(n, np.argwhere(sub).ravel(), labels[first], w)[0]
-                         for sub, first in zip([ll, lr, rl, rr], [l, l, r, r])]
+        self.decision = decisionl + decisionr
 
     def predict(self, features):
         threshold = self.threshold
@@ -50,64 +46,18 @@ class AdhocDecisionTree(object):
         return pred
 
 
-def inner_split(Xa, ya, samples, w, t):
-    left, right=Xa[samples]<=t, Xa[samples]>t
-    sl = left.copy().astype(float)
-    sl[np.logical_and(ya[samples]<.5, left)] *= w
-    sr = right.copy().astype(float)
-    sr[np.logical_and(ya[samples]<.5, right)] *= w
-    gl = sl.sum()*compute_gini(ya[samples][left], ya[samples][left]>.5, w)
-    gr = sr.sum()*compute_gini(ya[samples][right], ya[samples][right]>.5, w)
-    return gl+gr
-from itertools import repeat
-def find_split(pool, Xa, ya, samples, trange, w):
-    n = len(trange)
-    res = pool.starmap(inner_split,
-                        zip(repeat(Xa, n), repeat(ya, n), repeat(samples, n),
-                            repeat(w, n), trange), 3)
-    # for t in trange:
-    #     left, right=Xa[samples]<=t, Xa[samples]>t
-    #     sl = left.copy().astype(float)
-    #     sl[np.logical_and(ya[samples]<.5, left)] *= w
-    #     sr = right.copy().astype(float)
-    #     sr[np.logical_and(ya[samples]<.5, right)] *= w
-    #     gl = sl.sum()*compute_gini(ya[samples][left], ya[samples][left]>.5, w)
-    #     gr = sr.sum()*compute_gini(ya[samples][right], ya[samples][right]>.5, w)
-    #     res.append(gl+gr)
-    threshold = trange[np.argmin(res)]
-    left = Xa[samples]<=threshold
-    right = Xa[samples]>threshold
-    return threshold, left, right
-
-
-def leaf_repartition(n, samples, labels, w):    
-    frac = samples.size/n
-    pos = labels[samples].sum()/samples.size
-    neg = (samples.size - labels[samples].sum())/samples.size
-    wn = neg*w/(w*neg+pos)
-    wp = pos*1/(w*neg+pos)
-    return int(wp > wn), wn, wp
-
-
-def compute_gini(labels, pos, w):
-    if labels.size == 0:
-        return 0
-    pos = labels[pos].size/labels.size
-    neg = 1-pos
-    wn = neg*w/(w*neg+pos)
-    wp = pos*1/(w*neg+pos)
-    return 2*wn*wp
-
-
 if __name__ == '__main__':
     # pylint: disable=C0103
     from timeit import default_timer as clock
     # with np.load('sla_dt_feat.npz') as f:
     #     Xa, ya = f['Xa'], f['ya']
+    # n = Xa.shape[0]
+    # train_set = np.arange(n)
+    # test_set = np.arange(n)
     import LillePrediction as llp
     graph = llp.LillePrediction(use_triads=False)
     graph.load_data(llp.lp.DATASETS.Wikipedia, balanced=True)
-    Esign=graph.select_train_set(sampling=lambda d: int(.2*d))
+    Esign=graph.select_train_set(sampling=lambda d: int(.9*d))
     print(100*len(Esign)/len(graph.E))
     Xl, yl, train_set, test_set = graph.compute_features()
     Xa, ya = np.array(Xl)[:,15:17], np.array(yl)

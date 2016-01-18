@@ -75,12 +75,24 @@ class LinkPrediction(object):
             return model.predict
         return model
 
-    def test_and_evaluate(self, pred_function, pred_data, gold):
+    def test_and_evaluate(self, pred_function, pred_data, gold,
+                          postprocess=None):
         from timeit import default_timer as clock
         frac = 1-gold.size/len(self.E)
         s = clock()
         pred = pred_function(pred_data)
         self.time_used += clock() - s
+        if postprocess:
+            test_set, idx2edge = postprocess
+            pred_reciprocal = []
+            for e, p in zip(test_set, pred):
+                er = self.reciprocal.get(e)
+                if er is None or idx2edge[er] not in self.Esign:
+                    pred_reciprocal.append(p)
+                else:
+                    twin_sign = self.Esign[idx2edge[er]]
+                    pred_reciprocal.append(twin_sign)
+            pred = pred_reciprocal
         C = confusion_matrix(gold, pred)
         fp, tn = C[0, 1], C[0, 0]
         return [accuracy_score(gold, pred), f1_score(gold, pred),

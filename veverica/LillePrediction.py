@@ -37,6 +37,7 @@ class LillePrediction(lp.LinkPrediction):
         for u, v in E:
             l.add_neighbor(u, v, self.Gout)
             l.add_neighbor(v, u, self.Gin)
+        self.Gfull = Gfull
         self.G = self.Gout
         self.E = E
 

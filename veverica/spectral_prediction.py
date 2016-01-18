@@ -83,6 +83,7 @@ def predict_edges(adjacency, nb_dim, mapping, test_edges, G=rw.G,
                 real_edge = (nmapping[u], nmapping[v])
                 gold.append(1 if EDGE_SIGN[real_edge] else -1)
                 pred.append(1 if recover[u-i*bk, v] > 0 else -1)
+    return gold, pred
     return (sklearn.metrics.accuracy_score(gold, pred),
             sklearn.metrics.f1_score(gold, pred),
             sklearn.metrics.matthews_corrcoef(gold, pred))

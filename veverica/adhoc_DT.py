@@ -6,7 +6,7 @@ import numpy as np
 from sklearn.tree import DecisionTreeClassifier
 
 class AdhocDecisionTree(object):
-    def __init__(self, negative_weight=1.4, troll_first=True, is_epinion=False):
+    def __init__(self, negative_weight=1.4, troll_first=True):
         self.order = (0, 1) if troll_first else (1, 0)
         cw = {0: negative_weight, 1: 1}
         self.top =  DecisionTreeClassifier(criterion='gini', max_features=None,
@@ -67,8 +67,8 @@ if __name__ == '__main__':
     from sklearn.metrics import confusion_matrix
     dt = DecisionTreeClassifier(criterion='gini', max_features=None,
                                 max_depth=2, class_weight={0: 1.4, 1: 1})
-    mydtt = AdhocDecisionTree(troll_first=True, is_epinion=False)
-    mydt = AdhocDecisionTree(troll_first=False, is_epinion=False)
+    mydtt = AdhocDecisionTree(troll_first=True)
+    mydt = AdhocDecisionTree(troll_first=False)
     gold = ya[test_set]
     def tree_analysis(t):
         var = t.feature[[0,1,4]]

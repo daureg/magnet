@@ -3,12 +3,29 @@
 """."""
 import LinkPrediction as lp
 from sklearn.linear_model import LogisticRegression, LogisticRegressionCV
+from sklearn.linear_model import PassiveAggressiveClassifier, SGDClassifier
 from sklearn.tree import DecisionTreeClassifier
+from adhoc_DT import AdhocDecisionTree
 import leskovec as l
 from copy import deepcopy
 import random
 import numpy as np
 import persistent as p
+import spectral_prediction as sp
+import getWH
+
+lambdas_troll = {'EPI': [ 0.3138361 ,  0.78747173,  0.09077966],
+                 'SLA': [ 0.32362659,  0.73825876,  0.10942871],
+                 'WIK': [ 0.31698022,  0.77553025,  0.10040762],
+                 'EPI_bal': [ 0.38082290, 0.91833335, 0.09005866],
+                 'SLA_bal': [ 0.39331159, 0.91427743, 0.06415257],
+                 'WIK_bal': [ 0.38671307, 0.93037849, 0.06227483],}
+lambdas_pleas = {'EPI': [ 0.37241124,  0.66195652,  0.04517692],
+                 'SLA': [ 0.38920860,  0.68269397,  0.03158007],
+                 'WIK': [ 0.37179092,  0.65985961,  0.04577132],
+                 'EPI_bal': [ 0.38974499,  0.91350523,  0.10585644],
+                 'SLA_bal': [ 0.42502945,  0.94503844,  0.15831973],
+                 'WIK_bal': [ 0.41281646,  0.93713953,  0.01006711],}
 
 class LillePrediction(lp.LinkPrediction):
     """My implementation of LinkPrediction"""
@@ -250,160 +267,166 @@ if __name__ == '__main__':
 
     graph = LillePrediction(use_triads=True)
     graph.load_data(data[pref], args.balanced)
-    olr = LogisticRegression(C=5.455, solver='lbfgs', n_jobs=num_threads,
-                             warm_start=True)
-    llr = LogisticRegression(C=1e-3, solver='lbfgs', n_jobs=num_threads,
-                             warm_start=True)
-    dt = DecisionTreeClassifier(criterion='gini', max_features=None,
-                                max_depth=2, class_weight={0: 1.4, 1: 1})
-    sdt = DecisionTreeClassifier(criterion='gini', max_features=None,
-                                 max_depth=1, class_weight={0: 1.4, 1: 1})
+    class_weight = {0: 1.4, 1: 1}
+    pac = PassiveAggressiveClassifier(C=3e-3, n_jobs=num_threads, n_iter=5,
+                                      loss='hinge', warm_start=True,
+                                      class_weight=class_weight)
+    olr = SGDClassifier(loss="log", learning_rate="optimal", penalty="l2",
+                        n_iter=5, n_jobs=num_threads, class_weight=class_weight)
+    llr = SGDClassifier(loss="log", learning_rate="optimal", penalty="l2",
+                        n_iter=5, n_jobs=num_threads, class_weight=class_weight)
+    otdt = DecisionTreeClassifier(criterion='gini', max_features=None,
+                                max_depth=1, class_weight=class_weight)
+    opdt = DecisionTreeClassifier(criterion='gini', max_features=None,
+                                 max_depth=1, class_weight=class_weight)
+    tdt = AdhocDecisionTree(class_weight[0], troll_first=True)
+    pdt = AdhocDecisionTree(class_weight[0], troll_first=False)
     if args.balanced:
         pref += '_bal'
 
     start = (int(time.time()-(2015-1970)*365.25*24*60*60))//60
     feats = list(range(7)) + list(range(17, 33))
-    fres = [[] for _ in range(19)]
-    active = [{'sampling': lambda d: 1},
-              {'sampling': lambda d: 3},
-              {'sampling': lambda d: int(.1*d)},
-              {'sampling': lambda d: int(.3*d)},
-              {'sampling': lambda d: int(.6*d)},
-              {'sampling': lambda d: int(ceil(log(d)))},
-              {'sampling': lambda d: 1 if d==1 else max(1, int(ceil(log(log(d)))))},
-              ]
-    active = [{'sampling': lambda d: int(.05*d)},
-              {'sampling': lambda d: int(.1*d)},
-              {'sampling': lambda d: int(.22*d)},
-              {'sampling': lambda d: int(.34*d)},
-              {'sampling': lambda d: int(.46*d)},
-              {'sampling': lambda d: int(.58*d)},
-              {'sampling': lambda d: int(.70*d)}]
+    fres = [[] for _ in range(17)]
+    active = [{'sampling': lambda d: int(.03*d)},
+              {'sampling': lambda d: int(.15*d)},
+              {'sampling': lambda d: int(.28*d)},
+              {'sampling': lambda d: int(.40*d)},
+              {'sampling': lambda d: int(.52*d)},
+              {'sampling': lambda d: int(.65*d)}]
     n, m = graph.order, len(graph.E)
     logc = 1 if n*log(n) < m else 0.4
     batch = [{'batch': 2},
              {'batch': 4},
              {'batch': 8},
              {'batch': int(logc*log(graph.order))},
-             # {'batch': int(sqrt(graph.order))},
             ]
-    lambdas = l.lambdas[pref]
     if args.online:
         fres = [online_exp(graph, pref, start, part, args.online)
                 for _ in range(num_rep)]
         p.save_var('{}_online_{}_{}.my'.format(pref, start, part+1), np.array(fres))
         import sys
         sys.exit()
+    cst_troll = lambdas_troll[pref]
+    cst_pleas = lambdas_pleas[pref]
     for params in active if args.active else batch:
-        full_troll_fixed, left_troll_fixed, right_troll_fixed, simple_troll_fixed = [], [], [], []
-        full_pleas_fixed, left_pleas_fixed, right_pleas_fixed, simple_pleas_fixed = [], [], [], []
-        full_troll_tuned, left_troll_tuned, right_troll_tuned, simple_troll_tuned = [], [], [], []
-        full_learned, troll_learned, pleas_learned = [], [], []
-        lesko, logreg = [], []
+        only_troll_fixed, only_troll_learned, only_troll_transfer = [], [], []
+        only_pleas_fixed, only_pleas_learned, only_pleas_transfer = [], [], []
+        first_troll_learned, first_troll_transfer = [], []
+        first_pleas_learned, first_pleas_transfer = [], []
+        logreg, pa = [], []
+        lesko, chiang, asym = [], [], []
         allones, randompred = [], []
         for _ in range(num_rep):
             graph.select_train_set(**params)
             Xl, yl, train_set, test_set = graph.compute_features()
+            idx2edge = {i: e for e, i in graph.edge_order.items()}
             Xa, ya = np.array(Xl), np.array(yl)
             train_feat = np.ix_(train_set, feats)
             test_feat = np.ix_(test_set, feats)
             gold = ya[test_set]
+            pp = (test_set, idx2edge)
 
-            cst = [.5, .5, .5]
-            pred_function = graph.train(lambda features: tree_prediction(features, cst, True))
-            res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold)
-            full_troll_fixed.append(res)
-            cst = [.5, .5, .0]
-            pred_function = graph.train(lambda features: tree_prediction(features, cst, True))
-            res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold)
-            left_troll_fixed.append(res)
-            cst = [.5, 1, .5]
-            pred_function = graph.train(lambda features: tree_prediction(features, cst, True))
-            res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold)
-            right_troll_fixed.append(res)
             cst = [.5, 1, .0]
             pred_function = graph.train(lambda features: tree_prediction(features, cst, True))
-            res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold)
-            simple_troll_fixed.append(res)
+            res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold, pp)
+            only_troll_fixed.append(res)
+            pred_function = graph.train(otdt, Xa[train_set, 15:16], ya[train_set])
+            res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:16], gold, pp)
+            only_troll_learned.append(res)
+            cst = cst_troll.copy(); cst[1] = 1; cst[2] = .0
+            pred_function = graph.train(lambda features: tree_prediction(features, cst, True))
+            res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold, pp)
+            only_troll_transfer.append(res)
 
-            cst = lambdas.copy()
-            pred_function = graph.train(lambda features: tree_prediction(features, cst, True))
-            res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold)
-            full_troll_tuned.append(res)
-            cst = lambdas.copy(); cst[2] = 0
-            pred_function = graph.train(lambda features: tree_prediction(features, cst, True))
-            res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold)
-            left_troll_tuned.append(res)
-            cst = lambdas.copy(); cst[1] = 1
-            pred_function = graph.train(lambda features: tree_prediction(features, cst, True))
-            res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold)
-            right_troll_tuned.append(res)
-            cst = lambdas.copy(); cst[1] = 1; cst[2] = 0
-            pred_function = graph.train(lambda features: tree_prediction(features, cst, True))
-            res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold)
-            simple_troll_tuned.append(res)
-
-            cst = [.5, .5, .5]
-            pred_function = graph.train(lambda features: tree_prediction(features, cst, False))
-            res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold)
-            full_pleas_fixed.append(res)
-            cst = [.5, .5, .0]
-            pred_function = graph.train(lambda features: tree_prediction(features, cst, False))
-            res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold)
-            left_pleas_fixed.append(res)
-            cst = [.5, 1, .5]
-            pred_function = graph.train(lambda features: tree_prediction(features, cst, False))
-            res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold)
-            right_pleas_fixed.append(res)
             cst = [.5, 1, .0]
             pred_function = graph.train(lambda features: tree_prediction(features, cst, False))
-            res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold)
-            simple_pleas_fixed.append(res)
+            res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold, pp)
+            only_pleas_fixed.append(res)
+            pred_function = graph.train(opdt, Xa[train_set, 16:17], ya[train_set])
+            res = graph.test_and_evaluate(pred_function, Xa[test_set, 16:17], gold, pp)
+            only_pleas_learned.append(res)
+            cst = cst_pleas.copy(); cst[1] = 1; cst[2] = .0
+            pred_function = graph.train(lambda features: tree_prediction(features, cst, False))
+            res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold, pp)
+            only_pleas_transfer.append(res)
 
-            pred_function = graph.train(dt, Xa[train_set, 15:17], ya[train_set])
-            res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold)
-            full_learned.append(res)
-            pred_function = graph.train(sdt, Xa[train_set, 15:16], ya[train_set])
-            res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:16], gold)
-            troll_learned.append(res)
-            pred_function = graph.train(sdt, Xa[train_set, 16:17], ya[train_set])
-            res = graph.test_and_evaluate(pred_function, Xa[test_set, 16:17], gold)
-            pleas_learned.append(res)
+            pred_function = graph.train(pdt, Xa[train_set, 15:17], ya[train_set])
+            res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold, pp)
+            first_pleas_learned.append(res)
+            cst = cst_pleas.copy()
+            pred_function = graph.train(lambda features: tree_prediction(features, cst, False))
+            res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold, pp)
+            first_pleas_transfer.append(res)
+
+            pred_function = graph.train(tdt, Xa[train_set, 15:17], ya[train_set])
+            res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold, pp)
+            first_troll_learned.append(res)
+            cst = cst_troll.copy()
+            pred_function = graph.train(lambda features: tree_prediction(features, cst, True))
+            res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold, pp)
+            first_troll_transfer.append(res)
+
+            pred_function = graph.train(olr, Xa[train_set, 15:17], ya[train_set])
+            res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold, pp)
+            logreg.append(res)
+            pred_function = graph.train(pac, Xa[train_set, 15:17], ya[train_set])
+            res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold, pp)
+            pa.append(res)
 
             pred_function = graph.train(llr, Xa[train_feat], ya[train_set])
             res = graph.test_and_evaluate(pred_function, Xa[test_feat], gold)
             lesko.append(res)
-            pred_function = graph.train(olr, Xa[train_set, 15:17], ya[train_set])
-            res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold)
-            logreg.append(res)
+
+            esigns = {(u, v): graph.E.get((u,v)) if (u,v) in graph.E else graph.E.get((v,u))
+                      for u, adj in graph.Gfull.items() for v in adj}
+            mapping={i: i for i in range(graph.order)}
+            sstart = lp.clock()
+            sadj, test_edges = sp.get_training_matrix(666, mapping, slcc=set(range(graph.order)),
+                                                      tree_edges=graph.Esign.keys(), G=graph.Gfull,
+                                                      EDGE_SIGN=esigns)
+            ngold, pred = sp.predict_edges(sadj, 15, mapping, test_edges,
+                                          graph.Gfull, esigns, bk=9000)
+            time_elapsed = lp.clock() - sstart
+            C = lp.confusion_matrix(ngold, pred)
+            fp, tn = C[0, 1], C[0, 0]
+            acc, fpr, mcc, f1 = [lp.accuracy_score(ngold, pred),  fp/(fp+tn),
+                                 lp.f1_score(ngold, pred),
+                                 lp.matthews_corrcoef(ngold, pred)]
+            frac = 1 - len(test_edges)/(2*len(graph.E))
+            asym.append([acc, f1, mcc, fpr, time_elapsed, frac])
 
             pred_function = graph.train(lambda features: [0]+[1,]*(features.shape[0]-1))
             res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold)
             allones.append(res)
-
             pred_function = graph.train(lambda features: np.random.rand(features.shape[0])>.5)
             res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold)
             randompred.append(res)
-        fres[0].append(full_troll_fixed)
-        fres[1].append(left_troll_fixed)
-        fres[2].append(right_troll_fixed)
-        fres[3].append(simple_troll_fixed)
-        fres[4].append(full_pleas_fixed)
-        fres[5].append(left_pleas_fixed)
-        fres[6].append(right_pleas_fixed)
-        fres[7].append(simple_pleas_fixed)
-        fres[8].append(full_troll_tuned)
-        fres[9].append(left_troll_tuned)
-        fres[10].append(right_troll_tuned)
-        fres[11].append(simple_troll_tuned)
-        fres[12].append(full_learned)
-        fres[13].append(troll_learned)
-        fres[14].append(pleas_learned)
-        fres[15].append(lesko)
-        fres[16].append(logreg)
-        fres[17].append(allones)
-        fres[18].append(randompred)
 
+            ngold, pred, time_elapsed, frac = getWH.run_chiang(graph)
+            C = lp.confusion_matrix(ngold, pred)
+            fp, tn = C[0, 1], C[0, 0]
+            acc, fpr, mcc, f1 = [lp.accuracy_score(ngold, pred),  fp/(fp+tn),
+                                 lp.f1_score(ngold, pred),
+                                 lp.matthews_corrcoef(ngold, pred)]
+            chiang.append([acc, f1, mcc, fpr, time_elapsed, frac])
+
+        fres[0].append(only_troll_fixed)
+        fres[1].append(only_troll_learned)
+        fres[2].append(only_troll_transfer)
+        fres[3].append(only_pleas_fixed)
+        fres[4].append(only_pleas_learned)
+        fres[5].append(only_pleas_transfer)
+        fres[6].append(first_troll_learned)
+        fres[7].append(first_troll_transfer)
+        fres[8].append(first_pleas_learned)
+        fres[9].append(first_pleas_transfer)
+        fres[10].append(logreg)
+        fres[11].append(pa)
+        fres[12].append(lesko)
+        fres[13].append(chiang)
+        fres[14].append(asym)
+        fres[15].append(allones)
+        fres[16].append(randompred)
     if args.active:
         pref += '_active'
     p.save_var('{}_{}_{}.my'.format(pref, start, part+1), (None, fres))

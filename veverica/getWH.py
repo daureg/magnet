@@ -7,6 +7,7 @@ Journal of Machine Learning Research, 15, 1177–1213
 http://jmlr.org/papers/v15/chiang14a.html."""
 import numpy as np
 from math import exp
+from timeit import default_timer as clock
 
 def getWH(A, n, edg, rank_of_A=7, eta0=0.9, lmbda=1e-2):
     edges = np.array(edg+[(v, u) for u, v in edg])
@@ -28,31 +29,37 @@ def getWH(A, n, edg, rank_of_A=7, eta0=0.9, lmbda=1e-2):
         H[j,:] = (1-lmbda*eta)*H[j, :] + step*save_wi
     return W, H
 
-if __name__ == '__main__':
-    # pylint: disable=C0103
-    import persistent as p
-    edg = p.load_var('wik_sym_edges.my')
-    from timeit import default_timer as clock
-    from sklearn.metrics import accuracy_score, f1_score, matthews_corrcoef
-    from sklearn.metrics import confusion_matrix
 
-    import LillePrediction as llp
-    graph = llp.LillePrediction(use_triads=False)
-    graph.load_data(llp.lp.DATASETS.Epinion, balanced=False)
-    graph.select_train_set(sampling=lambda d: int(.3*d))
-    print(len(graph.Esign)/len(graph.E))
+def run_chiang(graph):
     Asym = graph.get_partial_adjacency()
     edges_matrix_indices = sorted({(u, v) for u, adj in Asym.items() for v in adj})
     start = clock()
     W, H = getWH(Asym, graph.order, edges_matrix_indices)
     tmp = W.dot(H.T)
-    print(clock() - start)
+    time_elapsed = clock() - start
     train_edges = set(edges_matrix_indices)
     test_edges = {e: s for e, s in graph.E.items() if e not in train_edges}
     stest = sorted(test_edges)
     gold = [2*int(test_edges[e])-1 for e in stest]
     stest = np.array(stest)
     pred = np.sign(tmp[stest[:, 0], stest[:, 1]]).astype(int)
+    frac = len(train_edges)/(2*len(graph.E))
+    return gold, pred, time_elapsed, frac
+
+if __name__ == '__main__':
+    # pylint: disable=C0103
+    import persistent as p
+    edg = p.load_var('wik_sym_edges.my')
+    from sklearn.metrics import accuracy_score, f1_score, matthews_corrcoef
+    from sklearn.metrics import confusion_matrix
+
+    import LillePrediction as llp
+    graph = llp.LillePrediction(use_triads=False)
+    graph.load_data(llp.lp.DATASETS.Wikipedia, balanced=False)
+    graph.select_train_set(sampling=lambda d: int(.3*d))
+    print(len(graph.Esign)/len(graph.E))
+    gold, pred, time_elapsed, frac = run_chiang(graph)
+    print(time_elapsed)
     C = confusion_matrix(gold, pred)
     fp, tn = C[0, 1], C[0, 0]
     print([accuracy_score(gold, pred), f1_score(gold, pred),

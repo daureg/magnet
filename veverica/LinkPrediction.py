@@ -3,6 +3,7 @@
 from enum import Enum
 from timeit import default_timer as clock
 import numpy as np
+from collections import defaultdict
 DATASETS = Enum('Dataset', 'Wikipedia Slashdot Epinion')
 FILENAMES = {DATASETS.Wikipedia: 'soc-wiki.txt',
              DATASETS.Slashdot: 'soc-sign-Slashdot090221.txt',
@@ -43,6 +44,7 @@ class LinkPrediction(object):
 
     def compute_features(self):
         self.compute_global_features()
+        self.edge_order = {e: i for i, e in enumerate(sorted(self.E))}
         knows_indices, pred_indices = [], []
         features, signs = [], []
         for i, ((u, v), sign) in enumerate(sorted(self.E.items(),
@@ -54,15 +56,14 @@ class LinkPrediction(object):
         self.features = np.array(features)
         return features, signs, knows_indices, pred_indices
 
-    def get_adjacency_matrix(self):
-        # TODO: sparse matrix?
-        import numpy
-        n = len(self.G)
-        A = np.zeros((n, n), int)
-        for i, adj in self.G.items():
-            js = sorted(adj)
-            signs = [2*E[(i, j)]-1 for j in js]
-            A[i, js] = signs
+    def get_partial_adjacency(self):
+        """return a dict of dict simulating a the symetric adjacency matrix of
+        the observed network"""
+        A = defaultdict(dict)
+        for (u, v), sign in self.Esign.items():
+            # in the small case of conflict, last seen sign wins
+            A[u][v] = 2*int(sign) - 1
+            A[v][u] = 2*int(sign) - 1
         return A
 
     def train(self, model, *args):

@@ -8,17 +8,16 @@ http://jmlr.org/papers/v15/chiang14a.html."""
 import numpy as np
 from math import exp
 
-def getWH(A, rank_of_A=7, eta0=0.9, lmbda=1e-2):
-    n = A.shape[0]
-    edges = np.argwhere(A)
-    E = edges.shape[0]
+def getWH(A, n, edg, rank_of_A=7, eta0=0.9, lmbda=1e-2):
+    edges = np.array(edg+[(v, u) for u, v in edg])
+    E = len(edges)
     MAX_ITER = 6*E
     W = np.random.rand(n, rank_of_A)
     H = np.random.rand(n, rank_of_A)
     rand_edges = np.random.randint(0, E-1, MAX_ITER)
     for t in range(MAX_ITER):
         i, j = edges[rand_edges[t]]
-        aval = A[i, j]        
+        aval = A[i][j]
         whij = W[i,:].dot(H[j,:].T)
         chosen_loss=1/(1+exp(aval*whij))        
         save_wi = W[i, :]
@@ -31,13 +30,38 @@ def getWH(A, rank_of_A=7, eta0=0.9, lmbda=1e-2):
 
 if __name__ == '__main__':
     # pylint: disable=C0103
-    with np.load('wik_sym.npz') as f:
-        Asym = f['A']
     import persistent as p
     edg = p.load_var('wik_sym_edges.my')
     from timeit import default_timer as clock
     from sklearn.metrics import accuracy_score, f1_score, matthews_corrcoef
     from sklearn.metrics import confusion_matrix
+
+    import LillePrediction as llp
+    graph = llp.LillePrediction(use_triads=False)
+    graph.load_data(llp.lp.DATASETS.Epinion, balanced=False)
+    graph.select_train_set(sampling=lambda d: int(.3*d))
+    print(len(graph.Esign)/len(graph.E))
+    Asym = graph.get_partial_adjacency()
+    edges_matrix_indices = sorted({(u, v) for u, adj in Asym.items() for v in adj})
+    start = clock()
+    W, H = getWH(Asym, graph.order, edges_matrix_indices)
+    tmp = W.dot(H.T)
+    print(clock() - start)
+    train_edges = set(edges_matrix_indices)
+    test_edges = {e: s for e, s in graph.E.items() if e not in train_edges}
+    stest = sorted(test_edges)
+    gold = [2*int(test_edges[e])-1 for e in stest]
+    stest = np.array(stest)
+    pred = np.sign(tmp[stest[:, 0], stest[:, 1]]).astype(int)
+    C = confusion_matrix(gold, pred)
+    fp, tn = C[0, 1], C[0, 0]
+    print([accuracy_score(gold, pred), f1_score(gold, pred),
+                matthews_corrcoef(gold, pred), fp/(fp+tn)])
+    import sys
+    sys.exit()
+
+    with np.load('wik_sym.npz') as f:
+        Asym = f['A']
     k = 10
     s = len(edg)//k
     for i in range(k):

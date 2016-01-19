@@ -281,12 +281,14 @@ if __name__ == '__main__':
                                  max_depth=1, class_weight=class_weight)
     tdt = AdhocDecisionTree(class_weight[0], troll_first=True)
     pdt = AdhocDecisionTree(class_weight[0], troll_first=False)
+    perceptron = SGDClassifier(loss="perceptron", eta0=1, class_weight=cw,
+                               learning_rate="constant", penalty=None)
     if args.balanced:
         pref += '_bal'
 
     start = (int(time.time()-(2015-1970)*365.25*24*60*60))//60
     feats = list(range(7)) + list(range(17, 33))
-    fres = [[] for _ in range(17)]
+    fres = [[] for _ in range(20)]
     active = [{'sampling': lambda d: int(.03*d)},
               {'sampling': lambda d: int(.15*d)},
               {'sampling': lambda d: int(.28*d)},
@@ -309,8 +311,9 @@ if __name__ == '__main__':
     for params in active if args.active else batch:
         only_troll_fixed, only_troll_learned, only_troll_transfer = [], [], []
         only_pleas_fixed, only_pleas_learned, only_pleas_transfer = [], [], []
-        first_troll_learned, first_troll_transfer = [], []
-        first_pleas_learned, first_pleas_transfer = [], []
+        first_troll_learned, first_troll_transfer, first_troll_fixed = [], [], []
+        first_pleas_learned, first_pleas_transfer, first_pleas_fixed = [], [], []
+        ppton = []
         logreg, pa = [], []
         lesko, chiang, asym = [], [], []
         allones, randompred = [], []
@@ -335,6 +338,10 @@ if __name__ == '__main__':
             pred_function = graph.train(lambda features: tree_prediction(features, cst, True))
             res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold, pp)
             only_troll_transfer.append(res)
+            cst = [.5, .5, .5]
+            pred_function = graph.train(lambda features: tree_prediction(features, cst, True))
+            res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold, pp)
+            first_troll_fixed.append(res)
 
             cst = [.5, 1, .0]
             pred_function = graph.train(lambda features: tree_prediction(features, cst, False))
@@ -347,6 +354,10 @@ if __name__ == '__main__':
             pred_function = graph.train(lambda features: tree_prediction(features, cst, False))
             res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold, pp)
             only_pleas_transfer.append(res)
+            cst = [.5, .5, .5]
+            pred_function = graph.train(lambda features: tree_prediction(features, cst, False))
+            res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold, pp)
+            first_pleas_fixed.append(res)
 
             pred_function = graph.train(pdt, Xa[train_set, 15:17], ya[train_set])
             res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold, pp)
@@ -381,6 +392,10 @@ if __name__ == '__main__':
             pred_function = graph.train(lambda features: np.random.rand(features.shape[0])>.5)
             res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold)
             randompred.append(res)
+
+            pred_function = graph.train(perceptron, Xa[train_set, 15:17], ya[train_set])
+            res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold, pp)
+            ppton.append(res)
 
             asym.append([.8, .9, .5, .3, 2, res[-1]])
             chiang.append([.8, .9, .5, .3, 2, res[-1]])
@@ -428,6 +443,9 @@ if __name__ == '__main__':
         fres[14].append(asym)
         fres[15].append(allones)
         fres[16].append(randompred)
+        fres[17].append(ppton)
+        fres[18].append(first_troll_fixed)
+        fres[19].append(first_pleas_fixed)
     if args.active:
         pref += '_active'
     p.save_var('{}_{}_{}.my'.format(pref, start, part+1), (None, fres))

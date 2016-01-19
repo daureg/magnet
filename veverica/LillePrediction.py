@@ -281,8 +281,8 @@ if __name__ == '__main__':
                                  max_depth=1, class_weight=class_weight)
     tdt = AdhocDecisionTree(class_weight[0], troll_first=True)
     pdt = AdhocDecisionTree(class_weight[0], troll_first=False)
-    perceptron = SGDClassifier(loss="perceptron", eta0=1, class_weight=cw,
-                               learning_rate="constant", penalty=None)
+    perceptron = SGDClassifier(loss="perceptron", eta0=1, class_weight=class_weight,
+                               learning_rate="constant", penalty=None, average=True, n_iter=4)
     if args.balanced:
         pref += '_bal'
 

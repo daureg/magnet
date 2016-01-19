@@ -271,10 +271,10 @@ if __name__ == '__main__':
     pac = PassiveAggressiveClassifier(C=3e-3, n_jobs=num_threads, n_iter=5,
                                       loss='hinge', warm_start=True,
                                       class_weight=class_weight)
-    olr = SGDClassifier(loss="log", learning_rate="optimal", penalty="l2",
-                        n_iter=5, n_jobs=num_threads, class_weight=class_weight)
-    llr = SGDClassifier(loss="log", learning_rate="optimal", penalty="l2",
-                        n_iter=5, n_jobs=num_threads, class_weight=class_weight)
+    olr = SGDClassifier(loss="log", learning_rate="optimal", penalty="l2", average=True,
+                        n_iter=4, n_jobs=num_threads, class_weight=class_weight)
+    llr = SGDClassifier(loss="log", learning_rate="optimal", penalty="l2", average=True,
+                        n_iter=4, n_jobs=num_threads, class_weight=class_weight)
     otdt = DecisionTreeClassifier(criterion='gini', max_features=None,
                                 max_depth=1, class_weight=class_weight)
     opdt = DecisionTreeClassifier(criterion='gini', max_features=None,
@@ -295,11 +295,9 @@ if __name__ == '__main__':
               {'sampling': lambda d: int(.65*d)}]
     n, m = graph.order, len(graph.E)
     logc = 1 if n*log(n) < m else 0.4
-    batch = [{'batch': 2},
-             {'batch': 4},
-             {'batch': 8},
-             {'batch': int(logc*log(graph.order))},
-            ]
+    logn = logc*log(graph.order)
+    vals = [2, 4, 6, 8, logn] if pref.startswith('WIK') else [1, 2, 3, 4, logn]
+    batch = [{'batch': v} for v in vals]
     if args.online:
         fres = [online_exp(graph, pref, start, part, args.online)
                 for _ in range(num_rep)]
@@ -377,6 +375,16 @@ if __name__ == '__main__':
             res = graph.test_and_evaluate(pred_function, Xa[test_feat], gold)
             lesko.append(res)
 
+            pred_function = graph.train(lambda features: [0]+[1,]*(features.shape[0]-1))
+            res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold)
+            allones.append(res)
+            pred_function = graph.train(lambda features: np.random.rand(features.shape[0])>.5)
+            res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold)
+            randompred.append(res)
+
+            asym.append([.8, .9, .5, .3, 2, res[-1]])
+            chiang.append([.8, .9, .5, .3, 2, res[-1]])
+            continue
             esigns = {(u, v): graph.E.get((u,v)) if (u,v) in graph.E else graph.E.get((v,u))
                       for u, adj in graph.Gfull.items() for v in adj}
             mapping={i: i for i in range(graph.order)}
@@ -389,23 +397,16 @@ if __name__ == '__main__':
             time_elapsed = lp.clock() - sstart
             C = lp.confusion_matrix(ngold, pred)
             fp, tn = C[0, 1], C[0, 0]
-            acc, fpr, mcc, f1 = [lp.accuracy_score(ngold, pred),  fp/(fp+tn),
+            acc, fpr, f1, mcc = [lp.accuracy_score(ngold, pred),  fp/(fp+tn),
                                  lp.f1_score(ngold, pred),
                                  lp.matthews_corrcoef(ngold, pred)]
-            frac = 1 - len(test_edges)/(2*len(graph.E))
+            frac = 1 - len(test_edges)/len(graph.E)
             asym.append([acc, f1, mcc, fpr, time_elapsed, frac])
-
-            pred_function = graph.train(lambda features: [0]+[1,]*(features.shape[0]-1))
-            res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold)
-            allones.append(res)
-            pred_function = graph.train(lambda features: np.random.rand(features.shape[0])>.5)
-            res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold)
-            randompred.append(res)
 
             ngold, pred, time_elapsed, frac = getWH.run_chiang(graph)
             C = lp.confusion_matrix(ngold, pred)
             fp, tn = C[0, 1], C[0, 0]
-            acc, fpr, mcc, f1 = [lp.accuracy_score(ngold, pred),  fp/(fp+tn),
+            acc, fpr, f1, mcc = [lp.accuracy_score(ngold, pred),  fp/(fp+tn),
                                  lp.f1_score(ngold, pred),
                                  lp.matthews_corrcoef(ngold, pred)]
             chiang.append([acc, f1, mcc, fpr, time_elapsed, frac])

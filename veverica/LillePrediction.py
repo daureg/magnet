@@ -30,9 +30,12 @@ lambdas_pleas = {'EPI': [ 0.37241124,  0.66195652,  0.04517692],
 class LillePrediction(lp.LinkPrediction):
     """My implementation of LinkPrediction"""
 
-    def load_data(self, dataset, balanced=False):
-        l.rw.read_original_graph(lp.FILENAMES[dataset], directed=True,
-                                 balanced=balanced)
+    def load_data(self, dataset, balanced=False, small_wiki=False):
+        if small_wiki:
+            Gfull, E = p.load_var('small_wiki.my')
+        else:
+            l.rw.read_original_graph(lp.FILENAMES[dataset], directed=True,
+                                     balanced=balanced)
         # conflicting = set()
         # for (u, v), s in l.rw.EDGE_SIGN.items():
         #     opposite_sign = l.rw.EDGE_SIGN.get((v, u))
@@ -43,7 +46,7 @@ class LillePrediction(lp.LinkPrediction):
         # for u, v in conflicting:
         #     l.rw.remove_signed_edge(u, v, directed=True)
         #     l.rw.remove_signed_edge(v, u, directed=True)
-        Gfull, E = l.rw.G, l.rw.EDGE_SIGN
+            Gfull, E = l.rw.G, l.rw.EDGE_SIGN
         self.order = len(Gfull)
         self.dout, self.din = l.defaultdict(int), l.defaultdict(int)
         for u, v in E:
@@ -297,9 +300,16 @@ if __name__ == '__main__':
               {'sampling': lambda d: int(.65*d)}]
     n, m = graph.order, len(graph.E)
     logc = 1 if n*log(n) < m else 0.4
+    if logc == 1 and args.balanced:
+        logc = .55
     logn = logc*log(graph.order)
     vals = [2, 4, 6, 8, logn] if pref.startswith('WIK') else [1, 2, 3, 4, logn]
+    if args.balanced:
+        vals = [1, 2, 3, 4, logn]
     batch = [{'batch': v} for v in vals]
+    if args.balanced:
+        batch = [{'batch': v/{'WIK': 1, 'SLA': 2, 'EPI': 3}[args.data]
+                  for v in vals]
     if args.online:
         fres = [online_exp(graph, pref, start, part, args.online)
                 for _ in range(num_rep)]
@@ -397,9 +407,9 @@ if __name__ == '__main__':
             res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold, pp)
             ppton.append(res)
 
-            asym.append([.8, .9, .5, .3, 2, res[-1]])
-            chiang.append([.8, .9, .5, .3, 2, res[-1]])
-            continue
+            # asym.append([.8, .9, .5, .3, 2, res[-1]])
+            # chiang.append([.8, .9, .5, .3, 2, res[-1]])
+            # continue
             esigns = {(u, v): graph.E.get((u,v)) if (u,v) in graph.E else graph.E.get((v,u))
                       for u, adj in graph.Gfull.items() for v in adj}
             mapping={i: i for i in range(graph.order)}

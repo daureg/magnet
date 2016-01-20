@@ -308,7 +308,7 @@ if __name__ == '__main__':
         vals = [1, 2, 3, 4, logn]
     batch = [{'batch': v} for v in vals]
     if args.balanced:
-        batch = [{'batch': v/{'WIK': 1, 'SLA': 2, 'EPI': 3}[args.data]
+        batch = [{'batch': v/{'WIK': 1, 'SLA': 2, 'EPI': 3}[args.data]}
                   for v in vals]
     if args.online:
         fres = [online_exp(graph, pref, start, part, args.online)

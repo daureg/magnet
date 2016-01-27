@@ -62,7 +62,7 @@ if __name__ == '__main__':
     print(time_elapsed)
     C = confusion_matrix(gold, pred)
     fp, tn = C[0, 1], C[0, 0]
-    print([accuracy_score(gold, pred), f1_score(gold, pred),
+    print([accuracy_score(gold, pred), f1_score(gold, pred, average='weighted', pos_label=None),
                 matthews_corrcoef(gold, pred), fp/(fp+tn)])
     import sys
     sys.exit()
@@ -83,6 +83,6 @@ if __name__ == '__main__':
         pred = np.sign(tmp[test[:,0], test[:,1]])
         C = confusion_matrix(gold, pred)
         fp, tn = C[0, 1], C[0, 0]
-        print([accuracy_score(gold, pred), f1_score(gold, pred),
+        print([accuracy_score(gold, pred), f1_score(gold, pred, average='weighted', pos_label=None),
                 matthews_corrcoef(gold, pred), fp/(fp+tn)])
         Asym[test[:,0], test[:,1]] = gold

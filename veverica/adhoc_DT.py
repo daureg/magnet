@@ -85,7 +85,7 @@ if __name__ == '__main__':
     var, thr, cls = tree_analysis(dt.tree_)
     print('SK tree with {} first:'.format('troll' if var[0] == 0 else 'pleas'))
     print(list(thr), list(cls))
-    print([accuracy_score(gold, pred), f1_score(gold, pred),
+    print([accuracy_score(gold, pred), f1_score(gold, pred, average='weighted', pos_label=None),
            matthews_corrcoef(gold, pred), fp/(fp+tn), end])
 
     start = clock()
@@ -96,7 +96,7 @@ if __name__ == '__main__':
     fp, tn = C[0, 1], C[0, 0]
     print('my tree with pleas first:')
     print(mydt.threshold, mydt.decision)
-    print([accuracy_score(gold, pred), f1_score(gold, pred),
+    print([accuracy_score(gold, pred), f1_score(gold, pred, average='weighted', pos_label=None),
            matthews_corrcoef(gold, pred), fp/(fp+tn), end])
 
     start = clock()
@@ -107,5 +107,5 @@ if __name__ == '__main__':
     fp, tn = C[0, 1], C[0, 0]
     print('my tree with troll first:')
     print(mydtt.threshold, mydt.decision)
-    print([accuracy_score(gold, pred), f1_score(gold, pred),
+    print([accuracy_score(gold, pred), f1_score(gold, pred, average='weighted', pos_label=None),
            matthews_corrcoef(gold, pred), fp/(fp+tn), end])

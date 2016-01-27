@@ -423,7 +423,7 @@ if __name__ == '__main__':
             C = lp.confusion_matrix(ngold, pred)
             fp, tn = C[0, 1], C[0, 0]
             acc, fpr, f1, mcc = [lp.accuracy_score(ngold, pred),  fp/(fp+tn),
-                                 lp.f1_score(ngold, pred),
+                                 lp.f1_score(ngold, pred, average='weighted', pos_label=None),
                                  lp.matthews_corrcoef(ngold, pred)]
             frac = 1 - len(test_edges)/len(graph.E)
             asym.append([acc, f1, mcc, fpr, time_elapsed, frac])
@@ -432,7 +432,7 @@ if __name__ == '__main__':
             C = lp.confusion_matrix(ngold, pred)
             fp, tn = C[0, 1], C[0, 0]
             acc, fpr, f1, mcc = [lp.accuracy_score(ngold, pred),  fp/(fp+tn),
-                                 lp.f1_score(ngold, pred),
+                                 lp.f1_score(ngold, pred, average='weighted', pos_label=None),
                                  lp.matthews_corrcoef(ngold, pred)]
             chiang.append([acc, f1, mcc, fpr, time_elapsed, frac])
 

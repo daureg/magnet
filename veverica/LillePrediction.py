@@ -8,6 +8,7 @@ from sklearn.tree import DecisionTreeClassifier
 from adhoc_DT import AdhocDecisionTree
 import leskovec as l
 from copy import deepcopy
+from collections import defaultdict, Counter
 import random
 import numpy as np
 import persistent as p
@@ -48,7 +49,7 @@ class LillePrediction(lp.LinkPrediction):
         #     l.rw.remove_signed_edge(v, u, directed=True)
             Gfull, E = l.rw.G, l.rw.EDGE_SIGN
         self.order = len(Gfull)
-        self.dout, self.din = l.defaultdict(int), l.defaultdict(int)
+        self.dout, self.din = defaultdict(int), defaultdict(int)
         for u, v in E:
             self.dout[u] += 1
             self.din[v] += 1
@@ -62,15 +63,20 @@ class LillePrediction(lp.LinkPrediction):
         self.E = E
 
     def select_train_set(self, **params):
+        self.out_samples, self.in_samples = defaultdict(int), defaultdict(int)
         if 'batch' in params:
             alpha = min(params['batch']*self.order/len(self.E), 1.0)
             self.Esign = l.trolls.select_edges(None, self.E, alpha, 'random')
+            self.out_samples.update(Counter((e[0] for e in self.Esign)))
+            self.in_samples.update(Counter((e[1] for e in self.Esign)))
             return self.Esign
         else:
             alpha = params.get('alpha', 0)
             sf = params.get('sampling')
             Eout = l.trolls.select_edges(self.Gout, self.E, alpha, 'uniform', True, sf)
             Ein = l.trolls.select_edges(self.Gin, self.E, alpha, 'uniform', True, sf)
+            self.out_samples.update(Counter((e[0] for e in Eout)))
+            self.in_samples.update(Counter((e[1] for e in Ein)))
             directed_edges = deepcopy(Ein)
             directed_edges.update(Eout)
             self.Esign = directed_edges
@@ -81,8 +87,8 @@ class LillePrediction(lp.LinkPrediction):
         self.reciprocal = {ei: self.edge_order[(e[1], e[0])]
                            for e, ei in self.edge_order.items()
                            if (e[1], e[0]) in self.E}
-        self.din_plus, self.dout_plus = l.defaultdict(int), l.defaultdict(int)
-        self.din_minus, self.dout_minus = l.defaultdict(int), l.defaultdict(int)
+        self.din_plus, self.dout_plus = defaultdict(int), defaultdict(int)
+        self.din_minus, self.dout_minus = defaultdict(int), defaultdict(int)
         self.compute_in_out_degree(self.Esign)
 
     def compute_in_out_degree(self, edges):
@@ -130,6 +136,7 @@ class LillePrediction(lp.LinkPrediction):
             for w in self.common_nei[(u, v)]:
                 for t in l.triads_indices(u, v, w, self.Esign):
                     triads[t] += 1
+        triads.extend([self.out_samples[u], self.in_samples[v]])
         return degrees+triads
 
 def tree_prediction(features, cst, troll_first=True):

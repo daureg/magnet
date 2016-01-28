@@ -10,9 +10,10 @@ from math import exp
 from timeit import default_timer as clock
 
 def getWH(A, n, edg, rank_of_A=7, eta0=0.9, lmbda=1e-2):
-    edges = np.array(edg+[(v, u) for u, v in edg])
+    # edges = np.array(edg+[(v, u) for u, v in edg])
+    edges = edg
     E = len(edges)
-    MAX_ITER = 6*E
+    MAX_ITER = 10*E
     W = np.random.rand(n, rank_of_A)
     H = np.random.rand(n, rank_of_A)
     rand_edges = np.random.randint(0, E-1, MAX_ITER)
@@ -53,19 +54,19 @@ if __name__ == '__main__':
     from sklearn.metrics import accuracy_score, f1_score, matthews_corrcoef
     from sklearn.metrics import confusion_matrix
 
-    import LillePrediction as llp
-    graph = llp.LillePrediction(use_triads=False)
-    graph.load_data(llp.lp.DATASETS.Wikipedia, balanced=False)
-    graph.select_train_set(sampling=lambda d: int(.3*d))
-    print(len(graph.Esign)/len(graph.E))
-    gold, pred, time_elapsed, frac = run_chiang(graph)
-    print(time_elapsed)
-    C = confusion_matrix(gold, pred)
-    fp, tn = C[0, 1], C[0, 0]
-    print([accuracy_score(gold, pred), f1_score(gold, pred, average='weighted', pos_label=None),
-                matthews_corrcoef(gold, pred), fp/(fp+tn)])
-    import sys
-    sys.exit()
+    # import LillePrediction as llp
+    # graph = llp.LillePrediction(use_triads=False)
+    # graph.load_data(llp.lp.DATASETS.Wikipedia, balanced=False)
+    # graph.select_train_set(sampling=lambda d: int(.3*d))
+    # print(len(graph.Esign)/len(graph.E))
+    # gold, pred, time_elapsed, frac = run_chiang(graph)
+    # print(time_elapsed)
+    # C = confusion_matrix(gold, pred)
+    # fp, tn = C[0, 1], C[0, 0]
+    # print([accuracy_score(gold, pred), f1_score(gold, pred, average='weighted', pos_label=None),
+    #             matthews_corrcoef(gold, pred), fp/(fp+tn)])
+    # import sys
+    # sys.exit()
 
     with np.load('wik_sym.npz') as f:
         Asym = f['A']
@@ -77,7 +78,7 @@ if __name__ == '__main__':
         Asym[test[:,0], test[:,1]] = 0
         # train, pred, evaluate
         start = clock()
-        W, H = getWH(Asym)
+        W, H = getWH(Asym, Asym.shape[0], np.argwhere(Asym))
         print(clock() - start)
         tmp = W.dot(H.T)
         pred = np.sign(tmp[test[:,0], test[:,1]])
@@ -86,3 +87,4 @@ if __name__ == '__main__':
         print([accuracy_score(gold, pred), f1_score(gold, pred, average='weighted', pos_label=None),
                 matthews_corrcoef(gold, pred), fp/(fp+tn)])
         Asym[test[:,0], test[:,1]] = gold
+        break

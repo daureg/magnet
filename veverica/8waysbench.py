@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 RdGr = matplotlib.colors.LinearSegmentedColormap.from_list('RdGr', [matplotlib.colors.hex2color('#dd2c00'), 
                                                                     matplotlib.colors.hex2color('#64dd17')], 2)
 import seaborn as sns
+FULL = False
 def plot_boundary(predict_fun, dataset, method):
     plot_step = .002
     xx, yy = np.meshgrid(np.arange(0,1, plot_step),
@@ -22,20 +23,30 @@ def plot_boundary(predict_fun, dataset, method):
         plt.tick_params( axis='both', which='both', bottom='off', top='off',
                         left='off', labelbottom='off', labelleft='off')
         plt.show()
-        plt.savefig('{}_{}.png'.format(dataset, method), dpi=300, bbox_inches='tight', pad_inches=0)
+        plt.savefig('{}_{}{}.png'.format(dataset, method, '_full' if FULL else ''), dpi=300, bbox_inches='tight', pad_inches=0)
 
 if __name__ == '__main__':
     import numpy as np
+    import argparse
     import LillePrediction as llp
     data = {'WIK': llp.lp.DATASETS.Wikipedia,
             'EPI': llp.lp.DATASETS.Epinion,
             'SLA': llp.lp.DATASETS.Slashdot}
-    alphas = {'SLA': .278, 
-              'WIK': .295,
-              'EPI': .261}
-    import sys
-    pref = sys.argv[1]
-    nrep = int(sys.argv[2])
+    parser = argparse.ArgumentParser()
+    parser.add_argument("data", help="Which data to use",
+                        choices=data.keys(), default='WIK')
+    parser.add_argument("-f", "--full", action='store_true',
+                        help="Use full dataset for training")
+    parser.add_argument("-n", "--nrep", help="number of repetition", type=int,
+                        default=10)
+    args = parser.parse_args()
+    pref = args.data
+    nrep = args.nrep
+    alphas = {'SLA': .278, 'WIK': .295, 'EPI': .261}
+    if args.full:
+        FULL = True
+        for k in alphas:
+            alphas[k] += 1
     graph = llp.LillePrediction(use_triads=False)
     graph.load_data(data[pref], balanced=False)
     import time
@@ -66,17 +77,22 @@ if __name__ == '__main__':
                                 penalty=None, average=True))
     from L1Classifier import L1Classifier
     simple = L1Classifier()
+    tweaked_aggregate = lambda x: x[1][:,0]*x[0][:,0] < x[1][:,1]*(1-x[0][:,1])
+    circle_rule = lambda X:(X[:,0]-1)**2 + (X[:, 1]-1)**2 > 1 
 
-    fres = [[] for _ in range(10)]
+    fres = [[] for _ in range(12)]
     only_t_fixed, only_t_learned = [], []
     first_p_fixed, first_p_learned, percep = [], [], []
     new_rule, quadrant, quadrant_me, gaussian = [], [], [], []
-    dichotomy_rule = []
+    dichotomy_rule, weighted_rule, circle = [], [], []
     for _ in range(nrep):
         es=graph.select_train_set(sampling=lambda d: int(alphas[pref]*d))
         print(100*len(es)/len(graph.E))
         Xl, yl, train_set, test_set = graph.compute_features()
         Xa, ya = np.array(Xl)[:, 15:17], np.array(yl)
+        if args.full:
+            train_set = np.arange(Xa.shape[0])
+            test_set = train_set
         gold=ya[test_set]
         pred_function = graph.train(lambda X: onedt_fixed.predict(X))
         res = graph.test_and_evaluate(pred_function, Xa[test_set, :], gold)
@@ -124,19 +140,31 @@ if __name__ == '__main__':
         if _==0:
             plot_boundary(pred_function, pref, 'dichotomy_rule')
         dichotomy_rule.append(res)
-        # pred_function = graph.train(rbf_pa, Xa[train_set, :], ya[train_set])
-        # res = graph.test_and_evaluate(pred_function, Xa[test_set, :], gold)
-        # if _==0:
-        #     plot_boundary(pred_function, pref, 'gaussian')
-        gaussian.append([.8,.8,.5,.3,.2,.5])
+        nSamp = np.array(Xl)[:, -2:]
+        samples = 1-np.exp(-nSamp/2)
+        pred_function = graph.train(tweaked_aggregate)
+        res = graph.test_and_evaluate(pred_function, (Xa[test_set, :], samples[test_set, :]), gold)
+        weighted_rule.append(res)
+        pred_function = graph.train(circle_rule)
+        res = graph.test_and_evaluate(pred_function, Xa[test_set, :], gold)
+        if _==0:
+            plot_boundary(pred_function, pref, 'circle')
+        circle.append(res)
+        pred_function = graph.train(rbf_pa, Xa[train_set, :], ya[train_set])
+        res = graph.test_and_evaluate(pred_function, Xa[test_set, :], gold)
+        if _==0:
+            plot_boundary(pred_function, pref, 'gaussian')
+        gaussian.append(res)
     fres[0].append(only_t_fixed)
     fres[1].append(only_t_learned)
     fres[2].append(first_p_fixed)
     fres[3].append(first_p_learned)
     fres[4].append(percep)
     fres[5].append(new_rule)
-    fres[6].append(quadrant)
-    fres[7].append(quadrant_me)
-    fres[8].append(gaussian)
-    fres[9].append(dichotomy_rule)
-    np.savez_compressed('{}_8ways_{}'.format(pref, start), res=np.array(fres))
+    fres[6].append(dichotomy_rule)
+    fres[7].append(circle)
+    fres[8].append(weighted_rule)
+    fres[9].append(quadrant)
+    fres[10].append(quadrant_me)
+    fres[11].append(gaussian)
+    np.savez_compressed('{}{}_8ways_{}'.format(pref, '_full' if args.full else '', start), res=np.array(fres))

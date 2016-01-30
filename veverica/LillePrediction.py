@@ -259,6 +259,7 @@ if __name__ == '__main__':
 
     data = {'WIK': lp.DATASETS.Wikipedia,
             'EPI': lp.DATASETS.Epinion,
+            'RFA': lp.DATASETS.Rfa,
             'SLA': lp.DATASETS.Slashdot}
     parser = argparse.ArgumentParser()
     parser.add_argument("data", help="Which data to use",

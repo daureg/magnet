@@ -1,7 +1,8 @@
 # vim: set fileencoding=utf-8
-from sklearn.base import BaseEstimator, ClassifierMixin, clone
-from sklearn.metrics import accuracy_score, f1_score, matthews_corrcoef
+from sklearn.base import BaseEstimator, ClassifierMixin
 from math import sqrt
+import numpy as np
+
 
 class L1Classifier(BaseEstimator, ClassifierMixin):
     def __init__(self, n_iter=6):
@@ -22,6 +23,7 @@ class L1Classifier(BaseEstimator, ClassifierMixin):
     def predict(self, X):
         return (X[:, 0] < (self.k-X[:, 1]))
 
+
 gr = (sqrt(5) - 1) / 2
 def gss(f, a, b, n_iter=5):
     c = b - gr * (b - a)
@@ -40,14 +42,13 @@ def gss(f, a, b, n_iter=5):
     return (b + a) / 2
 
 
-import numpy as np
 ks = np.linspace(.4, .9, 50)
 # @profile
 def bench(X, y):
     f = X[:, 0] + X[:, 1]
     for k in ks:
         pred = f < k
-        acc = (y==pred).sum()
+        acc = (y == pred).sum()
 
 if __name__ == "__main__":
     from sklearn.metrics import accuracy_score, f1_score, matthews_corrcoef
@@ -62,4 +63,4 @@ if __name__ == "__main__":
     C = confusion_matrix(gold, pred)
     fp, tn = C[0, 1], C[0, 0]
     print([accuracy_score(gold, pred), f1_score(gold, pred, average='weighted', pos_label=None),
-           matthews_corrcoef(gold, pred), fp/(fp+tn),])
+           matthews_corrcoef(gold, pred), fp/(fp+tn)])

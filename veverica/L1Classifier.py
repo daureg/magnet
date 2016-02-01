@@ -13,7 +13,11 @@ class L1Classifier(BaseEstimator, ClassifierMixin):
         assert 0 <= X.min() and X.max() <= 1, 'features should be [0,1] ratio'
         feats = X[:, 0] + X[:, 1]
         # self.k = gss(lambda k: -matthews_corrcoef(y, (feats < k)), .3, .9, self.n_iter)
-        self.k = gss(lambda k: (y != (feats < k)).sum(), .3, .9, self.n_iter)
+        # self.k = gss(lambda k: (y != (feats < k)).sum(), .3, .9, self.n_iter)
+        mask = feats > 0.8*feats.mean()
+        rdst = feats[mask]
+        rorder = np.argsort(rdst)
+        self.k = rdst[rorder][np.argmax(np.cumsum(2*y[mask][rorder]-1))]
 
     def predict(self, X):
         return (X[:, 0] < (self.k-X[:, 1]))

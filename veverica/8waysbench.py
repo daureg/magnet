@@ -3,7 +3,7 @@ import warnings
 warnings.simplefilter('ignore', FutureWarning)
 import matplotlib
 import matplotlib.pyplot as plt
-RdGr = matplotlib.colors.LinearSegmentedColormap.from_list('RdGr', [matplotlib.colors.hex2color('#dd2c00'), 
+RdGr = matplotlib.colors.LinearSegmentedColormap.from_list('RdGr', [matplotlib.colors.hex2color('#dd2c00'),
                                                                     matplotlib.colors.hex2color('#64dd17')], 2)
 import seaborn as sns
 FULL = False
@@ -20,7 +20,7 @@ def plot_boundary(predict_fun, dataset, method):
         ax1.set_xlim(0, 1)
         ax1.set_ylim(0, 1)
         plt.axis('equal')
-        plt.tick_params( axis='both', which='both', bottom='off', top='off',
+        plt.tick_params(axis='both', which='both', bottom='off', top='off',
                         left='off', labelbottom='off', labelleft='off')
         plt.show()
         plt.savefig('{}_{}{}.png'.format(dataset, method, '_full' if FULL else ''), dpi=300, bbox_inches='tight', pad_inches=0)
@@ -32,6 +32,14 @@ if __name__ == '__main__':
     data = {'WIK': llp.lp.DATASETS.Wikipedia,
             'EPI': llp.lp.DATASETS.Epinion,
             'SLA': llp.lp.DATASETS.Slashdot}
+    alphas = [{'WIK': lambda d: int(ceil(.295*d)), 'SLA': lambda d: int(ceil(.278*d)), 'EPI': lambda d: int(ceil(.261*d))},
+              {'WIK': lambda d: int(ceil(1*log(d))), 'SLA': lambda d: int(ceil(1*log(d))), 'EPI': lambda d: int(ceil(1*log(d)))},
+              {'WIK': lambda d: int(ceil(2*log(d))), 'SLA': lambda d: int(ceil(2*log(d))), 'EPI': lambda d: int(ceil(2*log(d)))},
+              {'WIK': lambda d: int(ceil(.076*d)), 'SLA': lambda d: int(ceil(.108*d)), 'EPI': lambda d: int(ceil(.082*d))},
+              {'WIK': lambda d: int(ceil(.149*d)), 'SLA': lambda d: int(ceil(.215*d)), 'EPI': lambda d: int(ceil(.165*d))},
+              {'WIK': lambda d: int(ceil(.076*d)), 'SLA': lambda d: int(ceil(.108*d)), 'EPI': lambda d: int(ceil(.082*d))},
+              {'WIK': lambda d: int(ceil(.149*d)), 'SLA': lambda d: int(ceil(.215*d)), 'EPI': lambda d: int(ceil(.165*d))}
+              ]
     parser = argparse.ArgumentParser()
     parser.add_argument("data", help="Which data to use",
                         choices=data.keys(), default='WIK')
@@ -39,14 +47,17 @@ if __name__ == '__main__':
                         help="Use full dataset for training")
     parser.add_argument("-n", "--nrep", help="number of repetition", type=int,
                         default=10)
+    parser.add_argument("-s", "--sampling", help="Sampling scheme", type=int,
+                        choices=list(range(len(alphas))), default=0)
     args = parser.parse_args()
     pref = args.data
     nrep = args.nrep
-    alphas = {'SLA': .278, 'WIK': .295, 'EPI': .261}
+    smpsch = args.sampling
+    from math import ceil, log
     if args.full:
         FULL = True
-        for k in alphas:
-            alphas[k] += 1
+        for k in alphas[0]:
+            alphas[0][k] += 1
     graph = llp.LillePrediction(use_triads=False)
     graph.load_data(data[pref], balanced=False)
     import time
@@ -73,12 +84,12 @@ if __name__ == '__main__':
     from sklearn.kernel_approximation import Nystroem
     from sklearn.pipeline import make_pipeline
     rbf_pa = make_pipeline(Nystroem(gamma=31, kernel_params={'C': 600}, n_components=80),
-                  SGDClassifier(loss="perceptron", eta0=1, n_iter=4, class_weight=cw, learning_rate="constant",
-                                penalty=None, average=True))
+                           SGDClassifier(loss="perceptron", eta0=1, n_iter=4, class_weight=cw,
+                                         learning_rate="constant", penalty=None, average=True))
     from L1Classifier import L1Classifier
     simple = L1Classifier()
     tweaked_aggregate = lambda x: x[1][:,0]*x[0][:,0] < x[1][:,1]*(1-x[0][:,1])
-    circle_rule = lambda X:(X[:,0]-1)**2 + (X[:, 1]-1)**2 > 1 
+    circle_rule = lambda X:(X[:,0]-1)**2 + (X[:, 1]-1)**2 > 1
 
     fres = [[] for _ in range(12)]
     only_t_fixed, only_t_learned = [], []
@@ -86,7 +97,8 @@ if __name__ == '__main__':
     new_rule, quadrant, quadrant_me, gaussian = [], [], [], []
     dichotomy_rule, weighted_rule, circle = [], [], []
     for _ in range(nrep):
-        es=graph.select_train_set(sampling=lambda d: int(alphas[pref]*d))
+        es=graph.select_train_set(sampling=alphas[smpsch][pref],
+                                  with_replacement=smpsch<5)
         print(100*len(es)/len(graph.E))
         Xl, yl, train_set, test_set = graph.compute_features()
         Xa, ya = np.array(Xl)[:, 15:17], np.array(yl)
@@ -150,6 +162,8 @@ if __name__ == '__main__':
         if _==0:
             plot_boundary(pred_function, pref, 'circle')
         circle.append(res)
+        # gaussian.append([.7,.7,.5,.3,5,.5])
+        # continue
         pred_function = graph.train(rbf_pa, Xa[train_set, :], ya[train_set])
         res = graph.test_and_evaluate(pred_function, Xa[test_set, :], gold)
         if _==0:

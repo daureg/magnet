@@ -22,7 +22,7 @@ def dfs_of_a_tree(G, root, parents, k=2):
     """G must be a tree, that is G[v] doesn't include the parent of v"""
     tree = []
     q = []
-    status = [(False, -1) for _ in range(len(G))]
+    status = {u: (False, -1) for u in G}
     height = {}
     q.append(root)
     subtrees = []
@@ -53,7 +53,7 @@ def dfs_of_a_tree(G, root, parents, k=2):
                 tree.append((v, pred) if v < pred else (pred, v))
             # append the node itself to be poped when all its children are visited
             q.append(-(v + 100))
-            for w in sorted(G[v], reverse=True):
+            for w in G[v]:
                 discovered, pred = status[w]
                 if pred == -1:
                     status[w] = (discovered, v)
@@ -110,7 +110,7 @@ def prediction(E, strees, stars, across_stars, memberships, Et, tree_root):
     binary_signs = {e: (1 if s else -1) for e, s in E.items()}
     tags = [dfs_tagging(t, binary_signs, tree_root[s.center])
             for t, s in zip(top_trees, stars)]
-    chosen_across_stars = {e: sorted(candidates)[0]
+    chosen_across_stars = {e: random.choice(list(candidates))
                            for e, candidates in across_stars.items()}
 
     gold, pred = [], []
@@ -143,15 +143,15 @@ def prediction(E, strees, stars, across_stars, memberships, Et, tree_root):
 
 
 def create_graph(N=100, nb_clusters=4):
-    from graph_tool.topology import label_largest_component
+    from graph_tool.topology import label_largest_component, pseudo_diameter
     is_connected = False
     nb_iter = 0
     while not is_connected and nb_iter < N:
         cexp.fast_random_graph(N, .05)
         g = cexp.to_graph_tool()
         is_connected = label_largest_component(g).a.sum() == N
-    cexp.turn_into_signed_graph_by_propagation(4, .8)
-    return g
+    cexp.turn_into_signed_graph_by_propagation(nb_clusters, .8)
+    return g, int(pseudo_diameter(g)[0])
 
 
 def visualisation(g, subtree_height=2):
@@ -206,7 +206,8 @@ def visualisation(g, subtree_height=2):
                              for u, v in st.items() if v is not None})
     within_tree, across_trees = bipartition_edges(E, strees, tree_membership, support_tree)
     Gt = {i: set() for i, u in enumerate(strees)}
-    Et = {e: sorted(candidates)[0] for e, candidates in across_trees.items()}
+    Et = {e: random.choice(list(candidates))
+          for e, candidates in across_trees.items()}
     for e, n in Et.items():
         add_edge(Gt, *e)
 
@@ -290,7 +291,8 @@ def treestar(G, E, subtree_height, root):
                              for u, v in st.items() if v is not None})
     within_tree, across_trees = bipartition_edges(E, strees, tree_membership, support_tree)
     Gt = {i: set() for i, u in enumerate(strees)}
-    Et = {e: sorted(candidates)[0] for e, candidates in across_trees.items()}
+    Et = {e: random.choice(list(candidates))
+          for e, candidates in across_trees.items()}
     for e, n in Et.items():
         add_edge(Gt, *e)
     stars, _, star_membership = extract_stars(Gt)

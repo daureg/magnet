@@ -7,6 +7,9 @@ from new_galaxy import extract_stars
 from node_classif import short_bfs
 from pred_on_tree import dfs_tagging
 import convert_experiment as cexp
+from timeit import default_timer as clock
+from sklearn.metrics import accuracy_score, f1_score, matthews_corrcoef
+from sklearn.metrics import confusion_matrix
 
 
 def initial_spanning_tree(G, root=None):
@@ -16,6 +19,42 @@ def initial_spanning_tree(G, root=None):
     for u, v in tree:
         add_edge(Gbfs, u, v)
     return Gbfs, parents, tree
+
+
+def baseline_bfs(G, E):
+    """return score of predicting with BFS on the LCC of G"""
+    start = clock()
+    root = max(G.items(), key=lambda x: len(x[1]))[0]
+    Gbfs, parents, tree = initial_spanning_tree(G, root)
+    binary_signs = {(u, v) if u < v else (v, u): 2*s-1
+                    for (u, v), s in E.items() if u in Gbfs}
+    tags = dfs_tagging(Gbfs, binary_signs, root)
+    tree = set(tree)
+    gold, pred = [], []
+    for (u, v), s in E.items():
+        if (u, v) in tree or u not in Gbfs:
+            continue
+        gold.append(2*s-1)
+        pred.append(tags[u]*tags[v])
+    end = clock() - start
+    C = confusion_matrix(gold, pred)
+    fp, tn = C[0, 1], C[0, 0]
+    return [accuracy_score(gold, pred),
+            f1_score(gold, pred, average='weighted', pos_label=None),
+            matthews_corrcoef(gold, pred), fp/(fp+tn), end,
+            1-len(pred)/len(binary_signs)]
+
+
+def full_treestar(G, E, k):
+    root = max(G.items(), key=lambda x: len(x[1]))[0]
+    start = clock()
+    (gold, pred), m = treestar(G, E, k, root)
+    end = clock() - start
+    C = confusion_matrix(gold, pred)
+    fp, tn = C[0, 1], C[0, 0]
+    return [accuracy_score(gold, pred),
+            f1_score(gold, pred, average='weighted', pos_label=None),
+            matthews_corrcoef(gold, pred), fp/(fp+tn), end, 1-len(pred)/m]
 
 
 def dfs_of_a_tree(G, root, parents, k=2):
@@ -266,6 +305,8 @@ def visualisation(g, subtree_height=2):
 
 def treestar(G, E, subtree_height, root):
     Gbfs, parents, tree = initial_spanning_tree(G, root)
+    Elcc = {(u, v) if u < v else (v, u): s
+            for (u, v), s in E.items() if u in Gbfs}
     Bparent = deepcopy(parents)
     Bg = deepcopy(Gbfs)
     for u in Bg:
@@ -289,7 +330,7 @@ def treestar(G, E, subtree_height, root):
     for st in strees:
         support_tree.append({(u, v) if u < v else (v, u)
                              for u, v in st.items() if v is not None})
-    within_tree, across_trees = bipartition_edges(E, strees, tree_membership, support_tree)
+    within_tree, across_trees = bipartition_edges(Elcc, strees, tree_membership, support_tree)
     Gt = {i: set() for i, u in enumerate(strees)}
     Et = {e: random.choice(list(candidates))
           for e, candidates in across_trees.items()}

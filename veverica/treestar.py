@@ -272,8 +272,18 @@ def treestar(G, E, subtree_height, root):
         Bg[u].discard(p)
 
     dtree, height, strees = dfs_of_a_tree(Bg, root, Bparent, subtree_height)
+    child = None
+    if len(strees[-1]) == 1:
+        # can't leave the root in a singleton tree, attach it to the tree of
+        # one of its children
+        strees.pop()
+        child = next(iter(G[root]))
     tree_membership = {u: i for i, st in enumerate(strees) for u in st}
     tree_root = [[k for k, v in t.items() if v is None][0] for t in strees]
+    if child is not None:
+        child_tree = tree_membership[child]
+        strees[child_tree][root] = child
+        tree_membership[root] = child_tree
     support_tree = []
     for st in strees:
         support_tree.append({(u, v) if u < v else (v, u)

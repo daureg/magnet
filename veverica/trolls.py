@@ -23,7 +23,8 @@ def balance_signs(G, E, seed=1489):
     return nG, nE
 
 
-def select_edges(G, E, alpha, strategy, directed=False, sampling=None):
+def select_edges(G, E, alpha, strategy, directed=False, sampling=None,
+                 with_replacement=False):
     """if provided, sampling is a function which take the degree of the node
     and return an integer: number of edge to query"""
     res = {}
@@ -43,7 +44,12 @@ def select_edges(G, E, alpha, strategy, directed=False, sampling=None):
         sampling = lambda d: int(alpha*d)
     for u, adj in G.items():
         num_to_sample = max(min(len(adj), 1), sampling(len(adj)))
-        nei = random.sample(list(adj), min(len(adj), num_to_sample))
+        num_to_sample = min(len(adj), num_to_sample)
+        ladj = list(adj)
+        if with_replacement:
+            nei = [random.choice(ladj) for _ in range(num_to_sample)]
+        else:
+            nei = random.sample(ladj, num_to_sample)
         if directed:
             edges = {(u, v) if (u, v) in E else (v, u) for v in nei}
         else:

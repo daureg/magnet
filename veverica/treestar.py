@@ -42,7 +42,7 @@ def baseline_bfs(G, E):
     return [accuracy_score(gold, pred),
             f1_score(gold, pred, average='weighted', pos_label=None),
             matthews_corrcoef(gold, pred), fp/(fp+tn), end,
-            1-len(pred)/len(binary_signs)]
+            len(tree)/len(binary_signs)]
 
 
 def full_treestar(G, E, k):
@@ -338,8 +338,8 @@ def treestar(G, E, subtree_height, root):
         add_edge(Gt, *e)
     stars, _, star_membership = extract_stars(Gt)
     within_star, across_stars = bipartition_edges(Et, stars, star_membership)
-    return prediction(E, strees, stars, across_stars,
-                      (tree_membership, star_membership), Et, tree_root)
+    return prediction(Elcc, strees, stars, across_stars,
+                      (tree_membership, star_membership), Et, tree_root), len(Elcc)
 
 if __name__ == "__main__":
     # pylint: disable=C0103

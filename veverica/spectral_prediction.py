@@ -46,7 +46,7 @@ def get_training_matrix(pr_in_train_set, mapping, slcc, tree_edges=None,
         msg = '{} = {}+{}'.format(total_edges, len(tree_edges),
                                   len(test_edges))
         real = len(tree_edges) + len(test_edges)
-        assert real == total_edges, msg
+        # assert real == total_edges, msg
 
     sadj = sps.csc_matrix(sps.coo_matrix((data, (row, col)), shape=(n, n)),
                           dtype=np.double)

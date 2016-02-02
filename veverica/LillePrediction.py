@@ -66,6 +66,7 @@ class LillePrediction(lp.LinkPrediction):
         self.out_samples, self.in_samples = defaultdict(int), defaultdict(int)
         if 'batch' in params:
             alpha = min(params['batch']*self.order/len(self.E), 1.0)
+            alpha = params['batch']
             self.Esign = l.trolls.select_edges(None, self.E, alpha, 'random')
             self.out_samples.update(Counter((e[0] for e in self.Esign)))
             self.in_samples.update(Counter((e[1] for e in self.Esign)))
@@ -131,8 +132,8 @@ class LillePrediction(lp.LinkPrediction):
                    self.din_plus[v], self.din_minus[u],
                    self.dout_plus[v], self.dout_minus[u],
                    self.dout_minus[u]/self.dout[u], self.din_minus[v]/self.din[v],
-                   0 if known_out == 0 else self.dout_minus[u]/known_out,
-                   0 if known_in == 0 else self.din_minus[v]/known_in,
+                   0.4999999 if known_out == 0 else self.dout_minus[u]/known_out,
+                   0.4999999 if known_in == 0 else self.din_minus[v]/known_in,
                    ]
         triads = 16*[0, ]
         if self.with_triads:

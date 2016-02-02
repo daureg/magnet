@@ -5,6 +5,8 @@ from copy import deepcopy
 from grid_stretch import add_edge
 from new_galaxy import extract_stars
 from node_classif import short_bfs
+from pred_on_tree import dfs_tagging
+import convert_experiment as cexp
 
 
 def initial_spanning_tree(G, root=None):
@@ -76,26 +78,89 @@ def bipartition_edges(all_edges, entities, entities_membership, inner_edges={}):
             across_entities[(tu, tv)].add((u, v))
     return within_entities, {k: v for k, v in across_entities.items()}
 
-if __name__ == "__main__":
-    # pylint: disable=C0103
-    from cc_pivot import draw_clustering
-    import convert_experiment as cexp
-    import draw_utils as du
-    from graph_tool import draw as gdraw
-    from graph_tool.topology import label_largest_component
-    import graph_tool as gt
-    import numpy as np
-    import seaborn as sns
 
-    N = 50
+def tree_from_parent(prt):
+    """Return a tree adjacency dict from a {node: its parent} `prt` dict"""
+    full_tree = {}
+    for node, parent in prt.items():
+        if parent is not None:
+            add_edge(full_tree, node, parent)
+    return full_tree
+
+
+def tree_of_a_star(star, sub_trees, to_top_edges):
+    """Given a `star`, the list of all `sub_trees` and a mapping from edges
+    between trees to edges in the original graph, return the spanning tree of
+    `star`"""
+    full_tree = {}
+    center = star.center
+    for point in [center]+star.points:
+        tfp = tree_from_parent(sub_trees[point])
+        assert len(set(full_tree.keys()).intersection(set(tfp.keys()))) == 0, (point, set(full_tree.keys()), set(tfp.keys()))
+        full_tree.update(tfp)
+    for point in star.points:
+        link = (point, center) if point < center else (center, point)
+        add_edge(full_tree, *to_top_edges[link])
+    return full_tree
+
+
+def prediction(E, strees, stars, across_stars, memberships, Et, tree_root):
+    tree_membership, star_membership = memberships
+    top_trees = [tree_of_a_star(s, strees, Et) for s in stars]
+    binary_signs = {e: (1 if s else -1) for e, s in E.items()}
+    tags = [dfs_tagging(t, binary_signs, tree_root[s.center])
+            for t, s in zip(top_trees, stars)]
+    chosen_across_stars = {e: sorted(candidates)[0]
+                           for e, candidates in across_stars.items()}
+
+    gold, pred = [], []
+    for (u, v), s in E.items():
+        assert u < v
+        tu, tv = tree_membership[u], tree_membership[v]
+        su, sv = star_membership[tu], star_membership[tv]
+        if su == sv:
+            if v in top_trees[su][u]:
+                continue
+            gold.append(2*s-1)
+            pred.append(tags[su][u]*tags[sv][v])
+        else:
+            link = chosen_across_stars[(su, sv) if su < sv else (sv, su)]
+            out_u_tree, in_v_tree = link if star_membership[link[0]] == su else (link[1], link[0])
+            real_edge = Et[tuple(sorted(link))]
+            assert real_edge[0] < real_edge[1]
+            if (u, v) == real_edge:
+                continue
+            gold.append(2*s-1)
+            if star_membership[tree_membership[real_edge[0]]] == su:
+                out_u_node, in_v_node = real_edge
+            else:
+                out_u_node, in_v_node = (real_edge[1], real_edge[0])
+            from_u_to_out = tags[su][u]*tags[su][out_u_node]
+            from_v_to_in = tags[sv][v]*tags[sv][in_v_node]
+            in_between = 2*E[real_edge]-1
+            pred.append(from_u_to_out*in_between*from_v_to_in)
+    return gold, pred
+
+
+def create_graph(N=100, nb_clusters=4):
+    from graph_tool.topology import label_largest_component
     is_connected = False
     nb_iter = 0
     while not is_connected and nb_iter < N:
         cexp.fast_random_graph(N, .05)
         g = cexp.to_graph_tool()
         is_connected = label_largest_component(g).a.sum() == N
-    pos = gdraw.sfdp_layout(g)
+    cexp.turn_into_signed_graph_by_propagation(4, .8)
+    return g
 
+
+def visualisation(g, subtree_height=2):
+    from cc_pivot import draw_clustering
+    import draw_utils as du
+    from graph_tool import draw as gdraw
+    import graph_tool as gt
+    import numpy as np
+    import seaborn as sns
     G, E = cexp.redensify.G, cexp.redensify.EDGES_SIGN
     root = 16
     Gbfs, parents, tree = initial_spanning_tree(G, root)
@@ -116,7 +181,7 @@ if __name__ == "__main__":
         p = Bparent[u]
         Bg[u].discard(p)
 
-    dtree, height, strees = dfs_of_a_tree(Bg, root, Bparent)
+    dtree, height, strees = dfs_of_a_tree(Bg, root, Bparent, subtree_height)
 
     cols = sns.color_palette('rainbow', len(strees))
     random.shuffle(cols)
@@ -196,3 +261,45 @@ if __name__ == "__main__":
         scols[ke] = du.black
     gdraw.graph_draw(k, stpos, vprops={'pen_width': 0, 'text': names, 'fill_color': vs_cols, 'size': 24, 'halo': star_halo},
                      eprops={'pen_width': ssize, 'color': scols, 'text': stext}, output_size=(800, 800))
+
+
+def treestar(G, E, subtree_height, root):
+    Gbfs, parents, tree = initial_spanning_tree(G, root)
+    Bparent = deepcopy(parents)
+    Bg = deepcopy(Gbfs)
+    for u in Bg:
+        p = Bparent[u]
+        Bg[u].discard(p)
+
+    dtree, height, strees = dfs_of_a_tree(Bg, root, Bparent, subtree_height)
+    tree_membership = {u: i for i, st in enumerate(strees) for u in st}
+    tree_root = [[k for k, v in t.items() if v is None][0] for t in strees]
+    support_tree = []
+    for st in strees:
+        support_tree.append({(u, v) if u < v else (v, u)
+                             for u, v in st.items() if v is not None})
+    within_tree, across_trees = bipartition_edges(E, strees, tree_membership, support_tree)
+    Gt = {i: set() for i, u in enumerate(strees)}
+    Et = {e: sorted(candidates)[0] for e, candidates in across_trees.items()}
+    for e, n in Et.items():
+        add_edge(Gt, *e)
+    stars, _, star_membership = extract_stars(Gt)
+    within_star, across_stars = bipartition_edges(Et, stars, star_membership)
+    return prediction(E, strees, stars, across_stars,
+                      (tree_membership, star_membership), Et, tree_root)
+
+if __name__ == "__main__":
+    # pylint: disable=C0103
+    from sklearn.metrics import accuracy_score, f1_score, matthews_corrcoef
+    from sklearn.metrics import confusion_matrix
+    k = 2
+    g = create_graph()
+    # visualisation(g, k)
+    G, E = cexp.redensify.G, cexp.redensify.EDGES_SIGN
+    root = 16
+    gold, pred = treestar(G, E, k, root)
+    C = confusion_matrix(gold, pred)
+    fp, tn = C[0, 1], C[0, 0]
+    print([accuracy_score(gold, pred),
+           f1_score(gold, pred, average='weighted', pos_label=None),
+           matthews_corrcoef(gold, pred), fp/(fp+tn)])

@@ -95,7 +95,8 @@ if __name__ == '__main__':
 
             if r == 0:
                 bfsl.append(treestar.baseline_bfs(graph.Gfull, graph.E))
-                k = {'WIK': 7, 'SLA': 8, 'EPI': 9}[pref]
+                k = {'WIK': 7, 'SLA': 8, 'EPI': 9,
+                     'WIK_bal': 9, 'SLA_bal': 10, 'EPI_bal': 1}[pref]
                 treek.append(treestar.full_treestar(graph.Gfull, graph.E, k))
 
             # asym.append([.8, .9, .5, .3, 2, res[-1]])

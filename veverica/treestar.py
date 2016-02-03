@@ -27,14 +27,14 @@ def baseline_bfs(G, E):
     root = max(G.items(), key=lambda x: len(x[1]))[0]
     Gbfs, parents, tree = initial_spanning_tree(G, root)
     binary_signs = {(u, v) if u < v else (v, u): 2*s-1
-                    for (u, v), s in E.items() if u in Gbfs}
+                    for (u, v), s in E.items() if u in Gbfs and v in Gbfs}
     tags = dfs_tagging(Gbfs, binary_signs, root)
     tree = set(tree)
     gold, pred = [], []
-    for (u, v), s in E.items():
-        if (u, v) in tree or u not in Gbfs:
+    for (u, v), s in binary_signs.items():
+        if (u, v) in tree:
             continue
-        gold.append(2*s-1)
+        gold.append(s)
         pred.append(tags[u]*tags[v])
     end = clock() - start
     C = confusion_matrix(gold, pred)
@@ -306,7 +306,7 @@ def visualisation(g, subtree_height=2):
 def treestar(G, E, subtree_height, root):
     Gbfs, parents, tree = initial_spanning_tree(G, root)
     Elcc = {(u, v) if u < v else (v, u): s
-            for (u, v), s in E.items() if u in Gbfs}
+            for (u, v), s in E.items() if u in Gbfs and v in Gbfs}
     Bparent = deepcopy(parents)
     Bg = deepcopy(Gbfs)
     for u in Bg:

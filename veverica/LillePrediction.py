@@ -14,6 +14,7 @@ import numpy as np
 import persistent as p
 import spectral_prediction as sp
 import getWH
+from treestar import initial_spanning_tree
 
 lambdas_troll = {'EPI': [ 0.3138361 ,  0.78747173,  0.09077966],
                  'SLA': [ 0.32362659,  0.73825876,  0.10942871],
@@ -48,6 +49,9 @@ class LillePrediction(lp.LinkPrediction):
         #     l.rw.remove_signed_edge(u, v, directed=True)
         #     l.rw.remove_signed_edge(v, u, directed=True)
             Gfull, E = l.rw.G, l.rw.EDGE_SIGN
+        root = max(Gfull.items(), key=lambda x: len(x[1]))[0]
+        Gbfs, _, _ = initial_spanning_tree(Gfull, root)
+        self.lcc = set(Gbfs.keys())
         self.order = len(Gfull)
         self.dout, self.din = defaultdict(int), defaultdict(int)
         for u, v in E:
@@ -55,9 +59,16 @@ class LillePrediction(lp.LinkPrediction):
             self.din[v] += 1
         self.common_nei = {e: Gfull[e[0]].intersection(Gfull[e[1]]) for e in E}
         self.Gout, self.Gin = {}, {}
-        for u, v in E:
+        self.edge_order, in_lcc = {}, []
+        for i, (u, v) in enumerate(sorted(E)):
+            self.edge_order[(u, v)] = i
+            in_lcc.append(u in self.lcc and v in self.lcc)
             l.add_neighbor(u, v, self.Gout)
             l.add_neighbor(v, u, self.Gin)
+        self.reciprocal = {ei: self.edge_order[(e[1], e[0])]
+                           for e, ei in self.edge_order.items()
+                           if (e[1], e[0]) in E}
+        self.in_lcc = np.array(in_lcc, dtype=bool)
         self.Gfull = Gfull
         self.G = self.Gout
         self.E = E
@@ -87,10 +98,6 @@ class LillePrediction(lp.LinkPrediction):
             return directed_edges
 
     def compute_global_features(self):
-        self.edge_order = {e: i for i, e in enumerate(sorted(self.E))}
-        self.reciprocal = {ei: self.edge_order[(e[1], e[0])]
-                           for e, ei in self.edge_order.items()
-                           if (e[1], e[0]) in self.E}
         self.din_plus, self.dout_plus = defaultdict(int), defaultdict(int)
         self.din_minus, self.dout_minus = defaultdict(int), defaultdict(int)
         self.compute_in_out_degree(self.Esign)

@@ -67,6 +67,13 @@ if __name__ == '__main__':
             Xl, yl, train_set, test_set = graph.compute_features()
             idx2edge = {i: e for e, i in graph.edge_order.items()}
             Xa, ya = np.array(Xl), np.array(yl)
+            if args.active:
+                np_train = np.zeros(Xa.shape[0], dtype=bool)
+                np_train[train_set] = 1
+                np_test = np.zeros(Xa.shape[0], dtype=bool)
+                np_test[test_set] = 1
+                train_set = np.logical_and(np_train, graph.in_lcc)
+                test_set = np.logical_and(np_test, graph.in_lcc)
             train_feat = np.ix_(train_set, feats)
             test_feat = np.ix_(test_set, feats)
             gold = ya[test_set]
@@ -89,9 +96,6 @@ if __name__ == '__main__':
             pred_function = graph.train(perceptron, Xa[train_set, 15:17], ya[train_set])
             res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold, pp)
             ppton.append(res)
-            pred_function = graph.train(llr, Xa[train_feat], ya[train_set])
-            res = graph.test_and_evaluate(pred_function, Xa[test_feat], gold)
-            lesko.append(res)
 
             if r == 0:
                 bfsl.append(treestar.baseline_bfs(graph.Gfull, graph.E))
@@ -99,9 +103,14 @@ if __name__ == '__main__':
                      'WIK_bal': 9, 'SLA_bal': 10, 'EPI_bal': 1}[pref]
                 treek.append(treestar.full_treestar(graph.Gfull, graph.E, k))
 
-            # asym.append([.8, .9, .5, .3, 2, res[-1]])
-            # chiang.append([.8, .9, .5, .3, 2, res[-1]])
-            # continue
+            if args.active:
+                asym.append([.8, .9, .5, .3, 2, frac])
+                chiang.append([.8, .9, .5, .3, 2, frac])
+                lesko.append([.8, .9, .5, .3, 2, frac])
+                continue
+            pred_function = graph.train(llr, Xa[train_feat], ya[train_set])
+            res = graph.test_and_evaluate(pred_function, Xa[test_feat], gold)
+            lesko.append(res)
             esigns = {(u, v): graph.E.get((u, v)) if (u, v) in graph.E else graph.E.get((v, u))
                       for u, adj in graph.Gfull.items() for v in adj}
             mapping = {i: i for i in range(graph.order)}

@@ -343,16 +343,62 @@ def treestar(G, E, subtree_height, root):
 
 if __name__ == "__main__":
     # pylint: disable=C0103
-    from sklearn.metrics import accuracy_score, f1_score, matthews_corrcoef
-    from sklearn.metrics import confusion_matrix
+    import persistent as p
+    import scratch as sh
+    import numpy as np
+    import time
+    import sys
+    data = {'WIK': 'wikipedia_lcc.my',
+            'SLA': 'slashdot_lcc.my',
+            'EPI': 'epinion_lcc.my'}
+    pref = sys.argv[1]
+    balanced = True
+    # G, E = p.load_var(data[pref], balanced=balanced)
+    import LillePrediction as llp
+    graph = llp.LillePrediction(use_triads=False)
+    data = {'WIK': llp.lp.DATASETS.Wikipedia,
+            'EPI': llp.lp.DATASETS.Epinion,
+            'SLA': llp.lp.DATASETS.Slashdot}
+    graph.load_data(data[pref], balanced=True)
+    G, E = graph.Gfull, graph.E
+    if balanced:
+        pref += '_bal'
+    high_degree = [_[0] for _ in sorted(G.items(),
+                                        key=lambda x: len(x[1]))[-100:]]
+    fres = []
+    start = (int(time.time()-(2016-1970)*365.25*24*60*60))//60
+    for k in range(1, 20):
+        res = []
+        for _ in range(6):
+            s = clock()
+            (gold, pred), m = treestar(G, E, k, high_degree[-1])
+            end = clock() - s
+            tp, tn, fp, fn = sh.confusion_number(gold, pred)
+            res.append([sh.accuracy(tp, tn, fp, fn), sh.f1_score(tp, tn, fp, fn),
+                        sh.mcc(tp, tn, fp, fn), fp/(fp+tn), end, len(pred)/m])
+        print(k, np.mean(res, 0))
+        fres.append(res)
+    res = np.array(fres)
+    np.savez_compressed('{}_treestar_{}.npz'.format(pref, start), res=res)
+    sys.exit()
     k = 2
-    g = create_graph()
+    nrep = 5
+    g, Dg = create_graph(250, 5)
     # visualisation(g, k)
     G, E = cexp.redensify.G, cexp.redensify.EDGES_SIGN
     root = 16
-    gold, pred = treestar(G, E, k, root)
-    C = confusion_matrix(gold, pred)
-    fp, tn = C[0, 1], C[0, 0]
-    print([accuracy_score(gold, pred),
-           f1_score(gold, pred, average='weighted', pos_label=None),
-           matthews_corrcoef(gold, pred), fp/(fp+tn)])
+    for k in range(1, Dg):
+        print(k)
+        for n in range(nrep):
+            try:
+                gold, pred = treestar(G, E, k, root)
+            except KeyError:
+                p.save_var('__tmp_fail.my', (G, E))
+                raise
+            # C = confusion_matrix(gold, pred)
+            # fp, tn = C[0, 1], C[0, 0]
+            # print([accuracy_score(gold, pred), f1_score(gold, pred),
+            #        matthews_corrcoef(gold, pred), fp/(fp+tn)])
+            tp, tn, fp, fn = sh.confusion_number(gold, pred)
+            print([sh.accuracy(tp, tn, fp, fn), sh.f1_score(tp, tn, fp, fn),
+                   sh.mcc(tp, tn, fp, fn)])

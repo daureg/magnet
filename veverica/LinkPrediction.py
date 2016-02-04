@@ -48,8 +48,7 @@ class LinkPrediction(object):
         self.edge_order = {e: i for i, e in enumerate(sorted(self.E))}
         knows_indices, pred_indices = [], []
         features, signs = [], []
-        for i, ((u, v), sign) in enumerate(sorted(self.E.items(),
-                                                  key=lambda x: x[0])):
+        for i, ((u, v), sign) in enumerate(sorted(self.E.items())):
             feature = self.compute_one_edge_feature((u, v))
             features.append(feature)
             signs.append(int(sign))
@@ -77,9 +76,11 @@ class LinkPrediction(object):
         return model
 
     def test_and_evaluate(self, pred_function, pred_data, gold,
-                          postprocess=None):
+                          postprocess=None, only_on_lcc=False):
         from timeit import default_timer as clock
         frac = 1-gold.size/len(self.E)
+        if only_on_lcc:
+            frac = 1-gold.size/self.in_lcc.sum()
         s = clock()
         pred = pred_function(pred_data)
         self.time_used += clock() - s

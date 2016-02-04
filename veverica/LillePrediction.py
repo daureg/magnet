@@ -86,14 +86,23 @@ class LillePrediction(lp.LinkPrediction):
             alpha = params.get('alpha', 0)
             sf = params.get('sampling')
             replacement = params.get('replacement', False)
-            Eout = l.trolls.select_edges(self.Gout, self.E, alpha, 'uniform',
-                                         True, sf, replacement)
-            Ein = l.trolls.select_edges(self.Gin, self.E, alpha, 'uniform',
-                                        True, sf, replacement)
-            self.out_samples.update(Counter((e[0] for e in Eout)))
-            self.in_samples.update(Counter((e[1] for e in Ein)))
-            directed_edges = deepcopy(Ein)
-            directed_edges.update(Eout)
+            do_out = params.get('do_out', True)
+            do_in = params.get('do_in', True)
+            assert do_out or do_in, 'something to sample at least'
+            directed_edges = None
+            if do_out:
+                Eout = l.trolls.select_edges(self.Gout, self.E, alpha, 'uniform',
+                                             True, sf, replacement)
+                self.out_samples.update(Counter((e[0] for e in Eout)))
+                directed_edges = deepcopy(Eout)
+            if do_in:
+                Ein = l.trolls.select_edges(self.Gin, self.E, alpha, 'uniform',
+                                            True, sf, replacement)
+                self.in_samples.update(Counter((e[1] for e in Ein)))
+                if directed_edges is None:
+                    directed_edges = deepcopy(Ein)
+                else:
+                    directed_edges.update(Ein)
             self.Esign = directed_edges
             return directed_edges
 

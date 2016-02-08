@@ -78,6 +78,7 @@ if __name__ == '__main__':
             test_feat = np.ix_(test_set, feats)
             gold = ya[test_set]
             pp = (test_set, idx2edge)
+            pp = None
 
             pred_function = graph.train(lambda features: features[:, 0] < 0.5)
             res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold, pp)

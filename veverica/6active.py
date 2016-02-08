@@ -57,12 +57,13 @@ if __name__ == '__main__':
             test_set = np.logical_and(np_test, graph.in_lcc)
             gold = ya[test_set]
             pp = (test_set, idx2edge)
+            pp = None
 
             if i <= 3:
                 pred_function = graph.train(lambda features: features[:, i % 2] < 0.5)
-                res[i, :, r] = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold, pp)
+                res[i, :, r] = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold, pp, True)
             else:
                 pred_function = graph.train(dicho, Xa[train_set, 15:17], ya[train_set])
-                res[i, :, r] = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold, pp)
+                res[i, :, r] = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold, pp, True)
     pref += '_active'
     np.savez_compressed('{}_{}_{}'.format(pref, start, part+1), res=res)

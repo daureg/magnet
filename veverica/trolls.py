@@ -43,8 +43,7 @@ def select_edges(G, E, alpha, strategy, directed=False, sampling=None,
     if sampling is None:
         sampling = lambda d: int(alpha*d)
     for u, adj in G.items():
-        num_to_sample = max(len(adj), sampling(len(adj)))
-        num_to_sample = min(len(adj), num_to_sample)
+        num_to_sample = min(len(adj), sampling(len(adj)))
         ladj = list(adj)
         if with_replacement:
             nei = [random.choice(ladj) for _ in range(num_to_sample)]

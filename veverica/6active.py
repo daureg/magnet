@@ -37,10 +37,10 @@ if __name__ == '__main__':
 
     params = [{'sampling': lambda d: min(1, d), 'replacement': True, 'do_out': True, 'do_in': False},
               {'sampling': lambda d: min(1, d), 'replacement': True, 'do_out': False, 'do_in': True},
-              {'sampling': lambda d: max(1, min(d, int(4*ceil(log(d))))), 'replacement': True, 'do_out': True, 'do_in': False},
-              {'sampling': lambda d: max(1, min(d, int(4*ceil(log(d))))), 'replacement': True, 'do_out': False, 'do_in': True},
+              {'sampling': lambda d: max(1, min(d, int(4*ceil(log(d+1))))), 'replacement': True, 'do_out': True, 'do_in': False},
+              {'sampling': lambda d: max(1, min(d, int(4*ceil(log(d+1))))), 'replacement': True, 'do_out': False, 'do_in': True},
               {'sampling': lambda d: min(1, d), 'replacement': True, 'do_out': True, 'do_in': True},
-              {'sampling': lambda d: max(1, min(d, int(4*ceil(log(d))))), 'replacement': True, 'do_out': True, 'do_in': True},
+              {'sampling': lambda d: max(1, min(d, int(4*ceil(log(d+1))))), 'replacement': True, 'do_out': True, 'do_in': True},
               ]
     res = np.zeros((6, 6, num_rep))
     for i, p in enumerate(params):

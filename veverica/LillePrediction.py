@@ -15,6 +15,7 @@ import persistent as p
 import spectral_prediction as sp
 import getWH
 from treestar import initial_spanning_tree
+from pack_graph import load_directed_signed_graph
 
 lambdas_troll = {'EPI': [ 0.3138361 ,  0.78747173,  0.09077966],
                  'SLA': [ 0.32362659,  0.73825876,  0.10942871],
@@ -35,7 +36,7 @@ class LillePrediction(lp.LinkPrediction):
     def load_data(self, dataset, balanced=False, small_wiki=False):
         if small_wiki:
             Gfull, E = p.load_var('small_wiki.my')
-        else:
+        elif balanced:
             l.rw.read_original_graph(lp.FILENAMES[dataset], directed=True,
                                      balanced=balanced)
         # conflicting = set()
@@ -49,6 +50,9 @@ class LillePrediction(lp.LinkPrediction):
         #     l.rw.remove_signed_edge(u, v, directed=True)
         #     l.rw.remove_signed_edge(v, u, directed=True)
             Gfull, E = l.rw.G, l.rw.EDGE_SIGN
+        else:
+            pack_name = 'directed_{}.pack'.format(dataset)
+            Gfull, E = load_directed_signed_graph(pack_name)
         root = max(Gfull.items(), key=lambda x: len(x[1]))[0]
         Gbfs, _, _ = initial_spanning_tree(Gfull, root)
         self.lcc = set(Gbfs.keys())

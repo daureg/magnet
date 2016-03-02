@@ -4,6 +4,7 @@
 import msgpack
 from timeit import default_timer as clock
 from collections import defaultdict
+from grid_stretch import add_edge
 
 
 def read_text_graph(filename):
@@ -35,6 +36,19 @@ def build_graph(graph_as_list):
 
 def load_graph(filename):
     return build_graph(load_packed_graph(filename))
+
+
+def build_directed_signed_graph(graph_as_list):
+    """return directed edges but undirected graph."""
+    G, E = {}, {}
+    for (u, v, s) in graph_as_list:
+        E[(u, v)] = bool(s)
+        add_edge(G, u, v)
+    return G, E
+
+
+def load_directed_signed_graph(filename):
+    return build_directed_signed_graph(load_packed_graph(filename))
 
 if __name__ == '__main__':
     import persistent as p

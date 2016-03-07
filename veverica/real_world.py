@@ -83,6 +83,10 @@ def read_original_graph(filename, seed=None, balanced=False, directed=False):
             if i == j:
                 continue
             add_signed_edge(i, j, sign > 0, directed)
+    # remove isolated vertices
+    to_delete = [u for u, adj in G.items() if not adj]
+    for u in to_delete:
+        del G[u]
     # reindex nodes so they are sequential
     mapping = {v: i for i, v in enumerate(sorted(G.keys()))}
     G, EDGE_SIGN = reindex_nodes(G, EDGE_SIGN, mapping, directed)

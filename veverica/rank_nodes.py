@@ -114,6 +114,7 @@ if __name__ == '__main__':
     import pack_graph as pg
     import random
     import sys
+    from timeit import default_timer as clock
     if len(sys.argv) == 1:
         datafile = 'directed_wik.pack' 
     else:
@@ -124,7 +125,7 @@ if __name__ == '__main__':
     nrk = NodesRanker()
 
     k = 5
-    res = np.zeros((k, 4))
+    res = np.zeros((k, 5))
     for i in range(k):
         Etrain, Etest = {}, {}
         for e, s in E.items():
@@ -133,7 +134,9 @@ if __name__ == '__main__':
             else:
                 Etest[e] = 1 if s else -1
 
+        start = clock()
         nrk.fit(Etrain, len(G))
+        end = clock() - start
         Xtrain, ytrain = nrk.transform(Etrain)
         Xtest, ytest = nrk.transform(Etest)
         gold = ytest
@@ -143,6 +146,6 @@ if __name__ == '__main__':
         fp, tn = C[0, 1], C[0, 0]
         res[i, :] = [accuracy_score(gold, pred),
                      f1_score(gold, pred, average='weighted', pos_label=None),
-                     matthews_corrcoef(gold, pred), fp/(fp+tn)]
+                     matthews_corrcoef(gold, pred), fp/(fp+tn), end]
         print(res[i, :])
     print(res.mean(0), res.std(0))

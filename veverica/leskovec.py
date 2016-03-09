@@ -36,8 +36,8 @@ def triads_indices(u, v, w, Esign):
     for e, f in product([(u, w), (w, u)], [(v, w), (w, v)]):
         if e not in Esign or f not in Esign:
             continue
-        u_is_endpoint = int(e[0] == u)
-        v_is_endpoint = int(e[1] == v)
+        u_is_endpoint = int(e[1] == u)
+        v_is_endpoint = int(f[1] == v)
         se, sf = int(Esign[e]), int(Esign[f])
         yield 8*u_is_endpoint + 4*v_is_endpoint + 2*se + sf
 

@@ -296,7 +296,13 @@ algorithm by \textcite{Anava2015} achieves an improved approximation ratio of
 % add bipartite (read KDD tuto)
 \paragraph{Bipartite \pcc{}}
 First 11 approximation \autocite{Amit04}, then 4 approximation using LP
-\autocite{Bipartite12} and improved to 3 even for $K$-partite graph \autocite{Chawla2014}
+\autocite{Bipartite12} and improved to 3 even for $K$-partite graph
+\autocite{Chawla2014}. If the solution is constrained to have $k$ cluster and
+the graph is bipartite complete (or dense enough at least), there is a
+$(1-\delta)$ approximation running in time exponential in $k$ and $\delta^{-1}$
+but linear in $|V|$. The approximation can also be achieved with
+$O(\delta^{-1})$ \autocite{Asteris2016}.
+
 
 \paragraph{Hypergraphs} \Textcite{Kim2011} show a LP relaxation on hypergraph
 and \textcite{Ricatte13} describe a class of hypergraphs that can be reduced

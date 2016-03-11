@@ -38,7 +38,7 @@ def select_edges(G, E, alpha, strategy, directed=False, sampling=None,
                 del res[e]
     if strategy == 'random':
         res = dict(random.sample(list(E.items()), int(alpha*len(E))))
-        prune_training_set()
+        # prune_training_set()
         return res
     if sampling is None:
         sampling = lambda d: int(alpha*d)
@@ -54,7 +54,7 @@ def select_edges(G, E, alpha, strategy, directed=False, sampling=None,
         else:
             edges = {(u, v) if u < v else (v, u) for v in nei}
         res.update({e: E[e] for e in edges})
-    prune_training_set()
+    # prune_training_set()
     return res
 
 

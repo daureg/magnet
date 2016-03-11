@@ -82,6 +82,8 @@ class LillePrediction(lp.LinkPrediction):
         if 'batch' in params:
             alpha = min(params['batch']*self.order/len(self.E), 1.0)
             alpha = params['batch']
+            # TODO: make select_edges return out_plus_samples and out_minus,
+            # in_plus, in_minus samples directly
             self.Esign = l.trolls.select_edges(None, self.E, alpha, 'random')
             self.out_samples.update(Counter((e[0] for e in self.Esign)))
             self.in_samples.update(Counter((e[1] for e in self.Esign)))

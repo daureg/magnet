@@ -21,6 +21,7 @@ if __name__ == '__main__':
     import socket
     import argparse
     part = int(socket.gethostname()[-1])-1
+    num_threads = 16
 
     parser = argparse.ArgumentParser()
     parser.add_argument("data", help="Which data to use",
@@ -39,17 +40,24 @@ if __name__ == '__main__':
     graph = LillePrediction(use_triads=False)
     graph.load_data(pref, balanced)
     dicho = L1Classifier()
+    class_weight = {0: 1.4, 1: 1}
+    olr = SGDClassifier(loss="log", learning_rate="optimal", penalty="l2", average=True,
+                        n_iter=4, n_jobs=num_threads, class_weight=class_weight)
     if balanced:
         pref += '_bal'
 
     start = (int(time.time()-(2015-1970)*365.25*24*60*60))//60
 
     batch = [{'batch': v/100} for v in np.linspace(5, 100, 11).astype(int)]
-    fres = [[] for _ in range(5)]
+    fres = [[] for _ in range(7)]
+    res_file = '{}_{}_{}'.format(pref, start, part+1)
+    with open('_params', 'a') as f:
+        f.write(res_file+'\n')
     for params in batch:
         only_troll_fixed, only_troll_learned = [], []
         both_fixed, both_learned = [], []
-        l1_learned = []
+        l1_learned, l1_fixed = [], []
+        logreg = []
         for _ in range(num_rep):
             graph.select_train_set(**params)
             Xl, yl, train_set, test_set = graph.compute_features()
@@ -63,6 +71,11 @@ if __name__ == '__main__':
             res = graph.test_and_evaluate(pred_function, X[test_set, 15:17], gold, pp)
             l1_learned.append(res)
             frac = len(train_set)/len(graph.E)
+            with open('_params', 'a') as f:
+                f.write('{}_l1c\t{:.3f}\t{:.6f}\n'.format(pref, frac, dicho.k))
+            pred_function = graph.train(lambda features: features[:, 0] + features[:, 1] < 1)
+            res = graph.test_and_evaluate(pred_function, X[test_set, 15:17], gold, pp)
+            l1_fixed.append(res)
 
             denom_troll = X[:, 12] + X[:, 5]
             valid_denom = denom_troll > 0
@@ -71,17 +84,17 @@ if __name__ == '__main__':
             valid_train_denom = np.logical_and(valid_denom, tmp_train)
             troll_feats = X[:, 12] / denom_troll
             k_troll = find_threshold(troll_feats[valid_train_denom], ya[valid_train_denom])
-                                                                                                       
+
             pred_function = graph.train(lambda features:
                                         pred_with_threshold(features, 0.5, denom_troll[test_set]==0))
             res = graph.test_and_evaluate(pred_function, troll_feats[test_set], gold, pp)
             only_troll_fixed.append(res)
             with open('_params', 'a') as f:
-                f.write('{}_troll\t{:.3f}\t{:.6f}\n'.format('wik', only_troll_fixed[-1][-1], 
+                f.write('{}_troll\t{:.3f}\t{:.6f}\n'.format(pref, only_troll_fixed[-1][-1],
                                                             find_threshold(troll_feats[valid_train_denom], ya[valid_train_denom])))
             pred_function = graph.train(lambda features:
                                         pred_with_threshold(features,
-                                                            find_threshold(troll_feats[valid_train_denom], ya[valid_train_denom]), 
+                                                            find_threshold(troll_feats[valid_train_denom], ya[valid_train_denom]),
                                                             denom_troll[test_set]==0))
             res = graph.test_and_evaluate(pred_function, troll_feats[test_set], gold, pp)
             only_troll_learned.append(res)
@@ -90,27 +103,36 @@ if __name__ == '__main__':
             valid_both = denom_both > 0
             valid_train_both = np.logical_and(valid_both, tmp_train)
             both_feats = (X[:, 12] + X[:, 4]) / denom_both
-                                                                                                       
+
             pred_function = graph.train(lambda features:
                                         pred_with_threshold(features, 0.5, denom_both[test_set]==0))
             res = graph.test_and_evaluate(pred_function, both_feats[test_set], gold, pp)
             both_fixed.append(res)
             with open('_params', 'a') as f:
-                f.write('{}_both\t{:.3f}\t{:.6f}\n'.format('wik', both_fixed[-1][-1], 
+                f.write('{}_both\t{:.3f}\t{:.6f}\n'.format(pref, both_fixed[-1][-1],
                                                            find_threshold(both_feats[valid_train_both], ya[valid_train_both])))
             pred_function = graph.train(lambda features:
                                         pred_with_threshold(features,
-                                                            find_threshold(both_feats[valid_train_both], ya[valid_train_both]), 
+                                                            find_threshold(both_feats[valid_train_both], ya[valid_train_both]),
                                                             denom_both[test_set]==0))
             res = graph.test_and_evaluate(pred_function, both_feats[test_set], gold, pp)
             both_learned.append(res)
 
+            pred_function = graph.train(olr, X[train_set, 15:17], ya[train_set])
+            res = graph.test_and_evaluate(pred_function, X[test_set, 15:17], gold, pp)
+            logreg.append(res)
+            log_weight = str(list(olr.coef_[0])+list(olr.intercept_))
+            with open('_params', 'a') as f:
+                f.write('{}_logreg\t{:.3f}\t{}\n'.format(pref, frac, log_weight))
+
         fres[0].append(only_troll_fixed)
-        fres[1].append(only_troll_learned)
-        fres[2].append(both_fixed)
-        fres[3].append(both_learned)
-        fres[4].append(l1_learned)
+        fres[1].append(both_fixed)
+        fres[2].append(l1_fixed)
+        fres[3].append(only_troll_learned)
+        fres[4].append(both_learned)
+        fres[5].append(l1_learned)
+        fres[6].append(logreg)
     # if args.active:
     #     pref += '_active'
-    np.savez_compressed('{}_{}_{}'.format(pref, start, part+1), res=np.array(fres))
+    np.savez_compressed(res_file, res=np.array(fres))
 

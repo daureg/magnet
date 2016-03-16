@@ -1,5 +1,6 @@
 #! /usr/bin/env python
-from LillePrediction import *
+import numpy as np
+import LillePrediction as llp
 from L1Classifier import L1Classifier
 
 
@@ -49,12 +50,13 @@ if __name__ == '__main__':
     num_rep = args.nrep
     balanced = False  # args.balanced
 
-    graph = LillePrediction(use_triads=False)
+    graph = llp.LillePrediction(use_triads=False)
     graph.load_data(pref, balanced)
     dicho = L1Classifier()
     class_weight = {0: 1.4, 1: 1}
-    olr = SGDClassifier(loss="log", learning_rate="optimal", penalty="l2", average=True,
-                        n_iter=4, n_jobs=num_threads, class_weight=class_weight)
+    olr = llp.SGDClassifier(loss="log", learning_rate="optimal", penalty="l2",
+                            average=True, n_iter=4, n_jobs=num_threads,
+                            class_weight=class_weight)
     if balanced:
         pref += '_bal'
 

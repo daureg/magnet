@@ -63,8 +63,7 @@ if __name__ == '__main__':
     batch = [{'batch': v/100} for v in np.linspace(5, 100, 11).astype(int)]
     fres = [[] for _ in range(7)]
     res_file = '{}_{}_{}'.format(pref, start, part+1)
-    with open('_params', 'a') as f:
-        f.write(res_file+'\n')
+    params_file = '_params_' + res_file
     for params in batch:
         only_troll_fixed, only_troll_learned = [], []
         both_fixed, both_learned = [], []
@@ -83,7 +82,7 @@ if __name__ == '__main__':
             res = graph.test_and_evaluate(pred_function, X[test_set, 15:17], gold, pp)
             l1_learned.append(res)
             frac = len(train_set)/len(graph.E)
-            with open('_params', 'a') as f:
+            with open(params_file, 'a') as f:
                 f.write('{}_l1c\t{:.3f}\t{:.6f}\n'.format(pref, frac, dicho.k))
             pred_function = graph.train(lambda features: features[:, 0] + features[:, 1] < 1)
             res = graph.test_and_evaluate(pred_function, X[test_set, 15:17], gold, pp)
@@ -101,7 +100,7 @@ if __name__ == '__main__':
                                         pred_with_threshold(features, 0.5, denom_troll[test_set]==0))
             res = graph.test_and_evaluate(pred_function, troll_feats[test_set], gold, pp)
             only_troll_fixed.append(res)
-            with open('_params', 'a') as f:
+            with open(params_file, 'a') as f:
                 f.write('{}_troll\t{:.3f}\t{:.6f}\n'.format(pref, only_troll_fixed[-1][-1],
                                                             find_threshold(troll_feats[valid_train_denom], ya[valid_train_denom])))
             pred_function = graph.train(lambda features:
@@ -120,7 +119,7 @@ if __name__ == '__main__':
                                         pred_with_threshold(features, 0.5, denom_both[test_set]==0))
             res = graph.test_and_evaluate(pred_function, both_feats[test_set], gold, pp)
             both_fixed.append(res)
-            with open('_params', 'a') as f:
+            with open(params_file, 'a') as f:
                 f.write('{}_both\t{:.3f}\t{:.6f}\n'.format(pref, both_fixed[-1][-1],
                                                            find_threshold(both_feats[valid_train_both], ya[valid_train_both])))
             pred_function = graph.train(lambda features:
@@ -134,7 +133,7 @@ if __name__ == '__main__':
             res = graph.test_and_evaluate(pred_function, X[test_set, 15:17], gold, pp)
             logreg.append(res)
             log_weight = str(list(olr.coef_[0])+list(olr.intercept_))
-            with open('_params', 'a') as f:
+            with open(params_file, 'a') as f:
                 f.write('{}_logreg\t{:.3f}\t{}\n'.format(pref, frac, log_weight))
 
         fres[0].append(only_troll_fixed)

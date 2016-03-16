@@ -11,16 +11,14 @@ class WeightedRule2(BaseEstimator, ClassifierMixin):
         self.A = None
 
     def fit(self, X, y):
-        assert X.shape[1] == 2, 'only two features'
-        assert 0 <= X.min() and X.max() <= 1, 'features should be [0,1] ratio'
-        As = np.hstack([np.linspace(.5*x, 2*x, 5) for x in [.25, 1.5, 80]])
+        As = np.hstack(np.unique([np.linspace(.5*x, 2*x, 5) for x in [1.3, 80]]))
         best_perf = -1
         denom_troll = X[:, 12] + X[:, 5]
         for A in As:
             denom_both = A*(denom_troll) + X[:, 9] + X[:, 4]
             valid_both = denom_both > 0
             both_feats = (A*X[:, 12] + X[:, 4]) / denom_both
-            k_both = find_threshold(both_feats[valid_both], ya[valid_both])
+            k_both = find_threshold(both_feats[valid_both], y[valid_both])
             pred = pred_with_threshold(both_feats, k_both, denom_both==0)
             perf = (y==pred).sum()
             if perf > best_perf:
@@ -82,6 +80,7 @@ if __name__ == '__main__':
     graph = llp.LillePrediction(use_triads=False)
     graph.load_data(pref, balanced)
     dicho = L1Classifier()
+    ar2 = WeightedRule2()
     class_weight = {0: 1.4, 1: 1}
     olr = llp.SGDClassifier(loss="log", learning_rate="optimal", penalty="l2",
                             average=True, n_iter=4, n_jobs=num_threads,
@@ -92,7 +91,7 @@ if __name__ == '__main__':
     start = (int(time.time()-(2015-1970)*365.25*24*60*60))//60
 
     batch = [{'batch': v/100} for v in np.linspace(5, 100, 11).astype(int)]
-    fres = [[] for _ in range(7)]
+    fres = [[] for _ in range(8)]
     res_file = '{}_{}_{}'.format(pref, start, part+1)
     params_file = '_params_' + res_file
     for params in batch:
@@ -100,6 +99,7 @@ if __name__ == '__main__':
         both_fixed, both_learned = [], []
         l1_learned, l1_fixed = [], []
         logreg = []
+        tweaked_r2 = []
         for _ in range(num_rep):
             graph.select_train_set(**params)
             Xl, yl, train_set, test_set = graph.compute_features()
@@ -115,6 +115,13 @@ if __name__ == '__main__':
             frac = len(train_set)/len(graph.E)
             with open(params_file, 'a') as f:
                 f.write('{}_l1c\t{:.3f}\t{:.6f}\n'.format(pref, frac, dicho.k))
+
+            pred_function = graph.train(ar2, X[train_set, :], ya[train_set])
+            res = graph.test_and_evaluate(pred_function, X[test_set, :], gold, pp)
+            tweaked_r2.append(res)
+            with open(params_file, 'a') as f:
+                f.write('{}_ar2\t{:.3f}\t{:.6f}\t{:.6f}\n'.format(pref, frac, ar2.k, ar2.A))
+
             pred_function = graph.train(lambda features: features[:, 0] + features[:, 1] < 1)
             res = graph.test_and_evaluate(pred_function, X[test_set, 15:17], gold, pp)
             l1_fixed.append(res)
@@ -174,6 +181,7 @@ if __name__ == '__main__':
         fres[4].append(both_learned)
         fres[5].append(l1_learned)
         fres[6].append(logreg)
+        fres[7].append(tweaked_r2)
     # if args.active:
     #     pref += '_active'
     np.savez_compressed(res_file, res=np.array(fres))

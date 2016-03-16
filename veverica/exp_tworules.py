@@ -2,6 +2,35 @@
 import numpy as np
 import LillePrediction as llp
 from L1Classifier import L1Classifier
+from sklearn.base import BaseEstimator, ClassifierMixin
+
+
+class WeightedRule2(BaseEstimator, ClassifierMixin):
+    def __init__(self):
+        self.k = None
+        self.A = None
+
+    def fit(self, X, y):
+        assert X.shape[1] == 2, 'only two features'
+        assert 0 <= X.min() and X.max() <= 1, 'features should be [0,1] ratio'
+        As = np.hstack([np.linspace(.5*x, 2*x, 5) for x in [.25, 1.5, 80]])
+        best_perf = -1
+        denom_troll = X[:, 12] + X[:, 5]
+        for A in As:
+            denom_both = A*(denom_troll) + X[:, 9] + X[:, 4]
+            valid_both = denom_both > 0
+            both_feats = (A*X[:, 12] + X[:, 4]) / denom_both
+            k_both = find_threshold(both_feats[valid_both], ya[valid_both])
+            pred = pred_with_threshold(both_feats, k_both, denom_both==0)
+            perf = (y==pred).sum()
+            if perf > best_perf:
+                best_perf, self.k, self.A = perf, k_both, A
+
+    def predict(self, X):
+        denom_troll = X[:, 12] + X[:, 5]
+        denom_both = self.A*(denom_troll) + X[:, 9] + X[:, 4]
+        both_feats = (self.A*X[:, 12] + X[:, 4]) / denom_both
+        return pred_with_threshold(both_feats, self.k, denom_both==0)
 
 
 def pred_with_threshold(sv, t, zero_denom):
@@ -148,4 +177,3 @@ if __name__ == '__main__':
     # if args.active:
     #     pref += '_active'
     np.savez_compressed(res_file, res=np.array(fres))
-

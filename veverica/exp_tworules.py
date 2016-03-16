@@ -10,9 +10,21 @@ def pred_with_threshold(sv, t, zero_denom):
     return (pred+1)//2
 
 
-def find_threshold(feats, ya):
+def find_threshold(feats, ya, mcc=False):
+    N, P = np.bincount(ya)
     rorder = np.argsort(feats)
-    return feats[rorder][np.argmax(np.cumsum(2*ya[rorder]-1))]
+    size = np.arange(ya.size)+1
+    positive = np.cumsum(ya[rorder])
+    tp = positive
+    fp = size -positive
+    fn = P - positive
+    tn = N - fp
+
+    if mcc:
+        measure = (tp*tn - fp*fn)/np.sqrt((tp+fp)*(tp+fn)*(tn+fp)*(tn+fn))
+    else:
+        measure = (tp+tn)/ya.size
+    return feats[rorder][np.argmax(measure)]
 
 
 if __name__ == '__main__':

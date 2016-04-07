@@ -1,3 +1,4 @@
+from collections import ChainMap
 from heap.heap import heap
 import graph_tool.generation as ggen
 import pack_graph as pg
@@ -36,13 +37,21 @@ def create_topology(n=1000):
     return G, Gin, E, dout, din, g
 
 
-def initial_sign(n, G, E, dout, din):
+def initial_sign(n, G, E, dout, din, **user_params):
+    default = {'non_troll_proportion': 0.7,
+               'troll_lower_trollness': 0.7,
+               'troll_upper_trollness': 1.0,
+               'non_troll_lower_trollness': 0.05,
+               'non_troll_upper_trollness': 0.3}
+    params = ChainMap(user_params, default)
     trollness = []
     for u in range(n):
-        if random.random() > .7:
-            trollness.append(random.uniform(.7, 1))
+        if random.random() > params['non_troll_proportion']:
+            trollness.append(random.uniform(params['troll_lower_trollness'],
+                                            params['troll_upper_trollness']))
         else:
-            trollness.append(random.uniform(0.05, .3))
+            trollness.append(random.uniform(params['non_troll_lower_trollness'],
+                                            params['non_troll_upper_trollness']))
 
     for u, nei in G.items():
         snei = sorted(nei, key=lambda v: trollness[v], reverse=True)
@@ -112,9 +121,9 @@ def refine_labeling(G, Gin, degrees, E, pij, trollness, n):
         E.update(nE)
 
     for i in range(4):
-        print(evaluate())
         flip()
         break_ties()
+    print(evaluate())
 
 
 def my_rule(mi, oi, mj, oj, pos_frac):

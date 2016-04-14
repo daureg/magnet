@@ -29,7 +29,9 @@ if __name__ == '__main__':
     balanced = args.balanced
 
     graph = llp.LillePrediction(use_triads=False)
-    graph.load_data(pref, balanced)
+    dataset = {'wik': llp.lp.DATASETS.Wikipedia, 'sla': llp.lp.DATASETS.Slashdot,
+               'epi': llp.lp.DATASETS.Epinion, 'kiw': llp.lp.DATASETS.WikEdits}[pref]
+    graph.load_data(dataset, balanced)
     dicho = L1Classifier()
     class_weight = {0: 1.4, 1: 1}
     if balanced:

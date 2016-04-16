@@ -11,7 +11,7 @@ class WeightedRule2(BaseEstimator, ClassifierMixin):
         self.A = None
 
     def fit(self, X, y):
-        As = np.hstack(np.unique([np.linspace(.5*x, 2*x, 5) for x in [1.3, 80]]))
+        As = np.hstack(np.unique([np.linspace(.3*x, 10*x, 20) for x in [1,]]))
         best_perf = -1
         denom_troll = X[:, 12] + X[:, 5]
         for A in As:

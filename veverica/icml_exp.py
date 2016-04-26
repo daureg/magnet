@@ -1,7 +1,10 @@
 #! /usr/bin/env python
 # vim: set fileencoding=utf-8
 from LillePrediction import *
+from exp_tworules import pred_with_threshold, find_threshold
 from L1Classifier import L1Classifier
+from rank_nodes import NodesRanker
+from bayes_feature import compute_bayes_features
 import treestar
 RBFS, RTST = None, None
 
@@ -14,12 +17,9 @@ if __name__ == '__main__':
     part = int(socket.gethostname()[-1])-1
     num_threads = 16
 
-    data = {'WIK': lp.DATASETS.Wikipedia,
-            'EPI': lp.DATASETS.Epinion,
-            'SLA': lp.DATASETS.Slashdot}
     parser = argparse.ArgumentParser()
     parser.add_argument("data", help="Which data to use",
-                        choices=data.keys(), default='WIK')
+                        choices={'wik', 'sla', 'epi', 'kiw'}, default='wik')
     parser.add_argument("-b", "--balanced", action='store_true',
                         help="Should there be 50/50 +/- edges")
     parser.add_argument("-a", "--active", action='store_true',
@@ -32,15 +32,20 @@ if __name__ == '__main__':
     balanced = args.balanced
 
     graph = LillePrediction(use_triads=True)
-    graph.load_data(data[pref], args.balanced)
+    graph.load_data(pref, args.balanced)
     class_weight = {0: 1.4, 1: 1}
     olr = SGDClassifier(loss="log", learning_rate="optimal", penalty="l2", average=True,
                         n_iter=4, n_jobs=num_threads, class_weight=class_weight)
     llr = SGDClassifier(loss="log", learning_rate="optimal", penalty="l2", average=True,
                         n_iter=4, n_jobs=num_threads, class_weight=class_weight)
+    rnlr = SGDClassifier(loss='log', n_iter=4, class_weight=class_weight,
+                         warm_start=True, average=True)
+    bflr = SGDClassifier(loss='log', n_iter=4, class_weight=class_weight,
+                         warm_start=True, average=True)
     perceptron = SGDClassifier(loss="perceptron", eta0=1, class_weight=class_weight,
                                learning_rate="constant", penalty=None, average=True, n_iter=4)
     dicho = L1Classifier()
+    nrk = NodesRanker(autotune_budget=0)
     if args.balanced:
         pref += '_bal'
 
@@ -56,12 +61,14 @@ if __name__ == '__main__':
           {'sampling': lambda d: int(ceil(5*log(d)))}]
 
     batch = [{'batch': v/100} for v in range(15, 91, 15)]
-    fres = [[] for _ in range(10)]
+    fres = [[] for _ in range(14)]
     for r, params in enumerate(cs if args.active else batch):
         only_troll_fixed, l1_fixed, l1_learned = [], [], []
         logreg, ppton = [], []
         lesko, chiang, asym = [], [], []
         treek, bfsl = [], []
+        both_fixed, both_learned = [], []
+        rank_nodes, bayes_feat = [], []
         for _ in range(num_rep):
             graph.select_train_set(**params)
             Xl, yl, train_set, test_set = graph.compute_features()
@@ -91,6 +98,26 @@ if __name__ == '__main__':
             l1_learned.append(res)
             frac = len(train_set)/len(graph.E)
 
+            denom_troll = Xa[:, 12] + Xa[:, 5]
+            valid_denom = denom_troll > 0
+            tmp_train = np.zeros_like(valid_denom, dtype=bool)
+            tmp_train[train_set] = True
+            valid_train_denom = np.logical_and(valid_denom, tmp_train)
+            denom_both = denom_troll + Xa[:, 9] + Xa[:, 4]
+            valid_both = denom_both > 0
+            valid_train_both = np.logical_and(valid_both, tmp_train)
+            both_feats = (Xa[:, 12] + Xa[:, 4]) / denom_both
+
+            pred_function = graph.train(lambda features:
+                                        pred_with_threshold(features, 0.5, denom_both[test_set]==0))
+            res = graph.test_and_evaluate(pred_function, both_feats[test_set], gold, pp)
+            both_fixed.append(res)
+            kboth = find_threshold(both_feats[valid_train_both], ya[valid_train_both])
+            pred_function = graph.train(lambda features:
+                                        pred_with_threshold(features, kboth, denom_both[test_set]==0))
+            res = graph.test_and_evaluate(pred_function, both_feats[test_set], gold, pp)
+            both_learned.append(res)
+
             pred_function = graph.train(olr, Xa[train_set, 15:17], ya[train_set])
             res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold, pp)
             logreg.append(res)
@@ -98,10 +125,10 @@ if __name__ == '__main__':
             res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold, pp)
             ppton.append(res)
 
-            if r == 0:
+            if r == 0 and args.active:
                 bfsl.append(treestar.baseline_bfs(graph.Gfull, graph.E))
-                k = {'WIK': 7, 'SLA': 8, 'EPI': 9,
-                     'WIK_bal': 9, 'SLA_bal': 10, 'EPI_bal': 1}[pref]
+                k = {'wik': 7, 'sla': 8, 'epi': 9,
+                     'wik_bal': 9, 'sla_bal': 10, 'epi_bal': 1}[pref]
                 treek.append(treestar.full_treestar(graph.Gfull, graph.E, k))
 
             if args.active:
@@ -109,6 +136,40 @@ if __name__ == '__main__':
                 chiang.append([.8, .9, .5, .3, 2, frac])
                 lesko.append([.8, .9, .5, .3, 2, frac])
                 continue
+
+            bfsl.append([.8, .9, .5, .3, 2, frac])
+            treek.append([.8, .9, .5, .3, 2, frac])
+
+            sstart = lp.clock()
+            Etrain = graph.Esign
+            Etest = {e: s for e, s in graph.E.items() if e not in Etrain}
+            nrk.fit(Etrain, graph.order)
+            Xtrain, ytrain = nrk.transform(Etrain)
+            Xtest, ytest = nrk.transform(Etest)
+            rnlr.fit(Xtrain, ytrain)
+            pred = rnlr.predict(Xtest)
+            end = lp.clock() - sstart
+            gold = ytest
+            C = lp.confusion_matrix(gold, pred)
+            fp, tn = C[0, 1], C[0, 0]
+            acc, fpr, f1, mcc = [lp.accuracy_score(gold, pred), fp/(fp+tn),
+                                 lp.f1_score(gold, pred, average='weighted', pos_label=None),
+                                 lp.matthews_corrcoef(gold, pred)]
+            rank_nodes.append([acc, f1, mcc, fpr, end, frac])
+
+            sstart = lp.clock()
+            Xbayes = compute_bayes_features(Xa, ya, train_set, test_set, graph)
+            bflr.fit(Xbayes[train_set, :], ya[train_set])
+            pred = bflr.predict(Xbayes[test_set, :])
+            end = lp.clock() - sstart
+            gold=ya[test_set]
+            C = lp.confusion_matrix(gold, pred)
+            fp, tn = C[0, 1], C[0, 0]
+            acc, fpr, f1, mcc = [lp.accuracy_score(gold, pred), fp/(fp+tn),
+                                 lp.f1_score(gold, pred, average='weighted', pos_label=None),
+                                 lp.matthews_corrcoef(gold, pred)]
+            bayes_feat.append([acc, f1, mcc, fpr, end, frac])
+
             pred_function = graph.train(llr, Xa[train_feat], ya[train_set])
             res = graph.test_and_evaluate(pred_function, Xa[test_feat], gold)
             lesko.append(res)
@@ -151,6 +212,11 @@ if __name__ == '__main__':
         else:
             fres[8].append(list(fres[8][0]))
             fres[9].append(list(fres[9][0]))
+        fres[10].append(both_fixed)
+        fres[11].append(both_learned)
+        fres[12].append(rank_nodes)
+        fres[13].append(bayes_feat)
     if args.active:
         pref += '_active'
-    p.save_var('{}_{}_{}.my'.format(pref, start, part+1), (None, fres))
+    res_file = '{}_{}_{}'.format(pref, start, part+1)
+    np.savez_compressed(res_file, res=np.array(fres))

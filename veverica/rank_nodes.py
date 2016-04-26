@@ -12,6 +12,7 @@ from collections import defaultdict
 import random
 import warnings
 from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.linear_model import SGDClassifier
 import numpy as np
 warnings.filterwarnings('ignore', r'invalid value encountered in true_divide',
                         RuntimeWarning)
@@ -50,15 +51,16 @@ class NodesRanker(BaseEstimator, TransformerMixin):
         self.Etrain = E
         self.N = N
         Esplit, params = [], []
+        logreg = None
         if self.autotune_budget > 0:
             Esplit = [NodesRanker.split_edges(E, .8) for _ in range(5)]
             params = [(random.uniform(0, 1), random.uniform(.1, 2))
                       for _ in range(self.autotune_budget)]
             params = [(b, l) for b in np.linspace(.1, .9, 7)
                       for l in np.linspace(.3, 1.1, 3)]
+            logreg = SGDClassifier(loss='log', n_iter=2, class_weight={0: 1.4, 1: 1},
+                                   warm_start=True, average=True)
         perfs = []
-        logreg = SGDClassifier(loss='log', n_iter=2, class_weight={0: 1.4, 1: 1},
-                               warm_start=True, average=True)
         for beta, lambda_1 in params:
             self.beta, self.lambda_1 = beta, lambda_1
             perf = 0
@@ -151,7 +153,6 @@ class NodesRanker(BaseEstimator, TransformerMixin):
 
 if __name__ == '__main__':
     # pylint: disable=C0103
-    from sklearn.linear_model import SGDClassifier
     from sklearn.metrics import confusion_matrix, accuracy_score, matthews_corrcoef, f1_score
     import pack_graph as pg
     import sys

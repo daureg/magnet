@@ -2,7 +2,7 @@ import numpy as np
 from next_state_distrib import next_state_distrib
 
 
-def compute_bayes_features(Xa, ya, graph):
+def compute_bayes_features(Xa, ya, train_set, test_set, graph):
     prior_n, prior_p = np.bincount(ya[train_set])/len(train_set)
     epsilon = 1e-10
 
@@ -55,7 +55,7 @@ if __name__ == "__main__":
     es = graph.select_train_set(batch=.9)
     Xl, yl, train_set, test_set = graph.compute_features()
     Xa, ya = np.array(Xl), np.array(yl)
-    Xbayes = compute_bayes_features(Xa, ya, graph)
+    Xbayes = compute_bayes_features(Xa, ya, train_set, test_set, graph)
 
     logreg = SGDClassifier(loss='log', n_iter=5, class_weight={0: 1.4, 1: 1},
                            warm_start=True, average=True)

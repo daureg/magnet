@@ -40,7 +40,7 @@ def setup_problem(graph, training_edges, idx2edge):
         ppf.append(u)
         qpf.append(v)
         tmp[v].append(i)
-        if (u, v) in es:
+        if (u, v) in training_edges:
             (dout_p if s else dout_m)[u] += 1
             (din_p if s else din_m)[v] += 1
             douth[u] += 1

@@ -4,6 +4,7 @@ import LillePrediction as llp
 from L1Classifier import L1Classifier
 from sklearn.base import BaseEstimator, ClassifierMixin
 import labelprop_min as lpm
+from collections import defaultdict
 
 
 class WeightedRule2(BaseEstimator, ClassifierMixin):
@@ -55,6 +56,42 @@ def find_threshold(feats, ya, mcc=False):
         measure = (tp+tn)/ya.size
     return feats[rorder][np.argmax(measure)]
 
+
+def init_from_l1_fixed(X, test_set, idx2edge):
+    """Provided a more informed initial solution in low regime.
+
+    Make a first estimation with the rule t(i) + u(j) < 1 and the obtained sign
+    on the test set to provide initial value of y and estimate p and q as if
+    all signs were observed.
+    """
+    pred = X[test_set, 15:17].sum(1) < 1
+    test_set_set = set(test_set)
+    test_set_to_pred = {v: i for i, v in enumerate(test_set)}
+    y1 = {}
+    douth_p, douth_m = defaultdict(int), defaultdict(int)
+    dinh_p, dinh_m = defaultdict(int), defaultdict(int)
+    for i, (u, v) in idx2edge.items():
+        if i in test_set_set:
+            pidx = test_set_to_pred[i]
+            y1[i] = pred[pidx]
+        else:
+            y1[i] = int(graph.E[(u, v)])
+        (douth_p if y1[i] > 0 else douth_m)[u] += 1
+        (dinh_p if y1[i] > 0 else dinh_m)[v] += 1
+    douth_p = np.array([douth_p[u] for u in range(n)], dtype=np.uint)
+    douth_m = np.array([douth_m[u] for u in range(n)], dtype=np.uint)
+    dinh_p = np.array([dinh_p[u] for u in range(n)], dtype=np.uint)
+    dinh_m = np.array([dinh_m[u] for u in range(n)], dtype=np.uint)
+    douth = douth_p + douth_m
+    dinh = dinh_p + dinh_m
+    # Using 0.5 instead of random was experimentaly not so good
+    p1, q1 = np.random.uniform(.3, 1, n), np.random.uniform(.3, 1, n)
+    pdouth = douth > 0
+    p1[pdouth] = douth_p[pdouth]/douth[pdouth]
+    pdinh = dinh > 0
+    q1[pdinh] = dinh_p[pdinh]/dinh[pdinh]
+    y1arr = np.array([y1[u] for u in range(len(y1))], dtype=float)
+    return np.hstack((p1, q1, y1arr))
 
 if __name__ == '__main__':
     # pylint: disable=C0103
@@ -184,6 +221,8 @@ if __name__ == '__main__':
             test_edges = np.array(sorted([graph.edge_order[e] for e in nes]))
             test_val = np.array([int(graph.E[idx2edge[i]]) for i in test_edges])
             cost_function, sol_init, bounds = lpm.setup_problem(graph, es, idx2edge)
+            if frac < .21:
+                sol_init = init_from_l1_fixed(X, test_set, idx2edge)
             sstart = llp.lp.clock()
             res = lpm.minimize(cost_function, sol_init, jac=True, bounds=bounds,
                                options=dict(maxiter=800))

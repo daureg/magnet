@@ -3,6 +3,7 @@ import numpy as np
 import LillePrediction as llp
 from L1Classifier import L1Classifier
 from sklearn.base import BaseEstimator, ClassifierMixin
+import labelprop_min as lpm
 
 
 class WeightedRule2(BaseEstimator, ClassifierMixin):
@@ -91,7 +92,9 @@ if __name__ == '__main__':
     start = (int(time.time()-(2015-1970)*365.25*24*60*60))//60
 
     batch = [{'batch': v/100} for v in np.linspace(5, 100, 11).astype(int)]
-    fres = [[] for _ in range(8)]
+    batch = [{'batch': v} for v in [.01, .03, .05, .07, .1, .15, .2, .4, .7, .9]]
+
+    fres = [[] for _ in range(9)]
     res_file = '{}_{}_{}'.format(pref, start, part+1)
     params_file = '_params_' + res_file
     for params in batch:
@@ -100,8 +103,10 @@ if __name__ == '__main__':
         l1_learned, l1_fixed = [], []
         logreg = []
         tweaked_r2 = []
+        lpmin = []
         for _ in range(num_rep):
-            graph.select_train_set(**params)
+            es = graph.select_train_set(**params)
+            idx2edge = {i: e for e, i in graph.edge_order.items()}
             Xl, yl, train_set, test_set = graph.compute_features()
             X, ya = np.array(Xl), np.array(yl)
             if len(test_set) < 10:
@@ -174,6 +179,24 @@ if __name__ == '__main__':
             with open(params_file, 'a') as f:
                 f.write('{}_logreg\t{:.3f}\t{}\n'.format(pref, frac, log_weight))
 
+            n = graph.order
+            nes = set(graph.E.keys())-set(es.keys())
+            test_edges = np.array(sorted([graph.edge_order[e] for e in nes]))
+            test_val = np.array([int(graph.E[idx2edge[i]]) for i in test_edges])
+            cost_function, sol_init, bounds = lpm.setup_problem(graph, es, idx2edge)
+            sstart = llp.lp.clock()
+            res = lpm.minimize(cost_function, sol_init, jac=True, bounds=bounds,
+                               options=dict(maxiter=800))
+            time_elapsed = llp.lp.clock() - sstart
+            pred = (res.x[2*n:][test_edges] > 0.5).astype(int)
+            gold = test_val
+            C = llp.lp.confusion_matrix(gold, pred)
+            fp, tn = C[0, 1], C[0, 0]
+            acc, fpr, f1, mcc = [llp.lp.accuracy_score(gold, pred), fp/(fp+tn),
+                                 llp.lp.f1_score(gold, pred, average='weighted', pos_label=None),
+                                 llp.lp.matthews_corrcoef(gold, pred)]
+            lpmin.append([acc, f1, mcc, fpr, time_elapsed, frac])
+
         fres[0].append(only_troll_fixed)
         fres[1].append(both_fixed)
         fres[2].append(l1_fixed)
@@ -182,6 +205,7 @@ if __name__ == '__main__':
         fres[5].append(l1_learned)
         fres[6].append(logreg)
         fres[7].append(tweaked_r2)
+        fres[8].append(lpmin)
     # if args.active:
     #     pref += '_active'
     np.savez_compressed(res_file, res=np.array(fres))

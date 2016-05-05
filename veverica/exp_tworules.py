@@ -247,4 +247,4 @@ if __name__ == '__main__':
         fres[8].append(lpmin)
     # if args.active:
     #     pref += '_active'
-    np.savez_compressed(res_file, res=np.array(fres))
+        np.savez_compressed(res_file, res=np.array(fres))

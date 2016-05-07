@@ -4,7 +4,18 @@
 import msgpack
 from timeit import default_timer as clock
 from collections import defaultdict
-from grid_stretch import add_edge
+
+
+def add_edge(tree, u, v):
+    """Update adjacency list `tree` with the (u, v) edge"""
+    if u in tree:
+        tree[u].add(v)
+    else:
+        tree[u] = set([v])
+    if v in tree:
+        tree[v].add(u)
+    else:
+        tree[v] = set([u])
 
 
 def read_text_graph(filename):

@@ -97,16 +97,15 @@ if __name__ == "__main__":
 
     start = (int(time.time()-(2015-1970)*365.25*24*60*60))//60
 
-    batch = [{'batch': v} for v in [.025, .05, .075, .1, .15, .25, .35, .45, .55, .7, .8, .9]]
+    batch_p = [.025, .05, .075, .1, .15, .25, .35, .45, .55, .7, .8, .9]
 
     fres = [[] for _ in range(6)]
     res_file = '{}_{}_{}'.format(pref, start, part+1)
 
-    for params in batch:
+    for batch in batch_p:
         fixed_half, fixed_tt, frac_neg = [], [], []
         training_one, training_cv, testing_opt = [], [], []
         for _ in range(num_rep):
-            batch = .9
             train_set, test_set = [], []
             for i in range(m):
                 (train_set if random.random() < batch else test_set).append(i)

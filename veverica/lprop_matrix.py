@@ -36,6 +36,7 @@ def save_gprime(pref):
 
 
 def _train(P, train_idx, train_y):
+    # TODO m and n as arguments?
     f = np.random.random((m + 2*n))
     f[train_idx] = train_y
     for i in range(200):

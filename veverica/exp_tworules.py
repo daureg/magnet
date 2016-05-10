@@ -3,7 +3,7 @@ import numpy as np
 import LillePrediction as llp
 from L1Classifier import L1Classifier
 from sklearn.base import BaseEstimator, ClassifierMixin
-import labelprop_min as lpm
+import lprop_matrix as lm
 from collections import defaultdict
 
 
@@ -13,7 +13,7 @@ class WeightedRule2(BaseEstimator, ClassifierMixin):
         self.A = None
 
     def fit(self, X, y):
-        As = np.hstack(np.unique([np.linspace(.3*x, 10*x, 20) for x in [1,]]))
+        As = np.hstack(np.unique([np.linspace(.3*x, 10*x, 4) for x in [1,]]))
         best_perf = -1
         denom_troll = X[:, 12] + X[:, 5]
         for A in As:
@@ -46,7 +46,7 @@ def find_threshold(feats, ya, mcc=False):
     size = np.arange(ya.size)+1
     positive = np.cumsum(ya[rorder]).astype(np.double)
     tp = positive
-    fp = size -positive
+    fp = size - positive
     fn = P - positive
     tn = N - fp
 
@@ -117,6 +117,7 @@ if __name__ == '__main__':
 
     graph = llp.LillePrediction(use_triads=False)
     graph.load_data(pref, balanced)
+    n = graph.order
     dicho = L1Classifier()
     ar2 = WeightedRule2()
     class_weight = {0: 1.4, 1: 1}
@@ -130,6 +131,11 @@ if __name__ == '__main__':
 
     batch = [{'batch': v/100} for v in np.linspace(5, 100, 11).astype(int)]
     batch = [{'batch': v} for v in [.025, .05, .075, .1, .15, .25, .5, .75, .9]]
+
+    data = lm.sio.loadmat('{}_gprime.mat'.format(pref))
+    P, sorted_edges = data['P'], data['sorted_edges']
+    ya = sorted_edges[:, 2]
+    m = sorted_edges.shape[0]
 
     fres = [[] for _ in range(9)]
     res_file = '{}_{}_{}'.format(pref, start, part+1)
@@ -216,19 +222,12 @@ if __name__ == '__main__':
             with open(params_file, 'a') as f:
                 f.write('{}_logreg\t{:.3f}\t{}\n'.format(pref, frac, log_weight))
 
-            n = graph.order
-            nes = set(graph.E.keys())-set(es.keys())
-            test_edges = np.array(sorted([graph.edge_order[e] for e in nes]))
-            test_val = np.array([int(graph.E[idx2edge[i]]) for i in test_edges])
-            cost_function, sol_init, bounds = lpm.setup_problem(graph, es, idx2edge)
-            if frac < .21:
-                sol_init = init_from_l1_fixed(X, test_set, idx2edge)
             sstart = llp.lp.clock()
-            res = lpm.minimize(cost_function, sol_init, jac=True, bounds=bounds,
-                               options=dict(maxiter=800))
+            feats = lm._train(P, train_set, ya[train_set])
+            k_star = -find_threshold(-feats[train_set], ya[train_set])
+            pred = feats[test_set] > k_star
             time_elapsed = llp.lp.clock() - sstart
-            pred = (res.x[2*n:][test_edges] > 0.5).astype(int)
-            gold = test_val
+
             C = llp.lp.confusion_matrix(gold, pred)
             fp, tn = C[0, 1], C[0, 0]
             acc, fpr, f1, mcc = [llp.lp.accuracy_score(gold, pred), fp/(fp+tn),

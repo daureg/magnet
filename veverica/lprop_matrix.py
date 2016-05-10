@@ -1,4 +1,3 @@
-from exp_tworules import find_threshold
 from sklearn.cross_validation import StratifiedKFold
 from sklearn.metrics import accuracy_score, f1_score, matthews_corrcoef
 from sklearn.metrics import confusion_matrix
@@ -67,6 +66,7 @@ def evaluate(feats, gold, k, time_taken, frac):
             matthews_corrcoef(gold, pred), fp/(fp+tn), time_taken, frac, k)
 
 if __name__ == "__main__":
+    from exp_tworules import find_threshold
     import time
     import socket
     import argparse

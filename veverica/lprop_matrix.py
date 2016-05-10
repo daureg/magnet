@@ -34,7 +34,7 @@ def save_gprime(pref):
                 do_compression=True)
 
 
-def _train(P, train_idx, train_y, dims):
+def _train(P, sorted_edges, train_idx, train_y, dims):
     m, n = dims
     f = np.random.random(m+2*n)
     f[train_idx] = train_y
@@ -51,10 +51,10 @@ def _train(P, train_idx, train_y, dims):
     return feats
 
 
-def _inner_cv(P, train_idx, train_y, test_idx, test_y, measure, dims):
-    feats = _train(P, train_idx, train_y, dims)
+def _inner_cv(P, sorted_edges, train_idx, train_y, test_idx, test_y, measure, dims):
+    feats = _train(P, sorted_edges, train_idx, train_y, dims)
     k = -find_threshold(-feats[test_idx], test_y)
-    pred = (feats[test_idx] > k)    
+    pred = (feats[test_idx] > k)
     return k, measure(test_y, pred)
 
 
@@ -121,7 +121,7 @@ if __name__ == "__main__":
             k_two_third = 2/3
 
             sstart = clock()
-            feats = _train(P, train_set, revealed, (m, n))
+            feats = _train(P, sorted_edges, train_set, revealed, (m, n))
             training_time = clock() - sstart
 
             fixed_half.append(evaluate(feats[test_set], gold, k_half, training_time, frac))
@@ -158,7 +158,7 @@ if __name__ == "__main__":
             cv_res = []
             for train_idx, test_idx in StratifiedKFold(revealed, n_folds=5):
                 train_y, test_y = ya[train_idx], ya[test_idx]
-                cv_res.append(_inner_cv(P, train_idx, train_y, test_idx, test_y, accuracy_score, (m, n)))
+                cv_res.append(_inner_cv(P, sorted_edges, train_idx, train_y, test_idx, test_y, accuracy_score, (m, n)))
             cv_res=np.array(cv_res)
             k_cv = cv_res[np.argmax(cv_res[:, 1]), 0]
             extra = clock() - sstart

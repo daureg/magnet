@@ -100,12 +100,13 @@ if __name__ == "__main__":
 
     batch_p = [.025, .05, .075, .1, .15, .25, .35, .45, .55, .7, .8, .9]
 
-    fres = [[] for _ in range(6)]
+    fres = [[] for _ in range(8)]
     res_file = '{}_{}_{}'.format(pref, start, part+1)
 
     for batch in batch_p:
         fixed_half, fixed_tt, frac_neg = [], [], []
         training_one, training_cv, testing_opt = [], [], []
+        training_mcc, testing_mcc = [], []
         for _ in range(num_rep):
             train_set, test_set = [], []
             for i in range(m):
@@ -139,9 +140,19 @@ if __name__ == "__main__":
             training_one.append(evaluate(feats[test_set], gold, k_star, training_time+extra, frac))
 
             sstart = clock()
+            k_star_m = -find_threshold(-feats[train_set], revealed, True)
+            extra = clock() - sstart
+            training_mcc.append(evaluate(feats[test_set], gold, k_star_m, training_time+extra, frac))
+
+            sstart = clock()
             k_opt = -find_threshold(-feats[test_set], gold)
             extra = clock() - sstart
             testing_opt.append(evaluate(feats[test_set], gold, k_opt, training_time+extra, frac))
+
+            sstart = clock()
+            k_opt_m = -find_threshold(-feats[test_set], gold, True)
+            extra = clock() - sstart
+            testing_mcc.append(evaluate(feats[test_set], gold, k_opt_m, training_time+extra, frac))
 
             sstart = clock()
             cv_res = []
@@ -158,6 +169,8 @@ if __name__ == "__main__":
         fres[3].append(training_one)
         fres[4].append(training_cv)
         fres[5].append(testing_opt)
+        fres[6].append(training_mcc)
+        fres[7].append(testing_mcc)
     # if args.active:
     #     pref += '_active'
         np.savez_compressed(res_file, res=np.array(fres))

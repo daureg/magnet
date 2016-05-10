@@ -223,7 +223,7 @@ if __name__ == '__main__':
                 f.write('{}_logreg\t{:.3f}\t{}\n'.format(pref, frac, log_weight))
 
             sstart = llp.lp.clock()
-            feats = lm._train(P, train_set, ya[train_set])
+            feats = lm._train(P, train_set, ya[train_set], (m, n))
             k_star = -find_threshold(-feats[train_set], ya[train_set])
             pred = feats[test_set] > k_star
             time_elapsed = llp.lp.clock() - sstart

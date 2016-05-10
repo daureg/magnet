@@ -130,7 +130,7 @@ if __name__ == '__main__':
     start = (int(time.time()-(2015-1970)*365.25*24*60*60))//60
 
     batch = [{'batch': v/100} for v in np.linspace(5, 100, 11).astype(int)]
-    batch = [{'batch': v} for v in [.025, .05, .075, .1, .15, .25, .5, .75, .9]]
+    batch = [{'batch': v} for v in [.025, .05, .075, .1, .15, .25, .35, .45, .55, .7, .8, .9]]
 
     data = lm.sio.loadmat('{}_gprime.mat'.format(pref))
     P, sorted_edges = data['P'], data['sorted_edges']

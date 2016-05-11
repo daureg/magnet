@@ -27,6 +27,8 @@ class LinkPrediction(object):
         self.G, self.E = {}, {}
         self.with_triads = use_triads
         self.time_used = 0
+        self.feature_time = 0
+        self.triad_time = 0
         
     def load_data(self, dataset, balanced=False):
         """Load one of the 3 dataset to fill G and E"""
@@ -45,11 +47,16 @@ class LinkPrediction(object):
         pass
 
     def compute_features(self):
+        start = clock()
+        # TODO: since the topology is given, maybe this doesn't count
         self.compute_global_features()
-        self.edge_order = {e: i for i, e in enumerate(sorted(self.E))}
+        self.feature_time += clock() - start
+        self.sorted_edges = sorted(self.E)
+        self.edge_order = {e: i for i, e in enumerate(self.sorted_edges)}
         knows_indices, pred_indices = [], []
         features, signs = [], []
-        for i, ((u, v), sign) in enumerate(sorted(self.E.items())):
+        for i, (u, v) in enumerate(self.sorted_edges):
+            sign = self.E[(u, v)]
             feature = self.compute_one_edge_feature((u, v))
             features.append(feature)
             signs.append(int(sign))
@@ -78,7 +85,6 @@ class LinkPrediction(object):
 
     def test_and_evaluate(self, pred_function, pred_data, gold,
                           postprocess=None, only_on_lcc=False):
-        from timeit import default_timer as clock
         frac = 1-gold.size/len(self.E)
         if only_on_lcc:
             frac = 1-gold.size/self.in_lcc.sum()

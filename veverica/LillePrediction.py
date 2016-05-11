@@ -145,6 +145,7 @@ class LillePrediction(lp.LinkPrediction):
         
     def compute_one_edge_feature(self, edge):
         u, v = edge
+        start = clock()
         known_out = self.dout_plus[u]+self.dout_minus[u]
         known_in = self.din_plus[v]+self.din_minus[v]
         degrees = [self.dout[u], self.din[v], len(self.common_nei[(u, v)]),
@@ -157,11 +158,14 @@ class LillePrediction(lp.LinkPrediction):
                    0.4999999 if known_out == 0 else self.dout_minus[u]/known_out,
                    0.4999999 if known_in == 0 else self.din_minus[v]/known_in,
                    ]
+        self.feature_time += clock() - start
+        start = clock()
         triads = 16*[0, ]
         if self.with_triads:
             for w in self.common_nei[(u, v)]:
                 for t in l.triads_indices(u, v, w, self.Esign):
                     triads[t] += 1
+        self.triad_time += clock() - start
         triads.extend([self.out_samples[u], self.in_samples[v]])
         return degrees+triads
 

@@ -4,10 +4,11 @@ from enum import Enum
 from timeit import default_timer as clock
 import numpy as np
 from collections import defaultdict
-DATASETS = Enum('Dataset', 'Wikipedia Slashdot Epinion WikEdits')
+DATASETS = Enum('Dataset', 'Wikipedia Slashdot Epinion WikEdits Authors')
 FILENAMES = {DATASETS.Wikipedia: 'soc-wiki.txt',
              DATASETS.Slashdot: 'soc-sign-Slashdot090221.txt',
              DATASETS.Epinion: 'soc-sign-epinions.txt',
+             DATASETS.Authors: 'authors.csv',
              DATASETS.WikEdits: 'soc-sign-kiw.txt'}
 from sklearn.metrics import accuracy_score, f1_score, matthews_corrcoef
 from sklearn.metrics import confusion_matrix

@@ -1,6 +1,7 @@
 veverica/*.npz
 veverica/*.mat
 veverica/_params*
+veverica/pylama.ini
 veverica/*.pack
 veverica/*.pdf
 veverica/.ipynb_checkpoints/

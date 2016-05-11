@@ -98,6 +98,7 @@ if __name__ == '__main__':
     import time
     import socket
     import argparse
+    from math import log, ceil
     part = int(socket.gethostname()[-1])-1
     num_threads = 16
 
@@ -106,8 +107,8 @@ if __name__ == '__main__':
                         choices={'wik', 'sla', 'epi', 'kiw'})
     # parser.add_argument("-b", "--balanced", action='store_true',
     #                     help="Should there be 50/50 +/- edges")
-    # parser.add_argument("-a", "--active", action='store_true',
-    #                     help="Use active sampling strategy")
+    parser.add_argument("-a", "--active", action='store_true',
+                        help="Use active sampling strategy")
     parser.add_argument("-n", "--nrep", help="number of repetition", type=int,
                         default=4)
     args = parser.parse_args()
@@ -131,6 +132,17 @@ if __name__ == '__main__':
 
     batch = [{'batch': v/100} for v in np.linspace(5, 100, 11).astype(int)]
     batch = [{'batch': v} for v in [.025, .05, .075, .1, .15, .25, .35, .45, .55, .7, .8, .9]]
+    common = {'replacement': True, 'do_out': True, 'do_in': True}
+    sampl = [
+            {'sampling': lambda d: min(1, d), **common},
+            {'sampling': lambda d: max(1, min(d, int(.5*ceil(log(d+1))))), **common},
+            {'sampling': lambda d: max(1, min(d, int(1*ceil(log(d+1))))), **common},
+            {'sampling': lambda d: max(1, min(d, int(2*ceil(log(d+1))))), **common},
+            {'sampling': lambda d: max(1, min(d, int(3*ceil(log(d+1))))), **common},
+            {'sampling': lambda d: max(1, min(d, int(4*ceil(log(d+1))))), **common},
+            {'sampling': lambda d: max(1, min(d, int(5*ceil(log(d+1))))), **common},
+            ]
+
 
     data = lm.sio.loadmat('{}_gprime.mat'.format(pref))
     P, sorted_edges = data['P'], data['sorted_edges']
@@ -138,9 +150,11 @@ if __name__ == '__main__':
     m = sorted_edges.shape[0]
 
     fres = [[] for _ in range(9)]
+    if args.active:
+        pref += '_active'
     res_file = '{}_{}_{}'.format(pref, start, part+1)
     params_file = '_params_' + res_file
-    for params in batch:
+    for params in sampl if args.active else batch:
         only_troll_fixed, only_troll_learned = [], []
         both_fixed, both_learned = [], []
         l1_learned, l1_fixed = [], []
@@ -154,6 +168,13 @@ if __name__ == '__main__':
             X, ya = np.array(Xl), np.array(yl)
             if len(test_set) < 10:
                 test_set = train_set
+            if args.active:
+                np_train = np.zeros(X.shape[0], dtype=bool)
+                np_train[train_set] = 1
+                np_test = np.zeros(X.shape[0], dtype=bool)
+                np_test[test_set] = 1
+                train_set = np.logical_and(np_train, graph.in_lcc)
+                test_set = np.logical_and(np_test, graph.in_lcc)
             gold = ya[test_set]
             pp = None
 
@@ -244,6 +265,4 @@ if __name__ == '__main__':
         fres[6].append(logreg)
         fres[7].append(tweaked_r2)
         fres[8].append(lpmin)
-    # if args.active:
-    #     pref += '_active'
         np.savez_compressed(res_file, res=np.array(fres))

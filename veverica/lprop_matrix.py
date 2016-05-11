@@ -100,13 +100,14 @@ if __name__ == "__main__":
 
     batch_p = [.025, .05, .075, .1, .15, .25, .35, .45, .55, .7, .8, .9]
 
-    fres = [[] for _ in range(8)]
+    fres = [[] for _ in range(9)]
     res_file = '{}_{}_{}'.format(pref, start, part+1)
 
     for batch in batch_p:
         fixed_half, fixed_tt, frac_neg = [], [], []
         training_one, training_cv, testing_opt = [], [], []
         training_mcc, testing_mcc = [], []
+        raw_neg = []
         for _ in range(num_rep):
             train_set, test_set = [], []
             for i in range(m):
@@ -133,6 +134,9 @@ if __name__ == "__main__":
             k_neg = scores[int(negative_frac*scores.size)]
             extra = clock() - sstart
             frac_neg.append(evaluate(feats[test_set], gold, k_neg, training_time+extra, frac))
+
+            k_raw_neg = 1 - negative_frac
+            raw_neg.append(evaluate(feats[test_set], gold, k_raw_neg, training_time, frac))
 
             sstart = clock()
             k_star = -find_threshold(-feats[train_set], revealed)
@@ -171,6 +175,7 @@ if __name__ == "__main__":
         fres[5].append(testing_opt)
         fres[6].append(training_mcc)
         fres[7].append(testing_mcc)
+        fres[8].append(raw_neg)
     # if args.active:
     #     pref += '_active'
         np.savez_compressed(res_file, res=np.array(fres))

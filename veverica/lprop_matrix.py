@@ -75,7 +75,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("data", help="Which data to use",
-                        choices={'wik', 'sla', 'epi', 'kiw'})
+                        choices={'wik', 'sla', 'epi', 'kiw', 'aut'})
     # parser.add_argument("-b", "--balanced", action='store_true',
     #                     help="Should there be 50/50 +/- edges")
     # parser.add_argument("-a", "--active", action='store_true',

@@ -1,5 +1,6 @@
 import numpy as np
 from next_state_distrib import next_state_distrib
+from timeit import default_timer as clock
 
 
 def compute_bayes_features(Xa, ya, train_set, test_set, graph):
@@ -30,6 +31,7 @@ def compute_bayes_features(Xa, ya, train_set, test_set, graph):
         # return np.hstack([distrib_u, distrib_v])
         return np.kron(distrib_u, distrib_v)
 
+    sstart = clock()
     test_edges_idx = set(test_set)
     for (u, v), i in graph.edge_order.items():
         fu, fv = Xnodes[u, :], Xnodes[v, :]
@@ -42,7 +44,8 @@ def compute_bayes_features(Xa, ya, train_set, test_set, graph):
             Xbayes[i, :] = np.hstack([interactions, fu[16:], fv[16:], Xa[i, 17:33]])
         else:
             Xbayes[i, :] = np.hstack([compute_interactions(fu[:16], fv[:16]), fu[16:], fv[16:], Xa[i, 17:33]])
-    return Xbayes
+    time_taken = (clock() - sstart)
+    return Xbayes, time_taken
 
 
 if __name__ == "__main__":
@@ -55,14 +58,17 @@ if __name__ == "__main__":
     es = graph.select_train_set(batch=.9)
     Xl, yl, train_set, test_set = graph.compute_features()
     Xa, ya = np.array(Xl), np.array(yl)
-    Xbayes = compute_bayes_features(Xa, ya, train_set, test_set, graph)
+    Xbayes, time_taken = compute_bayes_features(Xa, ya, train_set, test_set, graph)
 
     logreg = SGDClassifier(loss='log', n_iter=5, class_weight={0: 1.4, 1: 1},
                            warm_start=True, average=True)
+    sstart = clock()
     logreg.fit(Xbayes[train_set, :], ya[train_set])
+    time_taken += clock() - sstart
     gold=ya[test_set]
     pred = logreg.predict(Xbayes[test_set, :])
     C = confusion_matrix(gold, pred)
     fp, tn = C[0, 1], C[0, 0]
     print([accuracy_score(gold, pred), f1_score(gold, pred, average='weighted', pos_label=None),
            matthews_corrcoef(gold, pred), fp/(fp+tn)])
+    print(time_taken)

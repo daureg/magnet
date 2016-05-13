@@ -140,15 +140,15 @@ if __name__ == '__main__':
             bfsl.append([.8, .9, .5, .3, 2, frac])
             treek.append([.8, .9, .5, .3, 2, frac])
 
-            sstart = lp.clock()
             Etrain = graph.Esign
             Etest = {e: s for e, s in graph.E.items() if e not in Etrain}
             nrk.fit(Etrain, graph.order)
             Xtrain, ytrain = nrk.transform(Etrain)
             Xtest, ytest = nrk.transform(Etest)
+            sstart = lp.clock()
             rnlr.fit(Xtrain, ytrain)
             pred = rnlr.predict(Xtest)
-            end = lp.clock() - sstart
+            end = lp.clock() - sstart + nrk.time_taken
             gold = ytest
             C = lp.confusion_matrix(gold, pred)
             fp, tn = C[0, 1], C[0, 0]
@@ -157,11 +157,11 @@ if __name__ == '__main__':
                                  lp.matthews_corrcoef(gold, pred)]
             rank_nodes.append([acc, f1, mcc, fpr, end, frac])
 
+            Xbayes, time_taken = compute_bayes_features(Xa, ya, train_set, test_set, graph)
             sstart = lp.clock()
-            Xbayes = compute_bayes_features(Xa, ya, train_set, test_set, graph)
             bflr.fit(Xbayes[train_set, :], ya[train_set])
             pred = bflr.predict(Xbayes[test_set, :])
-            end = lp.clock() - sstart
+            end = lp.clock() - sstart + time_taken
             gold=ya[test_set]
             C = lp.confusion_matrix(gold, pred)
             fp, tn = C[0, 1], C[0, 0]

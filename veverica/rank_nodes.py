@@ -14,6 +14,7 @@ import warnings
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.linear_model import SGDClassifier
 import numpy as np
+from timeit import default_timer as clock
 warnings.filterwarnings('ignore', r'invalid value encountered in true_divide',
                         RuntimeWarning)
 
@@ -52,6 +53,8 @@ class NodesRanker(BaseEstimator, TransformerMixin):
         self.N = N
         Esplit, params = [], []
         logreg = None
+        self.time_taken = 0
+        sstart = clock()
         if self.autotune_budget > 0:
             Esplit = [NodesRanker.split_edges(E, .8) for _ in range(5)]
             params = [(random.uniform(0, 1), random.uniform(.1, 2))
@@ -77,6 +80,7 @@ class NodesRanker(BaseEstimator, TransformerMixin):
             self.beta, self.lambda_1 = params[np.argmax(perfs)]
             print(self.beta, self.lambda_1)
         self.Etrain = E
+        self.time_taken += clock() - sstart
         self._compute_rpi()
         self._compute_rep_opt()
 
@@ -95,7 +99,7 @@ class NodesRanker(BaseEstimator, TransformerMixin):
         wincoming = [np.array([self.lambda_1 * E[(j, i)] for j in ins])
                      for i, ins in enumerate(incoming)]
         pi = self.beta*np.ones(N)
-
+        sstart = clock()
         nb_iter, eps = 0, 1
         while eps > self.tol and nb_iter < self.n_iters:
             next_pi = np.zeros_like(pi)
@@ -109,12 +113,14 @@ class NodesRanker(BaseEstimator, TransformerMixin):
             eps = (np.abs(next_pi - pi)/pi).mean()
             pi = next_pi.copy()
             nb_iter += 1
+        self.time_taken += clock() - sstart
         self.rpi = pi
 
     def _compute_rep_opt(self):
         rep_plus, rep_minus = defaultdict(int), defaultdict(int)
         opt_plus, opt_minus = defaultdict(int), defaultdict(int)
         rpi = self.rpi
+        sstart = clock()
         for (u, v), pos in self.Etrain.items():
             if pos > 0:
                 opt_plus[u] += rpi[v]
@@ -129,6 +135,7 @@ class NodesRanker(BaseEstimator, TransformerMixin):
             rep[u] = .5 if rdenom == 0 else (rep_plus[u] - rep_minus[u])/rdenom
             odenom = (opt_plus[u] + opt_minus[u])
             opt[u] = .5 if odenom == 0 else (opt_plus[u] - opt_minus[u])/odenom
+        self.time_taken += clock() - sstart
         self.reputation = rep
         self.optimism = opt
 
@@ -156,7 +163,7 @@ if __name__ == '__main__':
     from sklearn.metrics import confusion_matrix, accuracy_score, matthews_corrcoef, f1_score
     import pack_graph as pg
     import sys
-    from timeit import default_timer as clock
+
     if len(sys.argv) == 1:
         datafile = 'directed_wik.pack'
     else:
@@ -171,13 +178,14 @@ if __name__ == '__main__':
     for i in range(k):
         Etrain, Etest = NodesRanker.split_edges(E, .9)
 
-        start = clock()
         nrk.fit(Etrain, len(G))
-        end = clock() - start
+        print(nrk.time_taken)
         Xtrain, ytrain = nrk.transform(Etrain)
         Xtest, ytest = nrk.transform(Etest)
         gold = ytest
+        start = clock()
         logreg.fit(Xtrain, ytrain)
+        end = clock() - start + nrk.time_taken
         pred = logreg.predict(Xtest)
         C = confusion_matrix(gold, pred)
         fp, tn = C[0, 1], C[0, 0]

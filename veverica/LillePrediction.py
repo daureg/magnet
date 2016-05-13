@@ -29,6 +29,7 @@ lambdas_pleas = {'EPI': [ 0.37241124,  0.66195652,  0.04517692],
                  'EPI_bal': [ 0.38974499,  0.91350523,  0.10585644],
                  'SLA_bal': [ 0.42502945,  0.94503844,  0.15831973],
                  'WIK_bal': [ 0.41281646,  0.93713953,  0.01006711],}
+clock = lp.clock
 
 class LillePrediction(lp.LinkPrediction):
     """My implementation of LinkPrediction"""

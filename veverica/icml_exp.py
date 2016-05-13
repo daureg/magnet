@@ -60,7 +60,7 @@ if __name__ == '__main__':
         pref += '_bal'
 
     start = (int(time.time()-(2015-1970)*365.25*24*60*60))//60
-    feats = list(range(7)) + list(range(17, 33))
+    triads_feats = list(range(7)) + list(range(17, 33))
 
     cs = [{'sampling': lambda d: int(ceil(1e-7*log(d)))},
           {'sampling': lambda d: int(ceil(.5*log(d)))},
@@ -97,8 +97,8 @@ if __name__ == '__main__':
                 np_test[test_set] = 1
                 train_set = np.logical_and(np_train, graph.in_lcc)
                 test_set = np.logical_and(np_test, graph.in_lcc)
-            train_feat = np.ix_(train_set, feats)
-            test_feat = np.ix_(test_set, feats)
+            train_feat = np.ix_(train_set, triads_feats)
+            test_feat = np.ix_(test_set, triads_feats)
             gold = ya[test_set]
             revealed = ya[train_set]
             pp = (test_set, idx2edge)

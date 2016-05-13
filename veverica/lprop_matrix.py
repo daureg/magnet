@@ -7,6 +7,7 @@ import pack_graph as pg
 import random
 import scipy.io as sio
 import scipy.sparse as sp
+DIAMETER = 250
 
 
 def save_gprime(pref):
@@ -38,7 +39,7 @@ def _train(P, sorted_edges, train_idx, train_y, dims):
     m, n = dims
     f = np.random.random(m+2*n)
     f[train_idx] = train_y
-    for i in range(200):
+    for i in range(DIAMETER):
         nf = P@f
         nf[train_idx] = train_y
         diff = np.abs(f - nf)
@@ -87,6 +88,9 @@ if __name__ == "__main__":
     num_rep = args.nrep
     balanced = False  # args.balanced
 
+    # precomputed diameter of P
+    diameters = {'aut': 22, 'wik': 16, 'sla': 32, 'epi': 38, 'kiw': 30}
+    DIAMETER = diameters[pref]
     data = sio.loadmat('{}_gprime.mat'.format(pref))
     P, sorted_edges = data['P'], data['sorted_edges']
     ya = sorted_edges[:, 2]

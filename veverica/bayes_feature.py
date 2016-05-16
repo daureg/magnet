@@ -30,9 +30,10 @@ def compute_bayes_features(Xa, ya, train_set, test_set, graph):
     def compute_interactions(distrib_u, distrib_v):
         # return np.hstack([distrib_u, distrib_v])
         return np.kron(distrib_u, distrib_v)
+    compute_interactions = np.kron
 
-    sstart = clock()
     test_edges_idx = set(test_set)
+    sstart = clock()
     for (u, v), i in graph.edge_order.items():
         fu, fv = Xnodes[u, :], Xnodes[v, :]
         if i in test_edges_idx:
@@ -54,7 +55,7 @@ if __name__ == "__main__":
     from sklearn.metrics import confusion_matrix, accuracy_score, matthews_corrcoef, f1_score
 
     graph = llp.LillePrediction(use_triads=True)
-    graph.load_data('wik')
+    graph.load_data('aut')
     es = graph.select_train_set(batch=.9)
     Xl, yl, train_set, test_set = graph.compute_features()
     Xa, ya = np.array(Xl), np.array(yl)

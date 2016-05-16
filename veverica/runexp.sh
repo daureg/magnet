@@ -1,5 +1,5 @@
-time python -O -W ignore icml_exp.py aut -n3
-time python -O -W ignore icml_exp.py wik -n3
-time python -O -W ignore icml_exp.py sla -n3
-time python -O -W ignore icml_exp.py epi -n3
-time python -O -W ignore icml_exp.py kiw -n3
+time python -O -W ignore time_triads.py aut -n4
+time python -O -W ignore time_triads.py wik -n4
+time python -O -W ignore time_triads.py sla -n4
+time python -O -W ignore time_triads.py epi -n4
+time python -O -W ignore time_triads.py kiw -n4

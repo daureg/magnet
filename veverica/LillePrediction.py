@@ -117,6 +117,8 @@ class LillePrediction(lp.LinkPrediction):
         self.din_plus, self.dout_plus = defaultdict(int), defaultdict(int)
         self.din_minus, self.dout_minus = defaultdict(int), defaultdict(int)
         self.compute_in_out_degree(self.Esign)
+        self.triad_time = 0
+        self.feature_time = 0
 
     def compute_in_out_degree(self, edges):
         for (u, v), sign in edges.items():

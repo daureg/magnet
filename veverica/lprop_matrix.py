@@ -39,21 +39,19 @@ def _train(P, sorted_edges, train_idx, train_y, dims):
     m, n = dims
     f = np.random.random(m+2*n)
     f[train_idx] = train_y
+    sstart = clock()
     for i in range(DIAMETER):
         nf = P@f
         nf[train_idx] = train_y
-        diff = np.abs(f - nf)
-        if diff.sum()/nf.sum() < 5e-4:
-            f = nf
-            break
         f = nf
     p, q = f[m:m+n], f[m+n:]
     feats = (p[sorted_edges[:, 0]]+q[sorted_edges[:, 1]])/2
-    return feats
+    time_taken = clock() - sstart
+    return feats, time_taken
 
 
 def _inner_cv(P, sorted_edges, train_idx, train_y, test_idx, test_y, measure, dims):
-    feats = _train(P, sorted_edges, train_idx, train_y, dims)
+    feats = _train(P, sorted_edges, train_idx, train_y, dims)[0]
     k = -find_threshold(-feats[test_idx], test_y)
     pred = (feats[test_idx] > k)
     return k, measure(test_y, pred)
@@ -125,9 +123,7 @@ if __name__ == "__main__":
             k_half = .5
             k_two_third = 2/3
 
-            sstart = clock()
-            feats = _train(P, sorted_edges, train_set, revealed, (m, n))
-            training_time = clock() - sstart
+            feats, training_time = _train(P, sorted_edges, train_set, revealed, (m, n))
 
             fixed_half.append(evaluate(feats[test_set], gold, k_half, training_time, frac))
             fixed_tt.append(evaluate(feats[test_set], gold, k_two_third, training_time, frac))

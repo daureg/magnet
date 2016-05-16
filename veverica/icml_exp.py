@@ -154,7 +154,7 @@ if __name__ == '__main__':
             ppton.append(res)
 
             sstart = lp.clock()
-            feats = lm._train(P, sorted_edges, train_set, ya[train_set], (m, n))
+            feats = lm._train(P, sorted_edges, train_set, ya[train_set], (m, n))[0]
             k_star = -find_threshold(-feats[train_set], ya[train_set])
             time_elapsed = lp.clock() - sstart
             graph.time_used = time_elapsed

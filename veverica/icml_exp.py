@@ -157,7 +157,7 @@ if __name__ == '__main__':
             feats, time_elapsed = lm._train(P, sorted_edges, train_set, ya[train_set], (m, n))
             sstart = lp.clock()
             k_star = -find_threshold(-feats[train_set], ya[train_set])
-            time_elapsed += llp.lp.clock() - sstart
+            time_elapsed += lp.clock() - sstart
             pred_function = graph.train(lambda features: features>k_star)
             graph.time_used = time_elapsed
             res = graph.test_and_evaluate(pred_function, feats[test_set], gold, pp)

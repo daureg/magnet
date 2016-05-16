@@ -72,6 +72,7 @@ if __name__ == '__main__':
 
     batch = [{'batch': v/100} for v in range(15, 91, 15)]
     batch = [{'batch': v} for v in [.03, .05, .07, .09, .15, .20, .30, .40, .50, .7, .8, .9]]
+    batch = [{'batch': v} for v in [.25]]
     fres = [[] for _ in range(25)]
     for r, params in enumerate(cs if args.active else batch):
         only_troll_fixed, l1_fixed, l1_learned = [], [], []
@@ -153,12 +154,12 @@ if __name__ == '__main__':
             ppton_raw.append(graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold))
             ppton.append(res)
 
+            feats, time_elapsed = lm._train(P, sorted_edges, train_set, ya[train_set], (m, n))
             sstart = lp.clock()
-            feats = lm._train(P, sorted_edges, train_set, ya[train_set], (m, n))[0]
             k_star = -find_threshold(-feats[train_set], ya[train_set])
-            time_elapsed = lp.clock() - sstart
-            graph.time_used = time_elapsed
+            time_elapsed += llp.lp.clock() - sstart
             pred_function = graph.train(lambda features: features>k_star)
+            graph.time_used = time_elapsed
             res = graph.test_and_evaluate(pred_function, feats[test_set], gold, pp)
             lpmin_erm.append(res)
             graph.time_used = time_elapsed

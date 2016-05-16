@@ -52,7 +52,7 @@ if __name__ == '__main__':
             pp = (test_set, idx2edge)
             pp = None
 
-            feats, time_elapsed = lm._train(P, sorted_edges, train_set, ya[train_set], (m, n))[0]
+            feats, time_elapsed = lm._train(P, sorted_edges, train_set, ya[train_set], (m, n))
             sstart = llp.lp.clock()
             k_star = -find_threshold(-feats[train_set], ya[train_set])
             time_elapsed += llp.lp.clock() - sstart

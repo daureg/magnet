@@ -1,7 +1,6 @@
 #! /usr/bin/env python
 import numpy as np
 import LillePrediction as llp
-from L1Classifier import L1Classifier
 from sklearn.base import BaseEstimator, ClassifierMixin
 import lprop_matrix as lm
 from collections import defaultdict
@@ -99,6 +98,7 @@ if __name__ == '__main__':
     import socket
     import argparse
     from math import log, ceil
+    from L1Classifier import L1Classifier
     part = int(socket.gethostname()[-1])-1
     num_threads = 16
 

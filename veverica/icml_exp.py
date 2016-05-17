@@ -17,6 +17,7 @@ if __name__ == '__main__':
     import argparse
     part = int(socket.gethostname()[-1])-1
     num_threads = 15
+    do_asym = False
 
     parser = argparse.ArgumentParser()
     parser.add_argument("data", help="Which data to use",
@@ -46,6 +47,7 @@ if __name__ == '__main__':
     perceptron = SGDClassifier(loss="perceptron", eta0=1, class_weight=class_weight,
                                learning_rate="constant", penalty=None, average=True, n_iter=4)
     dicho = L1Classifier()
+    dicho_mcc = L1Classifier(maximize_mcc=True)
     nrk = NodesRanker(autotune_budget=0)
 
     diameters = {'aut': 22, 'wik': 16, 'sla': 32, 'epi': 38, 'kiw': 30}
@@ -71,9 +73,9 @@ if __name__ == '__main__':
           {'sampling': lambda d: int(ceil(5*log(d)))}]
 
     batch = [{'batch': v/100} for v in range(15, 91, 15)]
-    batch = [{'batch': v} for v in [.03, .05, .07, .09, .15, .20, .30, .40, .50, .7, .8, .9]]
-    batch = [{'batch': v} for v in [.25]]
-    fres = [[] for _ in range(25)]
+    batch = [{'batch': v} for v in [.03, .05, .07, .09, .15, .20, .25,]]
+                                    #.30, .40, .50, .7, .8, .9]]
+    fres = [[] for _ in range(31)]
     for r, params in enumerate(cs if args.active else batch):
         only_troll_fixed, l1_fixed, l1_learned = [], [], []
         only_troll_fixed_raw, l1_fixed_raw, l1_learned_raw = [], [], []
@@ -86,6 +88,8 @@ if __name__ == '__main__':
         lesko, chiang, asym = [], [], []
         rank_nodes, bayes_feat = [], []
         treek, bfsl = [], []
+        l1_learned_mcc, both_learned_mcc, lpmin_erm_mcc = [], [], []
+        l1_learned_mcc_raw, both_learned_mcc_raw, lpmin_erm_mcc_raw = [], [], []
         for _ in range(num_rep):
             graph.select_train_set(**params)
             Xl, yl, train_set, test_set = graph.compute_features()
@@ -114,11 +118,17 @@ if __name__ == '__main__':
             graph.time_used = 0
             l1_fixed_raw.append(graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold))
             l1_fixed.append(res)
+
             pred_function = graph.train(dicho, Xa[train_set, 15:17], ya[train_set])
             res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold, pp)
             graph.time_used = 0
             l1_learned_raw.append(graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold))
             l1_learned.append(res)
+            pred_function = graph.train(dicho_mcc, Xa[train_set, 15:17], ya[train_set])
+            res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold, pp)
+            graph.time_used = 0
+            l1_learned_mcc_raw.append(graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold))
+            l1_learned_mcc.append(res)
             frac = len(train_set)/len(graph.E)
 
             denom_troll = Xa[:, 12] + Xa[:, 5]
@@ -136,6 +146,7 @@ if __name__ == '__main__':
             graph.time_used = 0
             both_fixed_raw.append(graph.test_and_evaluate(pred_function, both_feats[test_set], gold))
             both_fixed.append(res)
+            #TODO not counting time for finding k here
             kboth = find_threshold(both_feats[valid_train_both], ya[valid_train_both])
             pred_function = graph.train(lambda features:
                                         pred_with_threshold(features, kboth, denom_both[test_set]==0))
@@ -143,6 +154,16 @@ if __name__ == '__main__':
             graph.time_used = 0
             both_learned_raw.append(graph.test_and_evaluate(pred_function, both_feats[test_set], gold))
             both_learned.append(res)
+
+            kboth_mcc = find_threshold(both_feats[valid_train_both],
+                                       ya[valid_train_both], True)
+            pred_function = graph.train(lambda features:
+                                        pred_with_threshold(features, kboth_mcc, denom_both[test_set]==0))
+            res = graph.test_and_evaluate(pred_function, both_feats[test_set], gold, pp)
+            graph.time_used = 0
+            both_learned_mcc_raw.append(graph.test_and_evaluate(pred_function, both_feats[test_set], gold))
+            both_learned_mcc.append(res)
+
             pred_function = graph.train(olr, Xa[train_set, 15:17], ya[train_set])
             res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold, pp)
             graph.time_used = 0
@@ -157,13 +178,23 @@ if __name__ == '__main__':
             feats, time_elapsed = lm._train(P, sorted_edges, train_set, ya[train_set], (m, n))
             sstart = lp.clock()
             k_star = -find_threshold(-feats[train_set], ya[train_set])
-            time_elapsed += lp.clock() - sstart
+            time_taken = time_elapsed + lp.clock() - sstart
             pred_function = graph.train(lambda features: features>k_star)
-            graph.time_used = time_elapsed
+            graph.time_used = time_taken
             res = graph.test_and_evaluate(pred_function, feats[test_set], gold, pp)
             lpmin_erm.append(res)
-            graph.time_used = time_elapsed
+            graph.time_used = time_taken
             lpmin_erm_raw.append(graph.test_and_evaluate(pred_function, feats[test_set], gold))
+
+            sstart = lp.clock()
+            k_star_mcc = -find_threshold(-feats[train_set], ya[train_set], True)
+            time_taken = time_elapsed + lp.clock() - sstart
+            pred_function = graph.train(lambda features: features>k_star_mcc)
+            graph.time_used = time_taken
+            res = graph.test_and_evaluate(pred_function, feats[test_set], gold, pp)
+            lpmin_erm_mcc.append(res)
+            graph.time_used = time_taken
+            lpmin_erm_mcc_raw.append(graph.test_and_evaluate(pred_function, feats[test_set], gold))
 
             negative_frac = np.bincount(revealed)[0]/revealed.size
             scores = np.sort(feats[test_set])
@@ -224,22 +255,25 @@ if __name__ == '__main__':
             graph.time_used += graph.triad_time
             res = graph.test_and_evaluate(pred_function, Xa[test_feat], gold)
             lesko.append(res)
-            esigns = {(u, v): graph.E.get((u, v)) if (u, v) in graph.E else graph.E.get((v, u))
-                      for u, adj in graph.Gfull.items() for v in adj}
-            mapping = {i: i for i in range(graph.order)}
-            sstart = lp.clock()
-            sadj, test_edges = sp.get_training_matrix(666, mapping, slcc=set(range(graph.order)),
-                                                      tree_edges=graph.Esign.keys(), G=graph.Gfull,
-                                                      EDGE_SIGN=esigns)
-            ngold, pred = sp.predict_edges(sadj, 15, mapping, test_edges, graph.Gfull, esigns)
-            time_elapsed = lp.clock() - sstart
-            C = lp.confusion_matrix(ngold, pred)
-            fp, tn = C[0, 1], C[0, 0]
-            acc, fpr, f1, mcc = [lp.accuracy_score(ngold, pred), fp/(fp+tn),
-                                 lp.f1_score(ngold, pred, average='weighted', pos_label=None),
-                                 lp.matthews_corrcoef(ngold, pred)]
-            frac = 1 - len(test_edges)/len(graph.E)
-            asym.append([acc, f1, mcc, fpr, time_elapsed, frac])
+            if do_asym:
+                esigns = {(u, v): graph.E.get((u, v)) if (u, v) in graph.E else graph.E.get((v, u))
+                          for u, adj in graph.Gfull.items() for v in adj}
+                mapping = {i: i for i in range(graph.order)}
+                sstart = lp.clock()
+                sadj, test_edges = sp.get_training_matrix(666, mapping, slcc=set(range(graph.order)),
+                                                          tree_edges=graph.Esign.keys(), G=graph.Gfull,
+                                                          EDGE_SIGN=esigns)
+                ngold, pred = sp.predict_edges(sadj, 15, mapping, test_edges, graph.Gfull, esigns)
+                time_elapsed = lp.clock() - sstart
+                C = lp.confusion_matrix(ngold, pred)
+                fp, tn = C[0, 1], C[0, 0]
+                acc, fpr, f1, mcc = [lp.accuracy_score(ngold, pred), fp/(fp+tn),
+                                     lp.f1_score(ngold, pred, average='weighted', pos_label=None),
+                                     lp.matthews_corrcoef(ngold, pred)]
+                frac = 1 - len(test_edges)/len(graph.E)
+                asym.append([acc, f1, mcc, fpr, time_elapsed, frac])
+            else:
+                asym.append([.8, .9, .5, .3, 2, frac])
 
             ngold, pred, time_elapsed, frac = getWH.run_chiang(graph)
             C = lp.confusion_matrix(ngold, pred)
@@ -278,6 +312,12 @@ if __name__ == '__main__':
         fres[22].append(both_learned_raw)
         fres[23].append(lpmin_erm_raw)
         fres[24].append(lpmin_neg_raw)
+        fres[25].append(l1_learned_mcc)
+        fres[26].append(l1_learned_mcc_raw)
+        fres[27].append(both_learned_mcc)
+        fres[28].append(both_learned_mcc_raw)
+        fres[29].append(lpmin_erm_mcc)
+        fres[30].append(lpmin_erm_mcc_raw)
     if args.active:
         pref += '_active'
     res_file = '{}_{}_{}'.format(pref, start, part+1)

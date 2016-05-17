@@ -1,13 +1,15 @@
 # vim: set fileencoding=utf-8
 from sklearn.base import BaseEstimator, ClassifierMixin
 from math import sqrt
+from exp_tworules import find_threshold
 import numpy as np
 
 
 class L1Classifier(BaseEstimator, ClassifierMixin):
-    def __init__(self, n_iter=6):
+    def __init__(self, n_iter=6, maximize_mcc=False):
         self.k = None
         self.n_iter = n_iter
+        self.maximize_mcc = maximize_mcc
 
     def fit(self, X, y):
         assert X.shape[1] == 2, 'only two features'
@@ -15,10 +17,13 @@ class L1Classifier(BaseEstimator, ClassifierMixin):
         feats = X[:, 0] + X[:, 1]
         # self.k = gss(lambda k: -matthews_corrcoef(y, (feats < k)), .3, .9, self.n_iter)
         # self.k = gss(lambda k: (y != (feats < k)).sum(), .3, .9, self.n_iter)
-        mask = feats > 0.8*feats.mean()
+        mask = feats > 0.5*feats.mean()
         rdst = feats[mask]
-        rorder = np.argsort(rdst)
-        self.k = rdst[rorder][np.argmax(np.cumsum(2*y[mask][rorder]-1))]
+        if self.maximize_mcc:
+            self.k = find_threshold(rdst, y[mask], True)
+        else:
+            rorder = np.argsort(rdst)
+            self.k = rdst[rorder][np.argmax(np.cumsum(2*y[mask][rorder]-1))]
 
     def predict(self, X):
         return (X[:, 0] < (self.k-X[:, 1]))

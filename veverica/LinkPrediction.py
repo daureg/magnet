@@ -12,6 +12,7 @@ FILENAMES = {DATASETS.Wikipedia: 'soc-wiki.txt',
              DATASETS.WikEdits: 'soc-sign-kiw.txt'}
 from sklearn.metrics import accuracy_score, f1_score, matthews_corrcoef
 from sklearn.metrics import confusion_matrix
+from exp_tworules import find_threshold
 
 class LinkPrediction(object):
     """
@@ -78,8 +79,15 @@ class LinkPrediction(object):
         self.time_used = 0
         if hasattr(model, 'fit'):
             s = clock()
-            model.fit(*args)
+            model.fit(*args[:2])
             self.time_used += clock() - s
+            mcc_tuning = len(args) == 2 or args[2]
+            if hasattr(model, 'predict_proba') and mcc_tuning:
+                s = clock()
+                probas = model.predict_proba(args[0])[:, 1]
+                k = -find_threshold(-probas, args[1], True)
+                self.time_used += clock() - s
+                return lambda feats: model.predict_proba(feats)[:, 1] > k
             return model.predict
         return model
 

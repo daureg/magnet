@@ -54,6 +54,8 @@ if __name__ == '__main__':
     lm.DIAMETER = diameters[pref]
     data = lm.sio.loadmat('{}_gprime.mat'.format(pref))
     P, sorted_edges = data['P'], data['sorted_edges']
+    data = lm.sio.loadmat('{}_gsecond.mat'.format(pref), squeeze_me=True)
+    W, d = data['W'], data['d']
     ya = sorted_edges[:, 2]
     m = sorted_edges.shape[0]
     n = (P.shape[0] - m)//2
@@ -75,7 +77,7 @@ if __name__ == '__main__':
     batch = [{'batch': v/100} for v in range(15, 91, 15)]
     batch = [{'batch': v} for v in [.03, .05, .07, .09, .15, .20, .25,]]
                                     #.30, .40, .50, .7, .8, .9]]
-    fres = [[] for _ in range(31)]
+    fres = [[] for _ in range(33)]
     for r, params in enumerate(cs if args.active else batch):
         only_troll_fixed, l1_fixed, l1_learned = [], [], []
         only_troll_fixed_raw, l1_fixed_raw, l1_learned_raw = [], [], []
@@ -90,6 +92,7 @@ if __name__ == '__main__':
         treek, bfsl = [], []
         l1_learned_mcc, both_learned_mcc, lpmin_erm_mcc = [], [], []
         l1_learned_mcc_raw, both_learned_mcc_raw, lpmin_erm_mcc_raw = [], [], []
+        lpmin_second, lpmin_second_raw = [], []
         for _ in range(num_rep):
             graph.select_train_set(**params)
             Xl, yl, train_set, test_set = graph.compute_features()
@@ -169,7 +172,7 @@ if __name__ == '__main__':
             graph.time_used = 0
             logreg_raw.append(graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold))
             logreg.append(res)
-            pred_function = graph.train(perceptron, Xa[train_set, 15:17], ya[train_set])
+            pred_function = graph.train(perceptron, Xa[train_set, 15:17], ya[train_set], False)
             res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold, pp)
             graph.time_used = 0
             ppton_raw.append(graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold))
@@ -206,6 +209,19 @@ if __name__ == '__main__':
             graph.time_used = time_elapsed
             lpmin_neg_raw.append(graph.test_and_evaluate(pred_function, feats[test_set], gold))
 
+
+            f, time_elapsed = lm._train_second(W, d, train_set, 2*revealed-1, (m, n))
+            feats = f[:m]
+            sstart = lp.clock()
+            k_star = -find_threshold(-feats[train_set], ya[train_set], True)
+            time_elapsed += lp.clock() - sstart
+            pred_function = graph.train(lambda features: features > k_star)
+            graph.time_used = time_elapsed
+            res = graph.test_and_evaluate(pred_function, feats[test_set], gold, pp)
+            lpmin_second.append(res)
+            graph.time_used = time_elapsed
+            lpmin_second_raw.append(graph.test_and_evaluate(pred_function, feats[test_set], gold))
+
             if r == 0 and args.active:
                 bfsl.append(treestar.baseline_bfs(graph.Gfull, graph.E))
                 k = {'wik': 7, 'sla': 8, 'epi': 9,
@@ -228,7 +244,10 @@ if __name__ == '__main__':
             Xtest, ytest = nrk.transform(Etest)
             sstart = lp.clock()
             rnlr.fit(Xtrain, ytrain)
-            pred = rnlr.predict(Xtest)
+            feats_train = rnlr.predict_proba(Xtrain)[:, 1]
+            k = -find_threshold(-feats_train, ytrain, True)
+            feats_test = rnlr.predict_proba(Xtest)[:, 1]
+            pred = feats_test > k
             end = lp.clock() - sstart + nrk.time_taken
             gold = ytest
             C = lp.confusion_matrix(gold, pred)
@@ -241,9 +260,12 @@ if __name__ == '__main__':
             Xbayes, time_taken = compute_bayes_features(Xa, ya, train_set, test_set, graph)
             sstart = lp.clock()
             bflr.fit(Xbayes[train_set, :], ya[train_set])
-            pred = bflr.predict(Xbayes[test_set, :])
+            feats_train = bflr.predict_proba(Xbayes[train_set, :])[:, 1]
+            k = -find_threshold(-feats_train, ya[train_set], True)
+            feats_test = bflr.predict_proba(Xbayes[test_set, :])[:, 1]
+            pred = feats_test > k
             end = lp.clock() - sstart + time_taken
-            gold=ya[test_set]
+            gold = ya[test_set]
             C = lp.confusion_matrix(gold, pred)
             fp, tn = C[0, 1], C[0, 0]
             acc, fpr, f1, mcc = [lp.accuracy_score(gold, pred), fp/(fp+tn),
@@ -251,10 +273,11 @@ if __name__ == '__main__':
                                  lp.matthews_corrcoef(gold, pred)]
             bayes_feat.append([acc, f1, mcc, fpr, end, frac])
 
-            pred_function = graph.train(llr, Xa[train_feat], ya[train_set])
+            pred_function = graph.train(llr, Xa[train_feat], ya[train_set], pref != 'aut')
             graph.time_used += graph.triad_time
             res = graph.test_and_evaluate(pred_function, Xa[test_feat], gold)
             lesko.append(res)
+
             if do_asym:
                 esigns = {(u, v): graph.E.get((u, v)) if (u, v) in graph.E else graph.E.get((v, u))
                           for u, adj in graph.Gfull.items() for v in adj}
@@ -318,6 +341,8 @@ if __name__ == '__main__':
         fres[28].append(both_learned_mcc_raw)
         fres[29].append(lpmin_erm_mcc)
         fres[30].append(lpmin_erm_mcc_raw)
+        fres[31].append(lpmin_second)
+        fres[32].append(lpmin_second_raw)
     if args.active:
         pref += '_active'
     res_file = '{}_{}_{}'.format(pref, start, part+1)

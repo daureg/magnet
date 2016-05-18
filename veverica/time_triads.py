@@ -30,13 +30,16 @@ if __name__ == '__main__':
 
     diameters = {'aut': 22, 'wik': 16, 'sla': 32, 'epi': 38, 'kiw': 30}
     lm.DIAMETER = diameters[pref]
-    data = lm.sio.loadmat('{}_gprime.mat'.format(pref))
-    P, sorted_edges = data['P'], data['sorted_edges']
+    # data = lm.sio.loadmat('{}_gprime.mat'.format(pref))
+    # P, sorted_edges = data['P'], data['sorted_edges']
+    data = lm.sio.loadmat('{}_gsecond.mat'.format(pref), squeeze_me=True)
+    W, d, sorted_edges = data['W'], data['d'], data['sorted_edges']
     ya = sorted_edges[:, 2]
     m = sorted_edges.shape[0]
-    n = (P.shape[0] - m)//2
+    n = (W.shape[0] - m)//2
 
-    batch = [{'batch': v} for v in [.15]]
+    # batch = [{'batch': v} for v in [.15]]
+    batch = [{'batch': v} for v in [.03, .05, .07, .09, .15, .20, .25,]]
     fres = [[] for _ in range(1)]
     for r, params in enumerate(batch):
         lesko, lpmin_erm, asym = [], [], []
@@ -52,9 +55,10 @@ if __name__ == '__main__':
             pp = (test_set, idx2edge)
             pp = None
 
-            feats, time_elapsed = lm._train(P, sorted_edges, train_set, ya[train_set], (m, n))
+            f, time_elapsed = lm._train_second(W, d, train_set, 2*revealed-1, (m, n))
+            feats = f[:m]
             sstart = llp.lp.clock()
-            k_star = -find_threshold(-feats[train_set], ya[train_set])
+            k_star = -find_threshold(-feats[train_set], ya[train_set], True)
             time_elapsed += llp.lp.clock() - sstart
             pred_function = graph.train(lambda features: features > k_star)
             graph.time_used = time_elapsed

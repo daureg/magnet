@@ -35,6 +35,30 @@ def save_gprime(pref):
                 do_compression=True)
 
 
+def save_gsecond(pref, eps=2):
+    G, E = pg.load_directed_signed_graph('directed_{}.pack'.format(pref))
+    n, m = len(G), len(E)
+    sorted_edges = np.zeros((m, 3), dtype=np.int)
+    for i, (e, s) in enumerate(sorted(E.items())):
+        u, v = e
+        sorted_edges[i, :] = (u, v, s)
+    W_row, W_col, W_data = [], [], []
+    for ve, row in enumerate(sorted_edges):
+        u, v, s = row
+        vpi = u + m
+        vqj = v + m + n
+        W_row.extend( (vpi, ve,  ve,  vqj, vpi, vqj))
+        W_col.extend( (ve,  vpi, vqj, ve,  vqj, vpi))
+        W_data.extend((eps, eps, eps, eps, -1,  -1 ))
+    W = sp.coo_matrix((W_data, (W_row, W_col)), shape=(m+2*n, m+2*n),
+                      dtype=np.float64).tocsc()
+    d = np.array(np.abs(W).sum(1)).ravel()
+    d[d==0] = 1
+    d = 1/d
+    sio.savemat('{}_gsecond.mat'.format(pref), dict(W=W, d=d, sorted_edges=sorted_edges),
+                do_compression=True)
+
+
 def _train(P, sorted_edges, train_idx, train_y, dims):
     m, n = dims
     f = np.random.random(m+2*n)
@@ -48,6 +72,20 @@ def _train(P, sorted_edges, train_idx, train_y, dims):
     feats = (p[sorted_edges[:, 0]]+q[sorted_edges[:, 1]])/2
     time_taken = clock() - sstart
     return feats, time_taken
+
+
+def _train_second(W, d, train_idx, train_y, dims):
+    m, n = dims
+    f = np.zeros(m+2*n)
+    f[train_idx] = train_y
+    sstart = clock()
+    for i in range(DIAMETER-1):
+        nf = (W@f)*d
+        if i%2 == 1:
+            nf[train_idx] = train_y
+        f = nf
+    nf = (W@f)*d
+    return nf, clock() - sstart
 
 
 def _inner_cv(P, sorted_edges, train_idx, train_y, test_idx, test_y, measure, dims):

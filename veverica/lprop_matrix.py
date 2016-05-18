@@ -74,14 +74,14 @@ def _train(P, sorted_edges, train_idx, train_y, dims):
     return feats, time_taken
 
 
-def _train_second(W, d, train_idx, train_y, dims):
+def _train_second(W, d, train_idx, train_y, dims, always_clamp=False):
     m, n = dims
     f = np.zeros(m+2*n)
     f[train_idx] = train_y
     sstart = clock()
     for i in range(DIAMETER-1):
         nf = (W@f)*d
-        if i%2 == 1:
+        if i%2 == 1 or always_clamp:
             nf[train_idx] = train_y
         f = nf
     nf = (W@f)*d
@@ -127,11 +127,35 @@ if __name__ == "__main__":
     # precomputed diameter of P
     diameters = {'aut': 22, 'wik': 16, 'sla': 32, 'epi': 38, 'kiw': 30}
     DIAMETER = diameters[pref]
+    import sys
+    data = sio.loadmat('{}_gsecond.mat'.format(pref), squeeze_me=True)
+    W, d, sorted_edges = data['W'], data['d'], data['sorted_edges']
+    ya = sorted_edges[:, 2]
+    m = sorted_edges.shape[0]
+    n = (W.shape[0] - m)//2
+    batch = .15
+    train_set, test_set = [], []
+    for i in range(m):
+        (train_set if random.random() < batch else test_set).append(i)
+    train_set = np.array(train_set)
+    test_set = np.array(test_set)
+    gold = ya[test_set]
+    revealed = ya[train_set]
+    frac = revealed.size/m
+    for always_clamp in [True, False]:
+        f, time_elapsed = _train_second(W, d, train_set, 2*revealed-1, (m, n), always_clamp)
+        feats = f[:m]
+        sstart = clock()
+        k_star = -find_threshold(-feats[train_set], ya[train_set], True)
+        time_elapsed += clock() - sstart
+        print(evaluate(feats[test_set], gold, k_star, time_elapsed, frac))
+    sys.exit()
     data = sio.loadmat('{}_gprime.mat'.format(pref))
     P, sorted_edges = data['P'], data['sorted_edges']
     ya = sorted_edges[:, 2]
     m = sorted_edges.shape[0]
     n = (P.shape[0] - m)//2
+
 
     if balanced:
         pref += '_bal'

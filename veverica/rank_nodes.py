@@ -163,6 +163,7 @@ if __name__ == '__main__':
     from sklearn.metrics import confusion_matrix, accuracy_score, matthews_corrcoef, f1_score
     import pack_graph as pg
     import sys
+    from exp_tworules import find_threshold
 
     if len(sys.argv) == 1:
         datafile = 'directed_wik.pack'
@@ -173,24 +174,54 @@ if __name__ == '__main__':
                            warm_start=True, average=True)
     nrk = NodesRanker(autotune_budget=0)
 
-    k = 5
+    k = 20
     res = np.zeros((k, 5))
+    res_mcc = np.zeros((k, 5))
+    res_acc = np.zeros((k, 5))
     for i in range(k):
-        Etrain, Etest = NodesRanker.split_edges(E, .9)
+        Etrain, Etest = NodesRanker.split_edges(E, .15)
 
         nrk.fit(Etrain, len(G))
-        print(nrk.time_taken)
+        # print(nrk.time_taken)
         Xtrain, ytrain = nrk.transform(Etrain)
         Xtest, ytest = nrk.transform(Etest)
         gold = ytest
         start = clock()
         logreg.fit(Xtrain, ytrain)
-        end = clock() - start + nrk.time_taken
+        logreg_time = clock() - start
         pred = logreg.predict(Xtest)
+        end = clock() - start + nrk.time_taken
         C = confusion_matrix(gold, pred)
         fp, tn = C[0, 1], C[0, 0]
         res[i, :] = [accuracy_score(gold, pred),
                      f1_score(gold, pred, average='weighted', pos_label=None),
                      matthews_corrcoef(gold, pred), fp/(fp+tn), end]
-        print(res[i, :])
+        # print(res[i, :])
+        start = clock()
+        feats_train = logreg.predict_proba(Xtrain)[:, 1]
+        k = -find_threshold(-feats_train, ytrain, True)
+        feats_test = logreg.predict_proba(Xtest)[:, 1]
+        pred = feats_test > k
+        end = clock() - start + nrk.time_taken + logreg_time
+        C = confusion_matrix(gold, pred)
+        fp, tn = C[0, 1], C[0, 0]
+        res_mcc[i, :] = [accuracy_score(gold, pred),
+                         f1_score(gold, pred, average='weighted', pos_label=None),
+                         matthews_corrcoef(gold, pred), fp/(fp+tn), end]
+        # print(res_mcc[i, :])
+
+        start = clock()
+        feats_train = logreg.predict_proba(Xtrain)[:, 1]
+        k = -find_threshold(-feats_train, ytrain, False)
+        feats_test = logreg.predict_proba(Xtest)[:, 1]
+        pred = feats_test > k
+        end = clock() - start + nrk.time_taken + logreg_time
+        C = confusion_matrix(gold, pred)
+        fp, tn = C[0, 1], C[0, 0]
+        res_acc[i, :] = [accuracy_score(gold, pred),
+                         f1_score(gold, pred, average='weighted', pos_label=None),
+                         matthews_corrcoef(gold, pred), fp/(fp+tn), end]
+        # print(res_acc[i, :])
     print(res.mean(0), res.std(0))
+    print(res_mcc.mean(0), res_mcc.std(0))
+    print(res_acc.mean(0), res_acc.std(0))

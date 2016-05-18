@@ -53,23 +53,41 @@ if __name__ == "__main__":
     import LillePrediction as llp
     from sklearn.linear_model import SGDClassifier
     from sklearn.metrics import confusion_matrix, accuracy_score, matthews_corrcoef, f1_score
+    from exp_tworules import find_threshold
 
     graph = llp.LillePrediction(use_triads=True)
-    graph.load_data('aut')
-    es = graph.select_train_set(batch=.9)
-    Xl, yl, train_set, test_set = graph.compute_features()
-    Xa, ya = np.array(Xl), np.array(yl)
-    Xbayes, time_taken = compute_bayes_features(Xa, ya, train_set, test_set, graph)
+    graph.load_data('wik')
+    nrep = 5
+    res = np.zeros((nrep, 5))
+    res_mcc = np.zeros((nrep, 5))
+    for rep in range(5):
+        es = graph.select_train_set(batch=.15)
+        Xl, yl, train_set, test_set = graph.compute_features()
+        Xa, ya = np.array(Xl), np.array(yl)
+        Xbayes, time_taken = compute_bayes_features(Xa, ya, train_set, test_set, graph)
 
-    logreg = SGDClassifier(loss='log', n_iter=5, class_weight={0: 1.4, 1: 1},
-                           warm_start=True, average=True)
-    sstart = clock()
-    logreg.fit(Xbayes[train_set, :], ya[train_set])
-    time_taken += clock() - sstart
-    gold=ya[test_set]
-    pred = logreg.predict(Xbayes[test_set, :])
-    C = confusion_matrix(gold, pred)
-    fp, tn = C[0, 1], C[0, 0]
-    print([accuracy_score(gold, pred), f1_score(gold, pred, average='weighted', pos_label=None),
-           matthews_corrcoef(gold, pred), fp/(fp+tn)])
-    print(time_taken)
+        logreg = SGDClassifier(loss='log', n_iter=5, class_weight={0: 1.4, 1: 1},
+                               warm_start=True, average=True)
+        sstart = clock()
+        logreg.fit(Xbayes[train_set, :], ya[train_set])
+        time_taken += clock() - sstart
+        gold=ya[test_set]
+        pred = logreg.predict(Xbayes[test_set, :])
+        C = confusion_matrix(gold, pred)
+        fp, tn = C[0, 1], C[0, 0]
+        res[rep, :] = ([accuracy_score(gold, pred), f1_score(gold, pred, average='weighted', pos_label=None),
+                        matthews_corrcoef(gold, pred), fp/(fp+tn), time_taken])
+        print(time_taken)
+        Xtrain, ytrain = Xbayes[train_set, :], ya[train_set]
+        Xtest, ytest = Xbayes[test_set, :], ya[test_set]
+
+        feats_train = logreg.predict_proba(Xtrain)[:, 1]
+        k = -find_threshold(-feats_train, ytrain, True)
+        feats_test = logreg.predict_proba(Xtest)[:, 1]
+        pred = feats_test > k
+        C = confusion_matrix(gold, pred)
+        fp, tn = C[0, 1], C[0, 0]
+        res_mcc[rep, :] = ([accuracy_score(gold, pred), f1_score(gold, pred, average='weighted', pos_label=None),
+                            matthews_corrcoef(gold, pred), fp/(fp+tn), time_taken])
+    print(res.mean(0), res.std(0))
+    print(res_mcc.mean(0), res_mcc.std(0))

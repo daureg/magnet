@@ -142,8 +142,11 @@ if __name__ == "__main__":
     gold = ya[test_set]
     revealed = ya[train_set]
     frac = revealed.size/m
-    for always_clamp in [True, False]:
-        f, time_elapsed = _train_second(W, d, train_set, 2*revealed-1, (m, n), always_clamp)
+    for minus_plus in [True, False]:
+        init = revealed
+        if minus_plus:
+            init = 2*revealed-1
+        f, time_elapsed = _train_second(W, d, train_set, init, (m, n), False)
         feats = f[:m]
         sstart = clock()
         k_star = -find_threshold(-feats[train_set], ya[train_set], True)

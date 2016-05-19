@@ -76,7 +76,8 @@ if __name__ == '__main__':
 
     batch = [{'batch': v/100} for v in range(15, 91, 15)]
     batch = [{'batch': v} for v in [.03, .05, .07, .09, .15, .20, .25,]]
-                                    #.30, .40, .50, .7, .8, .9]]
+    batch = [{'batch': v} for v in [.30, .40, .50, .7, .8, .9]]
+
     fres = [[] for _ in range(33)]
     for r, params in enumerate(cs if args.active else batch):
         only_troll_fixed, l1_fixed, l1_learned = [], [], []
@@ -273,8 +274,8 @@ if __name__ == '__main__':
                                  lp.matthews_corrcoef(gold, pred)]
             bayes_feat.append([acc, f1, mcc, fpr, end, frac])
 
-            pred_function = graph.train(llr, Xa[train_feat], ya[train_set], pref != 'aut')
-            graph.time_used += graph.triad_time
+            pred_function = graph.train(llr, Xa[train_feat], ya[train_set], False)
+            # graph.time_used += graph.triad_time
             res = graph.test_and_evaluate(pred_function, Xa[test_feat], gold)
             lesko.append(res)
 

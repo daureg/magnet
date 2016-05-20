@@ -25,6 +25,8 @@ if __name__ == '__main__':
     class_weight = {0: 1.4, 1: 1}
     llr = llp.SGDClassifier(loss="log", learning_rate="optimal", penalty="l2", average=True,
                             n_iter=4, n_jobs=num_threads, class_weight=class_weight)
+    perceptron = llp.SGDClassifier(loss="perceptron", eta0=1, class_weight=class_weight,
+                                   learning_rate="constant", penalty=None, average=True, n_iter=4)
     start = (int(time.time()-(2015-1970)*365.25*24*60*60))//60
     triads_feats = list(range(7)) + list(range(17, 33))
 
@@ -38,8 +40,7 @@ if __name__ == '__main__':
     m = sorted_edges.shape[0]
     n = (W.shape[0] - m)//2
 
-    # batch = [{'batch': v} for v in [.15]]
-    batch = [{'batch': v} for v in [.03, .05, .07, .09, .15, .20, .25,]]
+    batch = [{'batch': v} for v in [.03, .05, .07, .09, .15, .20, .25]]
     fres = [[] for _ in range(1)]
     for r, params in enumerate(batch):
         lesko, lpmin_erm, asym = [], [], []
@@ -55,6 +56,13 @@ if __name__ == '__main__':
             pp = (test_set, idx2edge)
             pp = None
 
+            feats = 1-Xa[:, 15:17]
+            perceptron.fit(feats[train_set], revealed)
+            w = perceptron.coef_[0]
+            tau = perceptron.intercept_
+            asym.append(list(np.hstack((w, tau))))
+            continue
+
             f, time_elapsed = lm._train_second(W, d, train_set, 2*revealed-1, (m, n))
             feats = f[:m]
             sstart = llp.lp.clock()
@@ -64,7 +72,6 @@ if __name__ == '__main__':
             graph.time_used = time_elapsed
             res = graph.test_and_evaluate(pred_function, feats[test_set], gold, pp)
             lpmin_erm.append(res)
-            continue
 
             pred_function = graph.train(llr, Xa[train_feat], ya[train_set])
             res = graph.test_and_evaluate(pred_function, Xa[test_feat], gold)
@@ -72,6 +79,6 @@ if __name__ == '__main__':
             res.append(graph.feature_time)
             lesko.append(res)
 
-        fres[0].append(lpmin_erm)
-    res_file = '{}_{}_{}_time'.format(pref, start, part+1)
+        fres[0].append(asym)
+    res_file = '{}_{}_{}_coeff'.format(pref, start, part+1)
     np.savez_compressed(res_file, res=np.array(fres))

@@ -1,0 +1,744 @@
+\documentclass[svgnames,ignorenonframetext,final]{beamer}
+% \usepackage{polyglossia}
+% \setmainlanguage{english}
+\usepackage{mathtools}
+\usepackage{booktabs}
+\input{troll_notations.tex}
+\setbeamertemplate{caption}[numbered]
+\setbeamertemplate{caption label separator}{: }
+\setbeamercolor{caption name}{fg=normal text.fg}
+% titleformat plain=allcaps,
+%titleformat frame=smallcaps,
+\usetheme[numbering=fraction,progressbar=frametitle,block=fill,]{metropolis}
+\definecolor{lightyellow}{RGB}{255,250,230}
+\setbeamercolor{frametitle}{bg=lightyellow,fg=DarkOrange}
+\setbeamerfont{frametitle}{size=\LARGE,shape=\scshape}
+\setbeamertemplate{frametitle}[default][center]
+\usepackage{lmodern}
+\usepackage{amssymb,amsmath}
+% \iffalse
+\usepackage{ifxetex,ifluatex}
+\usepackage{fixltx2e} % provides \textsubscript
+\ifnum 0\ifxetex 1\fi\ifluatex 1\fi=0 % if pdftex
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+\else % if luatex or xelatex
+  \ifxetex
+    \usepackage{mathspec}
+  \else
+    \usepackage{fontspec}
+  \fi
+  \defaultfontfeatures{Ligatures=TeX,Scale=MatchLowercase}
+  \newcommand{\euro}{€}
+\fi
+% \fi
+% use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+% use microtype if available
+\IfFileExists{microtype.sty}{%
+\usepackage{microtype}
+\UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\newif\ifbibliography
+\usepackage{graphicx,grffile}
+\makeatletter
+\def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
+\def\maxheight{\ifdim\Gin@nat@height>\textheight0.8\textheight\else\Gin@nat@height\fi}
+\makeatother
+% Scale images if necessary, so that they will not overflow the page
+% margins by default, and it is still possible to overwrite the defaults
+% using explicit options in \includegraphics[width, height, ...]{}
+\setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
+
+% Prevent slide breaks in the middle of a paragraph:
+\widowpenalties 1 10000
+\raggedbottom
+
+\usepackage[citestyle=numeric-comp,bibstyle=ieee,isbn=false,maxnames=1,minnames=1,sorting=none,backend=biber,defernumbers=true]{biblatex}
+\AtEveryBibitem{
+   \clearfield{arxivId}
+   % \clearfield{booktitle}
+   \clearfield{doi}
+   \clearfield{eprint}
+   \clearfield{eventdate}
+   \clearfield{isbn}
+   \clearfield{issn}
+   % \clearfield{journaltitle}
+   \clearfield{month}
+   % \clearfield{number}
+   % \clearfield{pages}
+   \clearfield{series}
+   % \clearfield{url}
+   \clearfield{urldate}
+   \clearfield{venue}
+   % \clearfield{volume}
+   \clearlist{location} % alias to field 'address'
+   \clearlist{publisher}
+   \clearname{editor}
+}
+\addbibresource{../trolls/clean.bib}
+\addbibresource{trolls.bib}
+
+% Comment these out if you don't want a slide with just the
+% part/section/subsection/subsubsection title:
+\iffalse
+\AtBeginPart{
+  \let\insertpartnumber\relax
+  \let\partname\relax
+  \frame{\partpage}
+}
+\AtBeginSection{
+  \ifbibliography
+  \else
+    \let\insertsectionnumber\relax
+    \let\sectionname\relax
+    \frame{\sectionpage}
+  \fi
+}
+\AtBeginSubsection{
+  \let\insertsubsectionnumber\relax
+  \let\subsectionname\relax
+  \frame{\subsectionpage}
+}
+\fi
+
+\AtBeginSection[]
+{
+  \begin{frame}
+    \frametitle{Outline}
+    \tableofcontents[currentsection]
+  \end{frame}
+}
+
+\setlength{\emergencystretch}{3em}  % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\providecommand{\largelist}{%
+  \setlength{\itemsep}{8pt}\setlength{\parskip}{3pt}}
+\setcounter{secnumdepth}{0}
+
+\title{Edge Sign Prediction in Social Networks}
+\author{Géraud Le Falher --- Inria Lille Nord Europe, \textsc{Magnet} Team}
+\date{June 16, 2016}
+
+\begin{document}
+\frame{\titlepage}
+
+
+\section[Problem and motivations]{Introduction}\label{introduction}
+
+\begin{frame}{Directed signed social networks}
+
+  \begin{itemize}
+    \largelist
+    \item
+      Directed signed social networks have the usual positive relations,
+      driven by the \emph{homophily} assumption,
+    \item
+      but also \alert{negative relations}: distrust, enemyship.
+    \item
+      This give rise to \textbf{new problems}.
+    \item
+      For instance, observing some signs, can we predict the remaining ones?
+  \end{itemize}
+
+\end{frame}
+
+\begin{frame}{Motivations}
+
+  Being able to predict edge sign let us solve practical real world problems:
+
+  \begin{itemize}
+    \largelist
+  \item
+    ``Frenemy'' detection~\autocite{frenemy12}
+  \item
+    Automatic moderation of online interactions
+  \item
+    Cyber bullying, at school or in online games~\autocite{CyberbullyingCHI15}
+\end{itemize}
+
+\end{frame}
+
+\begin{frame}{Contributions}
+
+  \begin{enumerate}
+    \def\labelenumi{\arabic{enumi}.}
+    \largelist
+  \item
+    A \alert{generative model} based on trollness and trustworthiness that
+    justifies existing heuristics;
+    % (through Bayes optimal classifier);
+  \item
+    A maximum likelihood approximation by a \alert{label propagation algorithm}
+    leveraging a reduction from \alert{edge to node classification};
+  \item
+    A natural complexity measure leading to an efficient online algorithm.
+\end{enumerate}
+
+\end{frame}
+
+%% PART 2
+
+
+\section{Setting and Model}\label{setting-and-model}
+
+\begin{frame}{Notations}
+
+\begin{itemize}
+\item
+  We are given a directed graph \(G=(V, E)\) with \textbf{no side information} but full topology.
+\item
+  Each directed edge \((i,j)\) is labeled
+  \(y_{i,j} \in \{-1, +1\}\). The labels are collectively
+  referred to as \(Y\).
+\item
+  The in- and out-neighborhood of $i$ is denoted by $\Nout(i)$ and $\Nin(i)$, along with degree
+  quantities:
+  $\dout(i)=|\Nout(i)|=\dout^-(i)+\dout^+(i)$,\\
+  $\din(i)=|\Nin(i)|=\din^-(i)+\din^+(i)$.
+  % $\din(i)$, $\din^-(i)$ and $\din^+(i)$.
+\item We also define the \alert{trollness} of $i$ as \(tr(i) = \dout^-(i)/\dout(i)\), and its
+  \alert{untrustworthiness} as \(un(i) = \din^-(i)/\din(i)\).
+\end{itemize}
+
+\end{frame}
+
+\begin{frame}{Generative model}
+
+\begin{itemize}
+\item
+  We endow each node \(i\) with two parameters \(p_i, q_i \in [0,1]\)
+  drawn i.i.d.\@ from a fixed prior distribution \(\mu(p,q)\).
+\item
+  The label of the edge $(i,j)$ is then drawn according to
+  \(\Pr\big( y_{i,j} = 1 \big) = \frac{p_i + q_j}{2}\).
+\item
+  Intuitively, \(p_i\) is the tendency of node \(i\) to emit positive
+  links and \(q_i\) the tendency to receive positive links.
+\item
+  The Bayes optimal prediction for \(y_{i,j}\) is thus
+  \(y^*(i,j) = \sgn\big(\Pr\big( y_{i,j} = 1 \big) - \frac{1}{2}\big) = \sgn\big(p_i + q_j - 1\big)\).
+\end{itemize}
+
+\end{frame}
+
+\begin{frame}{Edge-to-node reduction: construction}
+
+\begin{figure}[t]
+  \centering
+  \begin{subfigure}[b]{0.45\textwidth}
+    \centering \includegraphics[height=.8\textheight]{g_latex-crop} \caption{$G$}
+  \end{subfigure}~
+  \begin{subfigure}[b]{0.45\textwidth}
+    \centering \includegraphics[height=.8\textheight]{gprime_latex-crop} \caption{$G'$}
+  \end{subfigure}
+\end{figure}
+
+\end{frame}
+
+\begin{frame}{Edge-to-node reduction: Relation with propagation}
+  \begin{center}
+    \includegraphics[width=.42\textwidth]{chain_conn.pdf}~
+    \includegraphics[width=.42\textwidth]{chain_notconn.pdf}
+  \end{center}
+\end{frame}
+
+\begin{frame}{Labeling regularity}
+
+Using the notions behind trollness and trustworthiness, we can define
+the regularity of a labeling \(Y\) as follow:
+
+For a node \(i\),
+$\Psiout(i, Y) = \min\big\{\dout^-(i),\dout^+(i)\big\}$ and for the
+graph \(G\), $\Psiout(Y) = \sum_{i \in V} \Psiout(i,Y)$. Likewise for
+incoming edges, \(\Psiin(j,Y) = \min\big\{\din^-(j),\din^+(j)\big\}\)
+and \(\Psiin(Y) = \sum_{j \in V} \Psiin(j,Y)\). Finally
+\(\Psi_G(Y) = \min\big\{\Psiin(Y), \Psiout(Y)\big\}\).
+
+This can be read from the cutsize of \(G'\)
+
+\begin{table}[htpb]
+  \centering
+  % \caption{caption \label{tab:label}}
+  \begin{tabular}{lcccc|r}
+    \toprule
+    node $i$ & $1$ & $2$ & $3$ & $4$ & \\
+    \midrule
+    $\Psiout(i, Y)$ & 0 & 0 & 1 & 0 & $\Psiin(Y) = 1$ \\
+    $\Psiin(i, Y)$  & 1 & 1 & 0 & 1 & $\Psiout(Y) = 3$ \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\end{frame}
+% \end{document}
+
+%% PART 3
+
+
+\section{Batch setting}\label{batch-setting}
+
+\begin{frame}[allowframebreaks]{Approximating the Bayes predictor}
+
+We assume the signs in \(G\) were generated by our model. If we knew all
+\(p_i\) and \(q_j\), we could use the optimal predictor. It is not the
+case but still we observe a subset of the edge signs (the training set
+\(\Etrain\)). Using this information, we want to find approximated
+values for \(p_i\) and \(q_j\) in order to make prediction. In contrast
+with many existing methods, we focus on the case where \(|\Etrain|\) is
+small compared with \(|E|\).
+
+Specifically, we use \(1-\htr(i)\) and \(1-\hun(j)\) as proxy for
+\(p_i\) and \(q_j\), where \(\htr(i)\) and \(\hun(j)\) are the trollness
+and the untrustworthiness of node \(i\) and \(j\) when both are computed
+on the subgraph induced by the training edges.
+\begin{equation}
+  \label{eq:predictor}
+  \yhat(i,j)=\sgn\Big(\big(1-\htr(i)\big) + \big(1-\hun(j)\big) - \tfrac{1}{2} -\tau\Big)
+\end{equation}
+
+\(1-\htr(i)\) = \(\frac{\hdout^-(i)}{\hdout(i)}\) is the empirical
+probability of drawing a \(+1\)-labeled edge from \(\Nout(i)\), which
+according to our model is
+\begin{align*}
+  \tfrac{1}{\dout(i)}\sum_{j\in \Nout(i)} \Pr\big( y_{i,j} = 1 \big) &=
+  \tfrac{1}{\dout(i)}\sum_{j\in \Nout(i)} \frac{p_i + q_j}{2} \\ &=
+\frac{1}{2}\,\Biggl(p_i + \frac{1}{\dout(i)}\sum_{j\in \Nout(i)} q_j \Biggl)=
+\frac{1}{2}\,\Bigl(p_i + \qbar_i\Bigl)
+\end{align*}
+where \(\qbar_i\), being a
+sample mean of i.i.d.~\([0,1]\)-valued random variables independently
+drawn from the prior marginal \(\int_0^1 \mu\big(p,\cdot\big) dp\),
+concentrates around its expectation \(\mu_q\).
+
+The same argument for $(1-\hun(j))$ proves that
+the bias term \(\tau\) is the same for all edges.
+
+\end{frame}
+
+%%  PART ACTIVE
+
+
+\begin{frame}{Learning scenarios}
+
+We exploit this approach in two scenarios, an active one where we get to
+choose \(\Etrain\), and a passive one, where \(\Etrain\) is chosen for
+us uniformly at random.
+
+\end{frame}
+
+\begin{frame}{Active choice of the training set}
+
+\begin{block}{Algorithm}
+
+We choose a integer \(Q < \tfrac{|E|}{2|V|+1}\) such that there
+exists a set \(E_L \ss E\) of size \(Q\) of pairwise vertex-disjoint
+directed paths/cycles in \(G\).
+
+% The algorithm performs the following steps:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  For each node \(i\) such that \(\din(i) \geq Q\), sample uniformly at
+  random without replacement \(Q\) edges incoming to \(i\) and let
+  \(\htr(i) = \hdin^-(i)/Q\).
+\item
+  Likewise, for each node \(i\) such that \(\dout(i) \geq Q\), sample
+  uniformly at random without replacement \(Q\) edges outgoing from
+  \(i\) and let \(\hun(i) = \hdout^-(i)/Q\).
+\item
+  Sample any edge in \(E_L\) not yet sampled, and let \(\tauhat\) be the
+  fraction of positive edges in \(E_L\);
+\item
+  Predict any remaining non-sampled edge \((i,j)\) as
+  \[\yhat(i,j)=\sgn\Big(\big(1-\htr(i)\big) + \big(1-\hun(j)\big) - \tfrac{1}{2} -\tauhat\Big)\]
+\end{enumerate}
+
+\end{block}
+
+\end{frame}
+
+\begin{frame}
+\begin{block}{Guarantees}
+
+\begin{theorem}\label{t:active}
+Let $G(Y) = (V,E(Y))$ be a directed graph with labels on the edges generated according to our model.
+If we run this algorithm with parameter $Q = \Omega(\ln|V|)$, then
+$\yhat(i,j) = y^*(i,j)$ holds with high probability simultaneously for all non-queried edges $(i,j)
+\in E$ such that $\dout(i),\din(j) \ge Q$, and $\Pr(y_{i,j}=1)$ is bounded away from
+$\tfrac{1}{2}$.
+The overall number of queried edges is $\Theta\big(|V|\ln|V|\big)$.
+\end{theorem}
+
+Since we are dealing with a lot of Bernoulli random variables, the main
+tool of the proof is Hoeffding's inequality, to show they concentrate
+around their mean.
+
+However, in practice, \(Q\) is often very large.
+
+\end{block}
+
+\end{frame}
+
+
+\begin{frame}{Passive choice of the training set}
+
+Here the training set is drawn at random without replacement to be
+\(E_0 = \big((i_1,j_1),y_{i_1,j_1}), ((i_2,j_2),y_{i_2,j_2}), \ldots, ((i_m,j_m),y_{i_m,j_m}\big)\),
+with \(m = |E_0|\).
+
+\end{frame}
+
+\begin{frame}{Maximum Likelihood}
+
+We would like to approximate \(y^*(i,j)\) by resorting to a maximum
+likelihood estimator of the parameters \(\{p_i, q_i\}_{i=1}^{|V|}\)
+based on \(E_0\).
+
+The gradient of the log-likelihood function w.r.t.
+\(\{p_i, q_i\}_{i=1}^{|V|}\) is
+
+\begin{align*}
+\frac{\partial \log \Pr\left(E_0\,|\, \{p_i, q_i\}_{i=1}^{|V|}\right)}{\partial p_{\ell}}
+= 
+&\sum_{k=1}^m
+\frac{\Ind{i_k = \ell,y_{\ell,j_k}=+1}}{p_{\ell}+q_{j_k}} \\
+&-
+\sum_{k=1}^m
+\frac{\Ind{i_k = \ell,y_{\ell,j_k}=-1}}{2-p_{\ell}-q_{j_k}}
+\end{align*}
+
+\end{frame}
+
+
+\begin{frame}[allowframebreaks]{Approximation}
+
+Unfortunately, setting those derivative to zero is difficult because the
+equations are non linear and some variables may not appear. Thus we
+approximate them by
+
+\begin{equation*}\label{e:slp}
+  \sum_{k=1}^m \mathbb{I}\begin{cases}
+    i_k = \ell, &\\
+    y_{\ell,j_k}=+1 &
+  \end{cases}
+    \Biggr\}
+\left(2-p_{\ell}-q_{j_k}\right)
+=
+\sum_{k=1}^m \mathbb{I}\begin{cases}
+  i_k = \ell, &\\
+  y_{\ell,j_k}=-1 &
+\end{cases}
+    \Biggr\}
+\left(p_{\ell}+q_{j_k}\right)
+\end{equation*}
+for $\ell = 1, \ldots, |V|$.
+
+This is equivalent to setting to zero the gradient
+w.r.t.~\((\bp,\bq) =\{p_i, q_i\}_{i=1}^{|V|}\) of the quadratic function
+\[f_{E_0}(\bp,\bq) = \sum_{(i,j) \in E_0} \left(\frac{1+y_{i,j}}{2} - \frac{p_i+q_j}{2} \right)^2\]
+
+\[f_{E_0}(\bp,\bq) = \sum_{(i,j) \in E_0} \left(\frac{1+y_{i,j}}{2} - \frac{p_i+q_j}{2} \right)^2\]
+is close to the optimal Bayes equation except edge labels are now in
+\(\bool\) and the difference is squared. Thus the idea would be to minimize
+\(f_{E_0}(\bp,\bq) + f_{E\setminus E_0}(\bp,\bq, {y_{i,j}})\)
+w.r.t.~both \((\bp,\bq)\) and all \(y_{i,j} \in [-1,+1]\), for
+\((i,j)\in E\setminus E_0\).
+
+\end{frame}
+
+\begin{frame}{Label propagation: regularized objective}
+
+In practice, we exploit our edge to node reduction by minimizing a
+regularized version of the previous objective through a label
+propagation method on a weighted version of \(G'\) called \(G''\)
+
+\begin{alignat*}{5}
+{\hat f}\big(\bp,\bq,{y_{i,j}}_{(i,j) \in E\setminus E_0}\big) 
+&= &&\sum_{(i,j) \in E} 
+\Biggl(
+  \frac{1}{2}\left(\frac{1+y_{i,j}}{2}-p_i\right)^2 +
+  \frac{1}{2}\left(\frac{1+y_{i,j}}{2}-q_j\right)^2 \\
+  &\, &&\qquad\qquad+ \left(\frac{p_i+q_j-1}{2}\right)^2
+\Biggr)\\
+&= &&f_{E_0}(\bp,\bq) + f_{E\setminus E_0}(\bp,\bq, {y_{i,j}}) \\
+&\, &&+ \frac{1}{2}\sum_{i\in V}
+\left(\dout(i)\Bigl(p_i-\frac{1}{2}\Bigl)^2+\din(i)\Bigl(q_i-\frac{1}{2}\Bigl)^2\right) 
+\end{alignat*}
+
+\end{frame}
+
+\begin{frame}{Label propagation: regularized objective}
+\includegraphics[height=\textheight]{gsecond_latex-crop}
+\end{frame}
+
+
+\section{Online learning}\label{online-learning}
+
+\begin{frame}{Setting}
+
+Here the signs are chosen by an adversary instead of being generated by
+our model. At each round, the learner is asked to predict one label,
+which is then revealed to him and the procedure repeats.
+
+\end{frame}
+
+\begin{frame}{Online algorithm, 1. RWM node instances}
+
+For each node \(i\), we predict the sign of edge outgoing from \(i\) by
+relying on two constant experts, always predicting \(-1\) or always
+predicting \(+1\). The best one will make \(\Psiout(i, Y)\) mistakes. We
+combine them in a Randomized Weighted Majority algorithm (RWM) instance
+associated with \(i\), call it \(RMW_{out}(i)\). The instance expected
+number of mistakes is therefore~\autocite{acg02},
+denoting by \(M(i,j)\) the indicator function of a mistake on edge
+\((i,j)\)
+\[\sum_{j \in \Nout(i)} \E\,M(i,j) = \Psiout(i,Y) + O\left(\sqrt{\Psiout(i,Y)}+ 1\right)\]
+
+We use the same technique to predict incoming edges of each node \(j\),
+the instance \(RMW_{in}(j)\) having the following average number of
+mistakes
+\[\sum_{i \in \Nin(j)} \E\,M(i,j) = \Psiin(j,Y) + O\left(\sqrt{\Psiin(j,Y)} + 1\right)\]
+
+\end{frame}
+
+\begin{frame}{Online algorithm, 2. combining instances}
+
+We then define two meta experts: \(RMW_{out}\), which predicts
+\(y_{i,j}\) as \(RMW_{out}(i)\), and \(RMW_{in}\), which predicts
+\(y_{i,j}\) as \(RMW_{in}(j)\). Summing over all nodes, the number of
+mistakes of these two experts satisfy
+
+\begin{align*}
+    \sum_{i \in V}\sum_{j \in \Nout(i)} \E\,M(i,j) &= \Psiout(Y) + O\left(\sqrt{|V|\Psiout(Y)} + |V|\right) \\
+    \sum_{j \in V}\sum_{i \in \Nin(j)} \E\,M(i,j)  &= \Psiin(Y)  + O\left(\sqrt{|V|\Psiin(Y)}  + |V|\right)
+\end{align*}
+\end{frame}
+
+\begin{frame}{Online algorithm, 3. final prediction}
+
+Our final predictor is a RWM combination of \(RMW_{out}\) and
+\(RMW_{out}\), whose expected number of mistakes is
+\begin{alignat*}{3}
+    \sum_{(i,j) \in E} \E\,M(i,j) 
+    &= \Psi_G(Y) + O\Biggl(&&\sqrt{|V|\Psi_G(Y)} + |V| \\
+  & &&+ \sqrt{\Bigl(\Psi_G(Y) + |V| + \sqrt{|V|\Psi_G(Y)}\Bigr)} \Biggr)\\
+    &= \Psi_G(Y) + O\Bigl( &&\sqrt{|V|\Psi_G(Y)} + |V|\Bigr)
+\end{alignat*}
+
+\end{frame}
+
+\begin{frame}{Lower bound}
+
+On the lower bound side, we have that
+
+\begin{theorem}
+Given any directed graph $G$ and any integer $K \le \big\lfloor \tfrac{|E|}{2}\big\rfloor$, there
+exists a randomized labeling $Y\in\spin^{|E|}$ such that $\Psi_G(Y) \leq K$, and the expected number
+of mistakes that any online learning algorithm $A$ can be forced to make satisfies
+$\frac{\Psi_G(Y)}{2} \leq \frac{K}{2} \leq \E M_A(Y)$
+\end{theorem}
+
+\end{frame}
+
+%% PART Experiments
+
+\section{Experiments}\label{experiments}
+
+\begin{frame}{Real world datasets}
+
+\begin{description}
+
+\item[\aut{}]
+\(i\) the work of \(j\) to praise it or criticise it
+
+\item[\wik{}]
+\(i\) vote for or against \(j\) promotion to adminship
+
+\item[\sla{}]
+\(i\) consider \(j\) as a friend or foe
+
+\item[\epi{}]
+\(i\) trust or not the reviews made by \(j\)
+
+\item[\kiw{}]
+\(i\) reacted to a Wikipedia edit made by \(j\), to enhance it or revert it
+
+\end{description}
+
+\end{frame}
+
+\begin{frame}{Datasets properties}
+
+\begin{table}
+  \centering
+  % \small
+  \caption{Dataset properties. \label{tab:dataset}}
+  \begin{tabular}{lrrrrrrrr}
+    \toprule
+    Dataset & $|V|$       & $|E|$       & $\frac{|E|}{|V|}$ & $\frac{|E^+|}{|E|}$ & $\frac{\Psi_{G''}(Y)}{|E|}$ & $\frac{\Psi_G(Y)}{|E|}$ \\
+    \midrule
+    \aut{}  & \np{4831}   & \np{39452}  & 8.1               & 72.33\%             & .076                        & .191                    \\
+    \wik{}  & \np{7114}   & \np{103108} & 14.5              & 78.79\%             & .063                        & .142                    \\
+    \sla{}  & \np{82140}  & \np{549202} & 6.7               & 77.40\%             & .059                        & .143                    \\
+    \epi{}  & \np{131580} & \np{840799} & 6.4               & 85.29\%             & .031                        & .074                    \\
+    \kiw{}  & \np{138587} & \np{740106} & 5.3               & 87.89\%             & .034                        & .086                    \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+$$\Psi_{G''}(Y) = 
+\min_{\bp,\bq\in[0,1]^{|V|}}
+\sum_{(i,j) \in E} \left(\frac{1+y_{i,j}}{2} - \frac{p_i+q_j}{2}\right)^2$$
+
+\end{frame}
+
+\begin{frame}{Protocol}
+
+We sample \(\Etrain\) uniformly at random 10 times and predict the sign
+of the remaining edges. As the data are unbalanced, we evaluate using
+the Matthews Correlation Coefficient (MCC)
+
+\[\mathrm{MCC} = \frac{tp\times tn-fp\times fn} {\sqrt{ (tp + fp) ( tp + fn ) ( tn + fp ) ( tn + fn ) } }\]
+
+\end{frame}
+
+\begin{frame}{Our method}
+\begin{itemize}
+\item
+  Our label propagation algorithm (called \uslpropGsec{} here), with a
+  threshold set by cross-validation on \(\Etrain{}\).
+\item
+  We also exploit the equation~\eqref{eq:predictor} in a passive context by computing
+  \(\htr(i)\) and \(\hun(i)\) on the training set \(\Etrain\) for all
+  \(i \in V\) and estimating \(\tau\) on \(\Etrain\). We call this
+  method \usrule{} (Bayes Learning Classifier based on \emph{tr}ollness
+  and \emph{un}trustworthiness).
+\item
+  A logistic regression model where each edge \((i,j)\) is associated
+  with the features \([1-\htr(i),  1-\hun(j)]\) computed on \(\Etrain\)
+  (\uslogregp{}).
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Competitors}
+\begin{itemize}
+\item
+  A global \complowrank{} matrix completion
+  method~\autocite{lowrankcompletion14}.
+\item
+  A logistic regression model built on \compranknodes{} scores computed
+  with a PageRank-inspired algorithm tailored to directed graphs with
+  negative edges~\autocite{wu2016troll}.
+\item
+  A logistic regression model built on \comptriads{} features derived
+  from status theory~\autocite{leskovec2010}.
+\item
+  A logistic regression model built on so-called ``\compbayesian{}''
+  features defined by~\autocite{Bayesian15}.
+\end{itemize}
+
+\end{frame}
+
+\begin{frame}[allowframebreaks]{Results}
+
+\begin{table}[p]
+  \centering
+  \caption{MCC results on \epi{} as $|\Etrain|$ grows}
+  \begin{tabular}{lccccc|r}
+    \toprule
+    {}               &   3\% &                  9\% &                 15\% &                 20\% &                 25\% &    time \\
+    \midrule
+    \uslogregp{}     &            43.51  &               54.85  &               59.29  &               61.45  &               62.95  &   32.18 \\
+    \usrule{}        &            41.39  &               53.23  &               57.76  &               60.06  &               61.93  &   7.073 \\
+    \uslpropGsec{}   &  \vsecond{51.47}  &  \vsecondSig{58.43}  &  \vsecondSig{61.41}  &  \vsecondSig{63.14}  &  \vsecondSig{64.47}  &    1226 \\
+    \midrule
+    \compranknodes{} &   \vfirst{52.04}  &   \vfirstSig{60.21}  &   \vfirstSig{62.69}  &   \vfirstSig{64.13}  &   \vfirstSig{65.22}  &    2341 \\
+    \compbayesian{}  &            31.00  &               48.24  &               56.88  &               61.49  &               64.45  &  116838 \\
+    \complowrank{}   &            36.84  &               43.95  &               48.61  &               51.43  &               54.51  &  121530 \\
+    \comptriads{}    &            34.42  &               49.94  &               54.56  &               56.96  &               58.73  &   128.8 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\begin{table}[p]
+  \centering
+  \caption{MCC results on \aut{} as $|\Etrain|$ grows}
+    \begin{tabular}{lccccc|r}
+    \toprule
+                     & 3\%                & 9\%                & 15\%               & 20\%               & 25\%               & time (ms) \\
+    \midrule
+    \uslogregp{}     & \vsecondSig{15.19} & \vsecondSig{26.46} & \vsecondSig{32.98} & 36.57              & 39.90              & 1.944     \\
+    \usrule{}        & 15.09              & 26.40              & 32.98              & \vsecondSig{36.72} & 40.16              & 0.444     \\
+    \uslpropGsec{}   & \vfirstSig{19.00}  & \vfirstSig{30.25}  & \vfirstSig{35.73}  & \vfirstSig{38.53}  & \vfirstSig{41.32}  & 16.13     \\
+    \midrule
+    \compranknodes{} & 12.28              & 24.44              & 31.03              & 34.57              & 38.26              & 127.7     \\
+    \compbayesian{}  & 10.91              & 23.75              & 32.25              & 36.52              & \vsecondSig{40.32} & 5398      \\
+    \complowrank{}   & 8.85               & 17.08              & 22.57              & 25.57              & 29.24              & 1894      \\
+    \comptriads{}    & 8.62               & 16.42              & 22.01              & 24.77              & 27.13              & 4.599     \\
+    \bottomrule
+    \end{tabular}
+\end{table}
+
+\end{frame}
+
+\begin{frame}{Results takeaway}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  Global methods outperforms our local one, however they are much
+  slower, preventing them to scale to larger graphs.
+\item
+  Our global method \uslpropGsec{} is very competitive in terms of MCC
+  performance in the small training set regime while being faster.
+\item
+  our Bayes approximator \usrule{} closely mirrors a more involved
+  \uslogregp{} model. Moreover -- experimentally supporting our
+  generative model -- the learned weights of trollness and
+  trustworthiness are almost equal across all datasets.
+\end{enumerate}
+
+\end{frame}
+
+\section{Conclusion}\label{conclusion}
+
+\begin{frame}{Discussion}
+We presented two methods to perform edge sign prediction in DSSN. Both
+are derived from a simple generative model of edge sign
+formation~\autocite{trollsNIPS16}.
+
+One is local (\usrule{}), thus scalable, and works well in practice
+although it requires a large training set to meet its theoretical
+guarantees (i.e.~being Bayes optimal w.h.p.~for all edges
+simultaneously)
+
+The other is global (\uslpropGsec{}) yet faster than state of the art
+methods while enjoying competitive performance and sharing the same
+solid theoretical foundations.
+
+\end{frame}
+\begin{frame}{Future work}
+Further directions include:
+
+\begin{itemize}
+\item
+  adaptive query (experimental evidence we can use less queries than
+  \(Q\) on each node)
+\item
+  weighted graph
+\end{itemize}
+\end{frame}
+
+
+% \section*{References}\label{references}
+% \addcontentsline{toc}{section}{References}
+\begin{frame}[allowframebreaks]{References}
+  \printbibliography
+\end{frame}
+
+\end{document}

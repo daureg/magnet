@@ -1,0 +1,158 @@
+\usepackage{xcolor}
+\newcommand{\outqt}[1]{{\textcolor{DarkOrange}{#1}}}
+\newcommand{\inqt}[1]{{\textcolor{Blue}{#1}}}
+\newcommand{\biasqt}[1]{{\textcolor{Teal}{#1}}}
+\newcommand{\bx}{\boldsymbol{x}}
+\newcommand{\hbx}{\widehat{\boldsymbol{x}}}
+\newcommand{\bxt}{\widetilde{\boldsymbol{x}}}
+\newcommand{\bX}{\boldsymbol{X}}
+\newcommand{\bu}{\boldsymbol{u}}
+\newcommand{\by}{\boldsymbol{y}}
+\newcommand{\bY}{\boldsymbol{Y}}
+\newcommand{\sY}{\mathcal{Y}}
+\newcommand{\bhatY}{\boldsymbol{\hat{Y}}}
+\newcommand{\bbary}{\boldsymbol{\bar{y}}}
+\newcommand{\bz}{\boldsymbol{z}}
+\newcommand{\bZ}{\boldsymbol{Z}}
+\newcommand{\bw}{\boldsymbol{w}}
+\newcommand{\bwhat}{\widehat{\boldsymbol{w}}}
+\newcommand{\bp}{\boldsymbol{p}}
+\newcommand{\bq}{\boldsymbol{q}}
+\newcommand{\bv}{\boldsymbol{v}}
+\newcommand{\pbar}{\overline{p}}
+\newcommand{\qbar}{\overline{q}}
+\newcommand{\bzero}{\boldsymbol{0}}
+\newcommand{\balpha}{\boldsymbol{\alpha}}
+\newcommand{\scO}{\mathcal{O}}
+\newcommand{\scW}{\mathcal{W}}
+\newcommand{\hgrad}{\wh{\nabla}}
+
+\DeclareMathOperator*{\argmax}{argmax}
+\DeclareMathOperator*{\argmin}{argmin}
+
+\newcommand{\field}[1]{\mathbb{#1}}
+\newcommand{\fY}{\field{Y}}
+\newcommand{\fX}{\field{X}}
+\newcommand{\fH}{\field{H}}
+
+\newcommand{\scX}{\mathcal{X}}
+\newcommand{\R}{\field{R}}
+\newcommand{\Nat}{\field{N}}
+\newcommand{\E}{\field{E}}
+\newcommand{\Var}{\field{V}}
+\renewcommand{\Pr}{\field{P}}
+
+\newcommand{\theset}[2]{ \left\{ {#1} \,:\, {#2} \right\} }
+\newcommand{\inn}[2]{ \left\langle {#1} \,,\, {#2} \right\rangle }
+\newcommand{\RE}[2]{ D\left({#1} \| {#2}\right) }
+\newcommand{\Ind}[1]{ \field{I}\!\left\{{#1}\right\} }
+\newcommand{\norm}[1]{\left\|{#1}\right\|}
+\newcommand{\diag}[1]{\mbox{\rm diag}\!\left\{{#1}\right\}}
+
+\newcommand{\defeq}{\stackrel{\rm def}{=}}
+\newcommand{\sgn}{\mbox{\sc sgn}}
+\newcommand{\scS}{\mathcal{S}}
+\newcommand{\scY}{\mathcal{Y}}
+
+\newcommand{\dt}{\displaystyle}
+\renewcommand{\ss}{\subseteq}
+\newcommand{\wh}{\widehat}
+\newcommand{\wt}{\widetilde}
+\newcommand{\ve}{\varepsilon}
+\newcommand{\tx}{\wt{x}}
+
+\newcommand{\phat}{\wh{p}}
+\newcommand{\Phat}{\wh{P}}
+\newcommand{\muhat}{\wh{\mu}}
+\newcommand{\Yhat}{\wh{Y}}
+\newcommand{\loss}{\ell}
+\newcommand{\hloss}{\wh{\loss}}
+
+\newcommand{\bool}{\{0,1\}}
+\newcommand{\spin}{\{-1,+1\}}
+
+%\renewcommand{\Ein}{E_{\mathrm{in}}}
+\newcommand{\Eout}{E_{\mathrm{out}}}
+\newcommand{\Edelta}{E_{\Delta}}
+\newcommand{\din}{d_{\mathrm{in}}}
+\newcommand{\hdout}{\wh{d}_{\mathrm{out}}}
+\newcommand{\hdin}{\wh{d}_{\mathrm{in}}}
+\newcommand{\dout}{d_{\mathrm{out}}}
+\newcommand{\Nin}{\mathcal{E}_{\mathrm{in}}}
+\newcommand{\Nout}{\mathcal{E}_{\mathrm{out}}}
+
+\newcommand{\htr}{\wh{tr}}
+\newcommand{\hun}{\wh{un}}
+
+\newcommand{\iin}{i_{\mathrm{in}}}
+\newcommand{\iout}{i_{\mathrm{out}}}
+\newcommand{\jin}{j_{\mathrm{in}}}
+
+\newcommand{\Qin}{Q_{\mathrm{in}}}
+\newcommand{\Qout}{Q_{\mathrm{out}}}
+\newcommand{\uin}{U_{\mathrm{in}}}
+\newcommand{\uout}{U_{\mathrm{out}}}
+\newcommand{\Psiin}{\Psi_{\mathrm{in}}}
+\newcommand{\Psiout}{\Psi_{\mathrm{out}}}
+\newcommand{\deltain}{\delta_{\mathrm{in}}}
+\newcommand{\deltaout}{\delta_{\mathrm{out}}}
+\newcommand{\hdeltain}{\wh{\delta}_{\mathrm{in}}}
+\newcommand{\hdeltaout}{\wh{\delta}_{\mathrm{out}}}
+\newcommand{\tauhat}{\wh{\tau}}
+
+% \newtheorem{lemma}{Lemma}
+% \newtheorem{theorem}{Theorem}
+% \newtheorem{cor}{Corollary}
+% \newtheorem{remark}{Remark}
+% \newtheorem{prop}{Proposition}
+
+%***************** macros for experiments ***************
+%
+\usepackage[autolanguage,np]{numprint}
+\usepackage{caption}
+\usepackage{subcaption}
+% \usepackage{longtable,array,multirow}
+% \usepackage{csquotes}
+% \usepackage{enumitem}
+% \renewcommand{\arraystretch}{0.8}
+% \newcolumntype{M}[1]{>{\centering\arraybackslash}m{#1}}
+% \newcolumntype{N}{@{}m{0pt}@{}}
+
+
+\newcommand{\wik}{\textsc{Wikipedia}}
+\newcommand{\sla}{\textsc{Slashdot}}
+\newcommand{\epi}{\textsc{Epinion}}
+\newcommand{\kiw}{\textsc{Wik. Edits}}
+\newcommand{\aut}{\textsc{Citations}}
+\newcommand{\ssn}{signed social networks}
+\newcommand{\eij}{\ensuremath{i\rightarrow j}}
+\newcommand{\eji}{\ensuremath{j\rightarrow i}}
+\newcommand{\yij}{y_{i, j}}
+\newcommand{\yhat}{\widehat{y}}
+
+\DeclareMathOperator{\rank}{rank}
+\newcommand{\diam}[1]{\ensuremath{\mathrm{diam}\left(#1\right)}}
+\newcommand{\trainset}{\ensuremath{E_0}}
+\newcommand{\Etrain}{\ensuremath{E_0}}
+\newcommand{\vfirst}[1]{\textbf{\textcolor{Brown}{#1}}}
+\newcommand{\vsecond}[1]{\textbf{\textcolor{DarkViolet}{#1}}}
+\newcommand{\vfirstSig}[1]{\textbf{\textcolor{Brown}{\underline{#1}}}}
+\newcommand{\vsecondSig}[1]{\vsecond{#1}}
+
+\newcommand{\comptriads}{\textsc{16 Triads}}
+\newcommand{\complowrank}{\textsc{LowRank}}
+\newcommand{\compranknodes}{\textsc{RankNodes}}
+\newcommand{\compbayesian}{\textsc{Bayesian}}
+\newcommand{\uslogregp}{\textsc{LogReg}}
+\newcommand{\usrule}{\textsc{blc}$(tr,un)$}
+\newcommand{\uslprop}{\textsc{L. Prop.}}
+\newcommand{\uslpropGsec}{\textsc{L. Prop.}}% $G''$}
+\newcommand{\uslogregpTwin}{\textsc{Log. Reg.}$^\star$}
+\newcommand{\usruleTwin}{\textsc{blc}$(t, u)^\star$}
+\newcommand{\uslpropTwin}{\textsc{L. Prop.}$^\star$}
+
+% \usepackage{tikz}
+% \usetikzlibrary{arrows,automata}
+% \usetikzlibrary{arrows.meta}
+% \tikzstyle{peers}=[draw,circle,black,minimum width=9mm, inner sep=0]
+% \tikzstyle{edge}=[line width=1pt,color=Black,-{Latex[length=4mm,width=1.5mm,angle'=40]}]

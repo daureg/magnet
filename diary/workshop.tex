@@ -150,7 +150,7 @@
     \item
       but also \alert{negative relations}, e.g.\@ distrust, enemyship.
     \item
-      This give rise to \textbf{new problems}.
+      This gives rise to \textbf{new problems}.
     \item
       For instance, observing some signs, can we predict the remaining ones?
   \end{itemize}
@@ -215,25 +215,25 @@
 \end{itemize}
 
   \begin{center}
-\begin{tikzpicture}[auto,scale=1.2, every node/.style={transform shape}]
-\tikzset{>=latex}
-\tikzstyle{peers}=[draw,circle,black,minimum width=9mm,inner sep=0,fill opacity=.0, text opacity=1]
-\tikzstyle{edge}=[line width=0.8pt,color=Black,-{Latex[length=3mm,width=1.0mm,angle'=40]}]
-\tikzstyle{elabel}=[color=Black]
-\tikzstyle{posc}=[color=Green]
-\tikzstyle{negc}=[color=red]
+    \begin{tikzpicture}[auto,scale=1.2, every node/.style={transform shape}]
+      \tikzset{>=latex}
+      \tikzstyle{peers}=[draw,circle,black,minimum width=9mm,inner sep=0,fill opacity=.0, text opacity=1]
+      \tikzstyle{edge}=[line width=0.8pt,color=Black,-{Latex[length=3mm,width=1.0mm,angle'=40]}]
+      \tikzstyle{elabel}=[color=Black]
+      \tikzstyle{posc}=[color=Green]
+      \tikzstyle{negc}=[color=red]
 
-\node[peers] (i) at (0,0) {\LARGE $i$};
-\node[peers] (j) at (3.5,-0.66) {\Large $j$};
+      \node[peers] (i) at (0,0) {\LARGE $i$};
+      \node[peers] (j) at (3.5,-0.66) {\Large $j$};
 
-\draw[edge] (i) -- node [posc,xshift=-2mm] {\Large $+$}                      (3, -2);
-\draw[edge] (i) edge  node [posc,xshift=-2mm] {\Large $\textcolor{Black}{y_{ij}}=\textcolor{Green}{+}$} (j);
-\draw[edge] (i) edge  node [posc,xshift=2mm] {\Large $+$}                    (3, 0.66);
-\draw[edge, densely dashed] (i)   edge   node [negc,xshift=2mm] {\Large $-$} (3, 2);
+      \draw[edge] (i) -- node [posc,xshift=-2mm] {\Large $+$}                      (3, -2);
+      \draw[edge] (i) edge  node [posc,xshift=-2mm] {\Large $\textcolor{Black}{y_{ij}}=\textcolor{Green}{+}$} (j);
+      \draw[edge] (i) edge  node [posc,xshift=2mm] {\Large $+$}                    (3, 0.66);
+      \draw[edge, densely dashed] (i)   edge   node [negc,xshift=2mm] {\Large $-$} (3, 2);
 
-\draw[edge, densely dashed] (-3, -2) --   node [negc,yshift=-3mm] {\Large $-$} (i);
-\draw[edge, densely dashed] (-3, -1) --   node [negc,yshift=-1mm] {\Large $-$} (i);
-\draw[edge, densely dashed] (-3, 0)  --  node [negc] {\Large $-$} (i);
+      \draw[edge, densely dashed] (-3, -2) --   node [negc,yshift=-3mm] {\Large $-$} (i);
+      \draw[edge, densely dashed] (-3, -1) --   node [negc,yshift=-1mm] {\Large $-$} (i);
+      \draw[edge, densely dashed] (-3, 0)  --  node [negc] {\Large $-$} (i);
 \draw[edge,]                (-3, 1) --   node [posc,xshift=-4mm] {\Large $+$} (i);
 \draw[edge,]                (-3, 2) --   node [posc,below,pos=0.2] {\Large $+$} (i);
 \node[fill=white!90!DarkOrange,fill opacity=.9,text opacity=1,rounded corners,inner sep=1pt] at (1,-1.5) {$tr(i)=\frac{1}{4}$};
@@ -245,17 +245,23 @@
 
 \begin{frame}{Generative model}
   \begin{center}
-  \onslide<1->{
-    \includegraphics<1>[height=5cm]{gen_model_noedge.pdf}
-    \includegraphics<2->[height=5cm]{gen_model_edge.pdf}
-  }
-\end{center}
+    \begin{tikzpicture}[auto,scale=1.2, every node/.style={transform shape}]
+      \tikzstyle{peers}=[draw,circle,black,minimum width=9mm,inner sep=0,fill opacity=.0, text opacity=1]
+      \tikzstyle{edge}=[line width=0.5pt,color=Black,-{Latex[length=4mm,width=1.5mm,angle'=40]}]
+      \node[peers,] (i) at (0,0) {$i$};
+    \node[] (iparams) at (1.2,1.1) {$\outqt{p_i}, q_i \begin{cases} \sim \mu(p, q) &\\ \in [0, 1]&\end{cases}$};
 
+      \node[peers,] (j) at (7,0) {$j$};
+    \node[] (jparams) at (8.2,1.1) {$p_j, \inqt{q_j} \begin{cases} \sim \mu(p, q) &\\ \in [0, 1]&\end{cases}$};
+
+      \draw<1-1>[edge,opacity=0] (i) edge node [below,yshift=-2mm,opacity=0] {$\mathbb{P}(y_{ij}=+1) = \frac{1}{2}\left(\outqt{p_i}+\inqt{q_j}\right)$} (j);
+      \draw<2->[edge,opacity=1] (i) edge node [below,yshift=-2mm,opacity=1] {$\mathbb{P}(y_{ij}=+1) = \frac{1}{2}\left(\outqt{p_i}+\inqt{q_j}\right)$} (j);
+    \end{tikzpicture}
+  \end{center}
   \onslide<3->{%
     The Bayes optimal prediction for \(y_{i,j}\) is thus
-    $$y^*(i,j) = \sgn\big(\Pr\big( y_{i,j} = +1 \big) - \frac{1}{2}\big)$$}
-
-  \end{frame}
+  $$y^*(i,j) = \sgn\big(\Pr\big( y_{i,j} = +1 \big) - \frac{1}{2}\big)$$}
+\end{frame}
 
 \begin{frame}{Edge-to-node reduction: construction}
 
@@ -299,13 +305,13 @@
 
 \begin{frame}{Batch settings}
 
-We are given a graph \(G\) labeled by our generative model and observe a training set $\Etrain$.
+Given a graph \(G\) labeled by our generative model, we observe a training set $\Etrain$.
 
 We present two methods to predict the labels of $E \setminus \Etrain$:
 \begin{itemize}
   \largelist
 \item An approximation of the Bayes optimal predictor in an \alert{active setting}
-\item An approximation of Maximal Likelihood parameters in an \alert{passive setting}
+\item An approximation of Maximal Likelihood parameters in a \alert{passive setting}
 \end{itemize}
 
 \end{frame}
@@ -314,8 +320,10 @@ We present two methods to predict the labels of $E \setminus \Etrain$:
 \begin{frame}{Approximation to Bayes via Active Learning}
 
   \onslide<1->{
-  We use \(1-\htr(i)\) and \(1-\hun(j)\) as proxy for \(p_i\) and \(q_j\) {\small (where ``hat''
-  quantities are computed on $\Etrain$)} and predict the sign of $(i,j)$ as:
+    The complementary to 1 of trollness and untrustworthiness (estimated on $E_0$) are used as proxy
+    for $p_i$ and $q_j$ so that
+  % We use \(1-\htr(i)\) and \(1-\hun(j)\) as proxy for \(p_i\) and \(q_j\) {\small (where ``hat''
+  % quantities are computed on $\Etrain$)} and predict the sign of $(i,j)$ as:
 
   \vspace{-4mm}
 \begin{equation*}
@@ -390,12 +398,17 @@ concentrates around their mean \biasqt{$\mu_p$} and \biasqt{$\mu_q$}.
 
 \begin{frame}{How much sampling is needed?}
 
-Setting $Q = \tfrac{1}{2\ve^2}\ln\frac{4|V|}{\delta}$, we query $\Theta\big(|V|\ln|V|\big)$ edges.
+  \onslide<1->{Setting $$Q = \tfrac{1}{2\ve^2}\ln\frac{4|V|}{\delta}$$ we query
+  $\Theta\big(|V|\ln|V|\big)$ edges.}
 
-This is enough to guarantee that \alert{$\left|\yhat(i,j) - y^*(i,j)\right|
-\leq 8\epsilon $ holds with probability $1-10\delta$} simultaneously for all
+  \onslide<2->{
+This is enough to guarantee that
+$$\left|\Big(\outqt{\big(1-\htr(i)\big)} + \inqt{\big(1-\hun(j)\big)} -\biasqt{\tauhat} \Big) -
+\Big(\frac{\outqt{p_i}+\inqt{q_j}}{2}\Big)\right| \leq 8\epsilon$$
+% \yhat(i,j) - y^*(i,j)\right| \leq 8\epsilon $
+\alert{holds with probability at least $1-10\delta$} simultaneously for all
 non-queried edges $(i,j) \in E$ such that $\dout(i),\din(j) \ge Q$, and
-$\Pr(y_{i,j}=+1)$ is bounded away from $\tfrac{1}{2}$.
+$\Pr(y_{i,j}=+1)$ is bounded away from $\tfrac{1}{2}$.}
 
 \end{frame}
 
@@ -404,8 +417,7 @@ $\Pr(y_{i,j}=+1)$ is bounded away from $\tfrac{1}{2}$.
   \begin{itemize}[<+->]
     \largelist
   \item
-    W are given $m$ edges as training set \(E_0\), whose likelihood according to our model is
-    $\Pr\left(E_0\,|\, \{p_i, q_i\}_{i=1}^{|V|}\right)$.
+    The training set \(E_0\) has a likelihood of $\Pr\left(E_0\,|\, \{p_i, q_i\}_{i=1}^{|V|}\right)$.
 
   \item
     We would like to \alert{approximate \(y^*(i,j)\)} by resorting to a maximum
@@ -440,7 +452,9 @@ w.r.t.~\((\bp,\bq) =\{p_i, q_i\}_{i=1}^{|V|}\) of the quadratic function
 
 %TODO to use a label propagation approach that hopefully take advantage of the graph sparse
 %connectivity, we add the same function on the test set
-  \item Finally, to make \textbf{all variables appear}, we minimize \alert{\(f_{E_0}(\bp,\bq) + f_{E\setminus
+  \item We follow a label propagation approach by \textbf{making the test labels appear} and 
+    % Finally, to make \textbf{all variables appear},
+    minimizing \alert{\(f_{E_0}(\bp,\bq) + f_{E\setminus
     E_0}(\bp,\bq, {y_{i,j}})\)} w.r.t. both \((\bp,\bq)\) and all \(y_{i,j} \in [-1,+1]\), for \((i,j)\in
 E\setminus E_0\).
 
@@ -448,29 +462,37 @@ E\setminus E_0\).
 
 \end{frame}
 
+
 \begin{frame}{Label propagation: regularized objective}
+  We use a weighted version of G' with negative edges and this introduce an extra regularization
+  term.
+
 
   %TODO we use a weighted version of G' with negative edges and this introduce an extra
   %regularization term
-In practice, we exploit our edge to node reduction by \alert{minimizing a
-regularized version} of the previous objective through a \alert{label
-propagation method on a weighted version of \(G'\)} called \(G''\):
-
+% In practice, we exploit our edge to node reduction by \alert{minimizing a
+% regularized version} of the previous objective through a \alert{label
+% propagation method on a weighted version of \(G'\)} called \(G''\):
+  \vspace{-5mm}
 \begin{equation*}
-  f_{E_0}(\bp,\bq) + f_{E\setminus E_0}(\bp,\bq, {y_{i,j}}) + \widetilde{\mathrm{regul}} = 
   \underbrace{ \widehat{f}\big(\bp,\bq,{y_{i,j}}_{(i,j) \in E\setminus E_0}\big)}_{\text{energy
-  function on $G''$}}
+  function on $G''$}} =
+  f_{E_0}(\bp,\bq) + f_{E\setminus E_0}(\bp,\bq, {y_{i,j}}) + \widetilde{\mathrm{regul}}
 \end{equation*}
 
-\end{frame}
-
-\begin{frame}{Label propagation graph}
+\begin{columns}
+\begin{column}{0.6\textwidth}
   \begin{center}
-  \vspace{-4mm}
-    \includegraphics[height=.8\textheight]{gsecond_latex-crop}
-  \vspace{-4mm}
+  \vspace{-5mm}
+   \includegraphics[height=.65\textheight]{gsecond_latex-crop}
   \end{center}
+\end{column}
+\begin{column}{0.4\textwidth}  %%<--- here
+  \onslide<2->{
   We run $\operatorname{diameter}(G)$ iterations of label propagation and use a binary threshold over the estimated $y_{i,j}$ to predict signs.
+}
+\end{column}
+\end{columns}
 \end{frame}
 
 \section{Online Learning}\label{online-learning}
@@ -492,7 +514,7 @@ procedure repeats.
 Letting $Y$ be the vector of all labels, $\Psiout(i, Y)$ is the number of least used label outgoing
 from $i$, and $\Psiout(Y) = \sum_{i \in V} \Psiout(i,Y)$.
 
-Likewise for incoming edges, \(\Psiin(Y) = \sum_{j \in V} \Psiin(j,Y)\) so finally
+Likewise for incoming edges, \(\Psiin(Y) = \sum_{j \in V} \Psiin(j,Y)\) and finally
 \(\Psi_G(Y) = \min\big\{\Psiin(Y), \Psiout(Y)\big\}\).
 
 % This can be read from the cutsize of \(G'\)
@@ -501,12 +523,12 @@ Likewise for incoming edges, \(\Psiin(Y) = \sum_{j \in V} \Psiin(j,Y)\) so final
   \begin{subfigure}[t]{0.6\textwidth}
     \centering
     \vspace{-2cm}
-    \begin{tabular}{lcccc|r}
+    \begin{tabular}{lcccc|l}
       \toprule
       node $i$        & $1$ & $2$ & $3$ & $4$ &                  \\
       \midrule
-      $\Psiout(i, Y)$ & 0   & 0   & 1   & 0   & $\Psiin(Y) = 1$  \\
-      $\Psiin(i, Y)$  & 1   & 0   & 0   & 1   & $\Psiout(Y) = 2$ \\
+      $\Psiout(i, Y)$ & 0   & 0   & 1   & 0   & $\Psiout(Y) = 1$  \\
+      $\Psiin(i, Y)$  & 1   & 0   & 0   & 1   & $\Psiin(Y) = 2$ \\
       \bottomrule
     \end{tabular}
   \end{subfigure}~
@@ -518,15 +540,21 @@ Likewise for incoming edges, \(\Psiin(Y) = \sum_{j \in V} \Psiin(j,Y)\) so final
 \end{frame}
 
 \begin{frame}{Online algorithm and bounds}
+  \begin{itemize}[<+->]
+    \largelist
+  \item 
+    Our algorithm is a combination of Randomized Weighted Majority instances built on top of each other. 
 
-  Our algorithm is a combination of Randomized Weighted Majority instances built on top of each other. 
+  \item 
+    On average, it makes $\Psi_G(Y) + O\left(\sqrt{|V|\Psi_G(Y)} + |V|\right)$ mistakes.
 
-  On average, it makes $\Psi_G(Y) + O\left(\sqrt{|V|\Psi_G(Y)} + |V|\right)$ mistakes.
-
-  Up to this $O\left(\sqrt{|V|\Psi_G(Y)} + |V|\right)$ factor, it is optimal as we can show
-  that for any directed graph $G$ and any integer $K$,
-  there exists a labeling forcing at least $\frac{K}{2}$ mistakes to any online algorithms,
-  while $\Psi_G(Y) \leq K$.
+  \item 
+    On the lower side,
+    % Up to this $O\left(\sqrt{|V|\Psi_G(Y)} + |V|\right)$ factor, it is optimal as we can show that 
+    for any directed graph $G$ and any integer $K$,
+    there exists a labeling $Y$ forcing at least $\frac{K}{2}$ mistakes to any online algorithms,
+    while $\Psi_G(Y) \leq K$.
+\end{itemize}
 
 \end{frame}
 
@@ -538,7 +566,7 @@ Likewise for incoming edges, \(\Psiin(Y) = \sum_{j \in V} \Psiin(j,Y)\) so final
 \begin{frame}{5 Real world datasets}
 
 \begin{description}
-  \tightlist
+  % \tightlist
 \item[\aut{}]
 \(i\) the work of \(j\) to praise it or criticise it.
 
@@ -607,23 +635,23 @@ Hence, we evaluate using the Matthews Correlation Coefficient (MCC):
     \begin{itemize}
     \largelist
       \item
-        A global \complowrank{} matrix completion
-        method, assuming that the adjacency matrix is a partial observation of an underlying
-        complete graph with $k$ clusters~\autocite{lowrankcompletion14}.
-      \item
         A logistic regression model built on \compranknodes{} scores computed
         with a PageRank-inspired algorithm tailored to directed graphs with
         negative edges~\autocite{wu2016troll}.
+      \item
+        A global \complowrank{} matrix completion
+        method, assuming that the adjacency matrix is a partial observation of an underlying
+        complete graph with $k$ clusters~\autocite{lowrankcompletion14}.
     \end{itemize}
   \item \textbf{Local}
     \begin{itemize}
     \largelist
       \item
-        A logistic regression model built on \comptriads{} features, as signed graphs feature
-        triangle motif according to the status theory~\autocite{leskovec2010}.
-      \item
         A logistic regression model built on a high number of so-called ``\compbayesian{}''
         features defined by~\autocite{Bayesian15}.
+      \item
+        A logistic regression model built on \comptriads{} features, as signed graphs exhibit
+        specific triangle patterns according to the status theory~\autocite{leskovec2010}.
     \end{itemize}
 \end{itemize}
 
@@ -633,7 +661,7 @@ Hence, we evaluate using the Matthews Correlation Coefficient (MCC):
 
 \begin{table}[p]
   \centering
-  \caption{MCC results on \epi{} as $|\Etrain|$ grows}
+  \caption{$100\times$ MCC results on \epi{} as $|\Etrain|$ grows}
   \begin{tabular}{lcccccc|r}
     \toprule
     {}               & Global     & 3\%             & 9\%                & 15\%               & 20\%               & 25\%               & time (ms)     \\
@@ -645,8 +673,8 @@ Hence, we evaluate using the Matthews Correlation Coefficient (MCC):
     \uslpropGsec{}   & \checkmark & \vsecond{51.47} & \vsecondSig{58.43} & \vsecondSig{61.41} & \vsecondSig{63.14} & \vsecondSig{64.47} & \textbf{1226} \\
     \midrule
     \compranknodes{} & \checkmark & \vfirst{52.04}  & \vfirstSig{60.21}  & \vfirstSig{62.69}  & \vfirstSig{64.13}  & \vfirstSig{65.22}  & \textbf{2341} \\
-    \compbayesian{}  &            & 31.00           & 48.24              & 56.88              & 61.49              & 64.45              & 116838        \\
     \complowrank{}   & \checkmark & 36.84           & 43.95              & 48.61              & 51.43              & 54.51              & 121530        \\
+    \compbayesian{}  &            & 31.00           & 48.24              & 56.88              & 61.49              & 64.45              & 116838        \\
     \comptriads{}    &            & 34.42           & 49.94              & 54.56              & 56.96              & 58.73              & 129           \\
     \bottomrule
   \end{tabular}
@@ -654,7 +682,7 @@ Hence, we evaluate using the Matthews Correlation Coefficient (MCC):
 
 \begin{table}[p]
   \centering
-  \caption{MCC results on \aut{} as $|\Etrain|$ grows}
+  \caption{$100\times$ MCC results on \aut{} as $|\Etrain|$ grows}
     \begin{tabular}{lcccccc|r}
     \toprule
     {}               & Global     & 3\%                & 9\%                & 15\%               & 20\%               & 25\%               & time (ms)            \\
@@ -666,8 +694,8 @@ Hence, we evaluate using the Matthews Correlation Coefficient (MCC):
     \uslpropGsec{}   & \checkmark & \vfirstSig{19.00}  & \vfirstSig{30.25}  & \vfirstSig{35.73}  & \vfirstSig{38.53}  & \vfirstSig{41.32}  & \textbf{16}          \\
     \midrule
     \compranknodes{} & \checkmark & 12.28              & 24.44              & 31.03              & 34.57              & 38.26              & \textbf{128}         \\
-    \compbayesian{}  &            & 10.91              & 23.75              & 32.25              & 36.52              & \vsecondSig{40.32} & 5398                 \\
     \complowrank{}   & \checkmark & 8.85               & 17.08              & 22.57              & 25.57              & 29.24              & 1894                 \\
+    \compbayesian{}  &            & 10.91              & 23.75              & 32.25              & 36.52              & \vsecondSig{40.32} & 5398                 \\
     \comptriads{}    &            & 8.62               & 16.42              & 22.01              & 24.77              & 27.13              & 5                    \\
     \bottomrule
     \end{tabular}
@@ -681,7 +709,7 @@ Hence, we evaluate using the Matthews Correlation Coefficient (MCC):
 \def\labelenumi{\arabic{enumi}.}
 \largelist
 \item
-  \alert{Global methods} outperforms our local one, however they \alert{are much
+  \alert{Global methods} outperform our local one, however they \alert{are much
   slower}, preventing them to scale to larger graphs.
 \item
   Our global method \uslpropGsec{} is very competitive in terms of MCC
@@ -708,8 +736,8 @@ set to meet its theoretical guarantees\footnote{i.e.~being Bayes optimal
 w.h.p.~for all edges simultaneously.}, it works well in practice.
 
 \alert{\uslpropGsec{} is global} yet faster than state of the art
-methods while enjoying competitive performance and sharing the same
-solid theoretical foundations.
+methods while enjoying competitive performance and relying on the same
+theoretical foundations.
 
 \end{frame}
 \begin{frame}{Future work}

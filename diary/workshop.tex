@@ -130,7 +130,7 @@
 \AtBeginSection{}
 \title{Edge Sign Prediction in Social Networks}
 \author{Géraud Le Falher --- Inria Lille Nord Europe, \textsc{Magnet} Team\\
-  Joint work with Nicolò Cesa-Bianchi, Claudio Gentille and Fabio Vitale}
+  Joint work with Nicolò Cesa-Bianchi, Claudio Gentile and Fabio Vitale}
 \date{June 16, 2016}
 
 \begin{document}
@@ -166,7 +166,7 @@
   \item
     ``Frenemy'' detection~\autocite{frenemy12};
   \item
-    Automatic moderation of online interactions;
+    Automatic moderation of large scale online interactions;
   \item
     Cyber bullying prevention, at school or in online games~\autocite{CyberbullyingCHI15}.
 \end{itemize}
@@ -202,17 +202,17 @@
 
 \begin{frame}{Notations}
 
-\begin{itemize}
-  \tightlist
-\item
+% \begin{itemize}
+%   \tightlist
+% \item
+  \onslide<1->{
 \(G=(V, E)\) is a directed graph with \textbf{no side information} but full topology.
+}
 % \item
 %   Each directed edge \((i,j)\) is labeled \(y_{i,j} \in \{-1, +1\}\).
   % TODO Check whether Y is used in the main part
   % The labels are collectively referred to as \(Y\).
-\item The \alert{trollness} of $i$ $tr(i)$ is its fraction of negative outgoing links, its
-\alert{untrustworthiness} \(un(i)\) is its fraction of negative incoming links.
-\end{itemize}
+% \end{itemize}
 
   \begin{center}
     \begin{tikzpicture}[auto,scale=1.2, every node/.style={transform shape}]
@@ -223,36 +223,40 @@
       \tikzstyle{posc}=[color=Green]
       \tikzstyle{negc}=[color=red]
 
-      \node[peers] (i) at (0,0) {\LARGE $i$};
-      \node[peers] (j) at (3.5,-0.66) {\Large $j$};
-
-      \draw[edge] (i) -- node [posc,xshift=-2mm] {\Large $+$}                      (3, -2);
-      \draw[edge] (i) edge  node [posc,xshift=-2mm] {\Large $\textcolor{Black}{y_{ij}}=\textcolor{Green}{+}$} (j);
-      \draw[edge] (i) edge  node [posc,xshift=2mm] {\Large $+$}                    (3, 0.66);
-      \draw[edge, densely dashed] (i)   edge   node [negc,xshift=2mm] {\Large $-$} (3, 2);
-
-      \draw[edge, densely dashed] (-3, -2) --   node [negc,yshift=-3mm] {\Large $-$} (i);
-      \draw[edge, densely dashed] (-3, -1) --   node [negc,yshift=-1mm] {\Large $-$} (i);
-      \draw[edge, densely dashed] (-3, 0)  --  node [negc] {\Large $-$} (i);
-\draw[edge,]                (-3, 1) --   node [posc,xshift=-4mm] {\Large $+$} (i);
-\draw[edge,]                (-3, 2) --   node [posc,below,pos=0.2] {\Large $+$} (i);
-\node[fill=white!90!DarkOrange,fill opacity=.9,text opacity=1,rounded corners,inner sep=1pt] at (1,-1.5) {$tr(i)=\frac{1}{4}$};
-\node[fill=white!90!Blue,fill opacity=.5,text opacity=1,rounded corners,inner sep=1pt] at (-1.0,1.7) {$un(i)=\frac{3}{5}$};
-\end{tikzpicture}
+      \node<1->[peers] (i) at (0,0) {\LARGE $i$};
+      \node<1->[peers] (j) at (3.5,-0.66) {\Large $j$};
+           <1->
+      \draw<1->[edge] (i) -- node [posc,xshift=-2mm] {\Large $+$}                      (3, -2);
+      \draw<1->[edge] (i) edge  node [posc,xshift=-2mm] {\Large $\textcolor{Black}{y_{ij}}=\textcolor{Green}{+}$} (j);
+      \draw<1->[edge] (i) edge  node [posc,xshift=2mm] {\Large $+$}                    (3, 0.66);
+      \draw<1->[edge, densely dashed] (i)   edge   node [negc,xshift=2mm] {\Large $-$} (3, 2);
+           <1->
+      \draw<1->[edge, densely dashed] (-3, -2) --   node [negc,yshift=-3mm] {\Large $-$} (i);
+      \draw<1->[edge, densely dashed] (-3, -1) --   node [negc,yshift=-1mm] {\Large $-$} (i);
+      \draw<1->[edge, densely dashed] (-3, 0)  --  node [negc] {\Large $-$} (i);
+      \draw<1->[edge,]                (-3, 1) --   node [posc,xshift=-4mm] {\Large $+$} (i);
+      \draw<1->[edge,]                (-3, 2) --   node [posc,below,pos=0.2] {\Large $+$} (i);
+      \node<2->[fill=white!90!DarkOrange,fill opacity=.9,text opacity=1,rounded corners,inner sep=1pt] at (1,-1.5) {$tr(i)=\frac{1}{4}$};
+      \node<2->[fill=white!90!Blue,fill opacity=.5,text opacity=1,rounded corners,inner sep=1pt] at (-1.0,1.7) {$un(i)=\frac{3}{5}$};
+    \end{tikzpicture}
   \end{center}
+  \onslide<2->{ The \alert{trollness} of $i$ $tr(i)$ is its fraction of negative outgoing links, its
+\alert{untrustworthiness} \(un(i)\) is its fraction of negative incoming
+links.}
 
 \end{frame}
 
 \begin{frame}{Generative model}
   \begin{center}
-    \begin{tikzpicture}[auto,scale=1.2, every node/.style={transform shape}]
+    \begin{tikzpicture}[auto,scale=1.0, every node/.style={transform shape}]
       \tikzstyle{peers}=[draw,circle,black,minimum width=9mm,inner sep=0,fill opacity=.0, text opacity=1]
       \tikzstyle{edge}=[line width=0.5pt,color=Black,-{Latex[length=4mm,width=1.5mm,angle'=40]}]
+    \node[] (mu) at (3,2) {$\mu(p, q)$ is an arbitrary prior distribution over $[0, 1]\times [0,1]$};
       \node[peers,] (i) at (0,0) {$i$};
-    \node[] (iparams) at (1.2,1.1) {$\outqt{p_i}, q_i \begin{cases} \sim \mu(p, q) &\\ \in [0, 1]&\end{cases}$};
+    \node[] (iparams) at (1.2,1.1) {$(\outqt{p_i}, q_i) \sim \mu(p, q)$};
 
       \node[peers,] (j) at (7,0) {$j$};
-    \node[] (jparams) at (8.2,1.1) {$p_j, \inqt{q_j} \begin{cases} \sim \mu(p, q) &\\ \in [0, 1]&\end{cases}$};
+    \node[] (jparams) at (8.2,1.1) {$(p_j, \inqt{q_j}) \sim \mu(p, q)$};
 
       \draw<1-1>[edge,opacity=0] (i) edge node [below,yshift=-2mm,opacity=0] {$\mathbb{P}(y_{ij}=+1) = \frac{1}{2}\left(\outqt{p_i}+\inqt{q_j}\right)$} (j);
       \draw<2->[edge,opacity=1] (i) edge node [below,yshift=-2mm,opacity=1] {$\mathbb{P}(y_{ij}=+1) = \frac{1}{2}\left(\outqt{p_i}+\inqt{q_j}\right)$} (j);
@@ -260,7 +264,7 @@
   \end{center}
   \onslide<3->{%
     The Bayes optimal prediction for \(y_{i,j}\) is thus
-  $$y^*(i,j) = \sgn\big(\Pr\big( y_{i,j} = +1 \big) - \frac{1}{2}\big)$$}
+  $$y^*(i,j) = \sgn\left(\Pr\big( y_{i,j} = +1 \big) - \tfrac{1}{2}\right)$$}
 \end{frame}
 
 \begin{frame}{Edge-to-node reduction: construction}
@@ -398,17 +402,18 @@ concentrates around their mean \biasqt{$\mu_p$} and \biasqt{$\mu_q$}.
 
 \begin{frame}{How much sampling is needed?}
 
-  \onslide<1->{Setting $$Q = \tfrac{1}{2\ve^2}\ln\frac{4|V|}{\delta}$$ we query
+  \onslide<1->{Setting $$Q = \frac{1}{2\ve^2}\ln\frac{4|V|}{\delta}$$ we query
   $\Theta\big(|V|\ln|V|\big)$ edges.}
 
   \onslide<2->{
 This is enough to guarantee that
-$$\left|\Big(\outqt{\big(1-\htr(i)\big)} + \inqt{\big(1-\hun(j)\big)} -\biasqt{\tauhat} \Big) -
-\Big(\frac{\outqt{p_i}+\inqt{q_j}}{2}\Big)\right| \leq 8\epsilon$$
+$$\left|\Big[\outqt{\big(1-\htr(i)\big)} + \inqt{\big(1-\hun(j)\big)} -\biasqt{\tauhat} \Big] -
+\Big[\frac{\outqt{p_i}+\inqt{q_j}}{2}\Big]\right| \leq 8\epsilon$$
 % \yhat(i,j) - y^*(i,j)\right| \leq 8\epsilon $
 \alert{holds with probability at least $1-10\delta$} simultaneously for all
-non-queried edges $(i,j) \in E$ such that $\dout(i),\din(j) \ge Q$, and
-$\Pr(y_{i,j}=+1)$ is bounded away from $\tfrac{1}{2}$.}
+non-queried edges $(i,j) \in E$ such that $\dout(i),\din(j) \ge Q$.
+
+Correct prediction as long as $\Pr(y_{i,j}=+1)$ is bounded away from $\tfrac{1}{2}$.}
 
 \end{frame}
 
@@ -427,7 +432,7 @@ $\Pr(y_{i,j}=+1)$ is bounded away from $\tfrac{1}{2}$.}
   \item 
     The gradient of the log-likelihood function w.r.t.\@ $p_\ell$ is
     \begin{equation*}
-      \sum_{\ell,j\in E_0; y_{\ell j}=+1} \frac{1}{p_\ell+q_j} -
+      \sum_{\ell,j\in E_0; y_{\ell j}=+1} \frac{1}{p_\ell+q_j} \quad-
       \sum_{\ell,j\in E_0; y_{\ell j}=-1} \frac{1}{2-p_\ell-q_j}
     \end{equation*}
 \end{itemize}
@@ -464,7 +469,7 @@ E\setminus E_0\).
 
 
 \begin{frame}{Label propagation: regularized objective}
-  We use a weighted version of G' with negative edges and this introduce an extra regularization
+  We use a weighted version of G' with negative edges, which introduces an extra regularization
   term.
 
 
@@ -611,7 +616,7 @@ Hence, we evaluate using the Matthews Correlation Coefficient (MCC):
 \begin{itemize}
   \largelist
 \item
-  Our \alert{label propagation algorithm} (called \uslpropGsec{} here), with a
+  Our global \alert{label propagation algorithm} (called \uslpropGsec{} here), with a
   threshold set by cross-validation on \(\Etrain{}\).
 \item
   We also exploit

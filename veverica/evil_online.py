@@ -1,5 +1,5 @@
 from collections import ChainMap
-from heap.heap import heap
+from heap import heap
 import graph_tool.generation as ggen
 import pack_graph as pg
 import random

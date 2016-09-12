@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 # vim: set fileencoding=utf-8
 from galaxy import export_spanner
-from heap.heap import heap
+from heap import heap
 from collections import namedtuple, defaultdict
 from timeit import default_timer as clock
 import random

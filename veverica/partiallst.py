@@ -7,7 +7,7 @@ from grid_stretch import perturbed_bfs
 from pred_on_tree import get_dfs_tree
 from new_galaxy import galaxy_maker
 import random
-from heap.heap import heap
+from heap import heap
 
 
 def profile(func): return func

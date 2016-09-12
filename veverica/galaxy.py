@@ -2,7 +2,7 @@
 # vim: set fileencoding=utf-8
 """Initial implementation of galaxy maker"""
 # import numpy as np
-from heap.heap import heap
+from heap import heap
 import gzip
 from collections import namedtuple, defaultdict
 from itertools import product

@@ -2,7 +2,7 @@
 # pylint: disable=no-member
 from collections import Counter, defaultdict
 from grid_stretch import add_edge
-from heap.heap import heap
+from heap import heap
 from itertools import combinations, product
 from sklearn.cluster import SpectralClustering
 from sklearn.metrics import mean_squared_error, f1_score

@@ -2,7 +2,7 @@
 # vim: set fileencoding=utf-8
 """"""
 from collections import defaultdict
-from heap.heap import heap
+from heap import heap
 import random
 
 

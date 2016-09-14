@@ -87,19 +87,22 @@ if __name__ == "__main__":
     def solve_for_pq(x0):
         sstart = clock()
         res = minimize(cost_and_grad, x0, jac=True, bounds=bounds,
-                       options=dict(maxiter=1000))
-        print(clock() - sstart)
+                       options=dict(maxiter=1500))
         x = res.x
         p, q = x[:n], x[n:n*2]
         feats = p[ppf]+q[qpf]
         pred = feats[test_set] > -find_threshold(-feats[train_set], ya[train_set])
+        time_elapsed = clock() - sstart
+        print(time_elapsed)
         cost = res.fun
         mcc = matthews_corrcoef(gold, pred)
-        return mcc, cost, log_likelihood(p, q)
+        return mcc, cost, log_likelihood(p, q), time_elapsed
+
     batch_p = [.03, .09, .20]
     nb_methods = 4
-    num_x0 = 8
-    res = np.zeros((len(batch_p), nb_methods, num_rep, len(('mcc', 'cost', 'log_likelihood'))))
+    num_x0 = 6
+    res = np.zeros((len(batch_p), nb_methods, num_rep,
+                    len(('mcc', 'cost', 'log_likelihood', 'time'))))
     for nb_batch, batch in enumerate(batch_p):
         print(batch, pref)
         for nrep in range(num_rep):
@@ -129,12 +132,12 @@ if __name__ == "__main__":
             feats = f[:m]
             sstart = clock()
             k = - find_threshold(-feats[train_set], revealed, True)
-            tt += clock() - sstart
             pred = feats[test_set] > k
+            tt += clock() - sstart
             mcc = matthews_corrcoef(gold, pred)
             pl, ql, yl = (f[m:m+n]+1)/2, (f[m+n:]+1)/2, f[:m]
             cost = cost_and_grad(np.hstack((pl, ql, yl)))[0]
-            res[nb_batch, 0, nrep, :] = (mcc, cost, log_likelihood(pl, ql))
+            res[nb_batch, 0, nrep, :] = (mcc, cost, log_likelihood(pl, ql), tt)
 
             p0 = np.random.uniform(.2,.8, n)
             p0[dout > 0] = dout_p[dout > 0] / dout[dout > 0]

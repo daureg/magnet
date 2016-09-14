@@ -46,6 +46,7 @@ if __name__ == "__main__":
 
     res = np.zeros((len(batch_p), len(epsilons), num_rep))
     for nb_batch, batch in enumerate(batch_p):
+        print(batch, pref)
         for nrep in range(num_rep):
             train_set, test_set = [], []
             for i in range(m):
@@ -79,4 +80,4 @@ if __name__ == "__main__":
                 tt += clock() - sstart
                 pred = feats[test_set] > k
                 res[nb_batch, nb_eps, nrep] = matthews_corrcoef(gold, pred)
-    np.savez_compressed(res_file, res=res)
+            np.savez_compressed(res_file, res=res)

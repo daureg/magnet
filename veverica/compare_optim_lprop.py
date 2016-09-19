@@ -158,6 +158,7 @@ if __name__ == "__main__":
             y0[train_set] = ya[train_set]
             x0 = np.hstack((p0, q0, y0))
             res[nb_batch, 1, nrep, :] = solve_for_pq(x0)
+            np.savez_compressed(res_file, res=res)
             continue
 
             x0 = np.hstack((pl, ql, yl)) + np.random.normal(0, .04, x0.size)

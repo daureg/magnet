@@ -99,16 +99,27 @@ if __name__ == "__main__":
         return mcc, cost, log_likelihood(p, q), time_elapsed
 
     batch_p = [.03, .09, .20]
-    nb_methods = 4
+    nb_methods = 2
     num_x0 = 6
     res = np.zeros((len(batch_p), nb_methods, num_rep,
                     len(('mcc', 'cost', 'log_likelihood', 'time'))))
     for nb_batch, batch in enumerate(batch_p):
         print(batch, pref)
         for nrep in range(num_rep):
+            dout_tr, din_tr = (np.zeros(n, dtype=np.uint), np.zeros(n, dtype=np.uint))
+            dout_p, din_p = (np.zeros(n, dtype=np.uint), np.zeros(n, dtype=np.uint))
             train_set, test_set = [], []
-            for i in range(m):
-                (train_set if random.random() < batch else test_set).append(i)
+            for i, row in enumerate(sorted_edges):
+                u, v, s = row
+                if random.random() < batch:
+                    train_set.append(i)
+                    dout_tr[u] += 1
+                    din_tr[v] += 1
+                    if s > 0:
+                        dout_p[u] += 1
+                        din_p[v] += 1
+                else:
+                    test_set.append(i)
             train_set = np.array(train_set)
             test_set = np.array(test_set)
             gold = ya[test_set]
@@ -147,6 +158,7 @@ if __name__ == "__main__":
             y0[train_set] = ya[train_set]
             x0 = np.hstack((p0, q0, y0))
             res[nb_batch, 1, nrep, :] = solve_for_pq(x0)
+            continue
 
             x0 = np.hstack((pl, ql, yl)) + np.random.normal(0, .04, x0.size)
             res[nb_batch, 2, nrep, :] = solve_for_pq(x0)

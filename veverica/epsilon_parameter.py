@@ -25,7 +25,7 @@ if __name__ == "__main__":
     balanced = False
     sstart = clock()
     diameters = {'aut': 22, 'wik': 16, 'sla': 32, 'epi': 38, 'kiw': 30}
-    lm.DIAMETER = diameters[pref]
+    lm.DIAMETER = diameters[pref]*2
     G, E = pg.load_directed_signed_graph('directed_{}.pack'.format(pref))
     n, m = len(G), len(E)
     sorted_edges = np.zeros((m, 3), dtype=np.int)

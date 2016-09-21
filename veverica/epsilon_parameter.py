@@ -1,5 +1,5 @@
 """Look at the effect of the epsilon on MCC performance."""
-from lprop_matrix import _train_second
+import lprop_matrix as lm
 from sklearn.metrics import matthews_corrcoef
 from timeit import default_timer as clock
 import numpy as np
@@ -23,9 +23,9 @@ if __name__ == "__main__":
     pref = args.data
     num_rep = args.nrep
     balanced = False
-
+    sstart = clock()
     diameters = {'aut': 22, 'wik': 16, 'sla': 32, 'epi': 38, 'kiw': 30}
-    DIAMETER = diameters[pref]
+    lm.DIAMETER = diameters[pref]
     G, E = pg.load_directed_signed_graph('directed_{}.pack'.format(pref))
     n, m = len(G), len(E)
     sorted_edges = np.zeros((m, 3), dtype=np.int)
@@ -36,8 +36,27 @@ if __name__ == "__main__":
     epsilons = list(np.logspace(-1, 2.3, 50))
     epsilons.extend((2, 40))
     epsilons = np.sort(epsilons)
+    epsilons = np.array((2, 40))
     idx_eps2 = np.where(epsilons == 2)[0][0]
     idx_eps40 = np.where(epsilons == 40)[0][0]
+
+    Wones, dones = [], []
+    for nb_eps, eps in enumerate(epsilons):
+        W_row, W_col, W_data = [], [], []
+        for ve, row in enumerate(sorted_edges):
+            u, v, s = row
+            vpi = u + m
+            vqj = v + m + n
+            W_row.extend((vpi, ve,  ve,  vqj, vpi, vqj))
+            W_col.extend((ve,  vpi, vqj, ve,  vqj, vpi))
+            W_data.extend((eps, eps, eps, eps, -1,  -1))
+        Wone = sp.coo_matrix((W_data, (W_row, W_col)), shape=(m+2*n, m+2*n),
+                             dtype=np.float64).tocsc()
+        Wones.append(Wone.copy())
+        done = np.array(np.abs(Wone).sum(1)).ravel()
+        done[done == 0] = 1
+        done = 1/done
+        dones.append(done.copy())
 
     start = (int(time.time()-(2015-1970)*365.25*24*60*60))//60
     batch_p = [.03, .09, .15, .20, .25]
@@ -45,8 +64,10 @@ if __name__ == "__main__":
     res_file = '{}_{}_{}'.format(pref, start, part+1)
 
     res = np.zeros((len(batch_p), len(epsilons), num_rep))
+    print('set up in {:.3f}'.format(clock()-sstart))
     for nb_batch, batch in enumerate(batch_p):
         print(batch, pref)
+        beg = clock()
         for nrep in range(num_rep):
             train_set, test_set = [], []
             for i in range(m):
@@ -58,22 +79,8 @@ if __name__ == "__main__":
             frac = revealed.size/m
             magnified = (2*revealed-1)
 
-            for nb_eps, eps in enumerate(epsilons):
-                W_row, W_col, W_data = [], [], []
-                for ve, row in enumerate(sorted_edges):
-                    u, v, s = row
-                    vpi = u + m
-                    vqj = v + m + n
-                    W_row.extend((vpi, ve,  ve,  vqj, vpi, vqj))
-                    W_col.extend((ve,  vpi, vqj, ve,  vqj, vpi))
-                    W_data.extend((eps, eps, eps, eps, -1,  -1))
-                Wone = sp.coo_matrix((W_data, (W_row, W_col)), shape=(m+2*n, m+2*n),
-                                     dtype=np.float64).tocsc()
-                done = np.array(np.abs(Wone).sum(1)).ravel()
-                done[done == 0] = 1
-                done = 1/done
-
-                f, tt = _train_second(Wone, done, train_set, magnified, (m, n), False)
+            for nb_eps, (Wone, done) in enumerate(zip(Wones, dones)):
+                f, tt = lm._train_second(Wone, done, train_set, magnified, (m, n), False)
                 feats = f[:m]
                 sstart = clock()
                 k = - find_threshold(-feats[train_set], revealed, True)
@@ -81,3 +88,5 @@ if __name__ == "__main__":
                 pred = feats[test_set] > k
                 res[nb_batch, nb_eps, nrep] = matthews_corrcoef(gold, pred)
             np.savez_compressed(res_file, res=res)
+        print('done {} iter in {:.3f}'.format(len(epsilons)*num_rep,
+                                              clock()-beg))

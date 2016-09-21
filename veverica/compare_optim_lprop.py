@@ -1,4 +1,4 @@
-from lprop_matrix import _train_second
+import lprop_matrix as lm
 from scipy.optimize import minimize
 from sklearn.metrics import matthews_corrcoef
 from timeit import default_timer as clock
@@ -26,7 +26,7 @@ if __name__ == "__main__":
     res_file = '{}_{}_{}'.format(pref, start, part+1)
 
     diameters = {'aut': 22, 'wik': 16, 'sla': 32, 'epi': 38, 'kiw': 30}
-    DIAMETER = diameters[pref]
+    lm.DIAMETER = diameters[pref]
     G, E = pg.load_directed_signed_graph('directed_{}.pack'.format(pref))
     n, m = len(G), len(E)
     sorted_edges = np.zeros((m, 3), dtype=np.int)
@@ -139,7 +139,7 @@ if __name__ == "__main__":
                 grad_y = 4*(2*y - t)
                 grad_y[train_set] = 0
                 return c, np.hstack((grad_p, grad_q, grad_y))
-            f, tt = _train_second(Wone, done, train_set, magnified, (m, n), False)
+            f, tt = lm._train_second(Wone, done, train_set, magnified, (m, n), False)
             feats = f[:m]
             sstart = clock()
             k = - find_threshold(-feats[train_set], revealed, True)

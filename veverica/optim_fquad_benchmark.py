@@ -17,11 +17,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("data", help="Which data to use",
                         choices={'wik', 'sla', 'epi', 'kiw', 'aut'})
-    parser.add_argument("-n", "--nrep", help="number of repetition", type=int,
-                        default=3)
     args = parser.parse_args()
     pref = args.data
-    num_rep = args.nrep
     start = (int(time.time()-(2015-1970)*365.25*24*60*60))//60
     res_file = '{}_{}_{}'.format(pref, start, part+1)
 
@@ -79,11 +76,6 @@ if __name__ == "__main__":
     Bq = sp.coo_matrix((Bq_data, (Bq_row, Bq_col)), shape=(n, m), dtype=np.int).tocsc()
     bounds = [(0.0, 1.0) for _ in range(m+2*n)]
 
-    def log_likelihood(p, q):
-        t=np.maximum(p[ppf]+q[qpf], 1e-15)
-        t[npf] = np.maximum(2 - t[npf], 1e-15)
-        return np.log(t/2).sum()
-
     def solve_for_pq(x0, method='L-BFGS-B', bounds=bounds):
         sstart = clock()
         res = minimize(cost_and_grad, x0, jac=True, bounds=bounds,
@@ -105,79 +97,52 @@ if __name__ == "__main__":
         cost = res.fun
         return mcc, cost, mcc_y_fixed, mcc_y_frac, time_elapsed, x
 
-    batch_p = [.03, .15, .25]
-    batch_p = [.2]
-    nb_methods = 4
-    num_x0 = 50
-    res = np.zeros((len(batch_p), nb_methods, num_rep,
-                    len(('mcc', 'cost', 'mcc_y_fixed', 'mcc_y_frac', 'time',))))
-    for nb_batch, batch in enumerate(batch_p):
-        print(batch, pref)
-        for nrep in range(num_rep):
-            dout_tr, din_tr = (np.zeros(n, dtype=np.uint), np.zeros(n, dtype=np.uint))
-            dout_p, din_p = (np.zeros(n, dtype=np.uint), np.zeros(n, dtype=np.uint))
-            train_set, test_set = [], []
-            for i, row in enumerate(sorted_edges):
-                u, v, s = row
-                if random.random() < batch:
-                    train_set.append(i)
-                    dout_tr[u] += 1
-                    din_tr[v] += 1
-                    if s > 0:
-                        dout_p[u] += 1
-                        din_p[v] += 1
-                else:
-                    test_set.append(i)
-            train_set = np.array(train_set)
-            test_set = np.array(test_set)
-            gold = ya[test_set]
-            revealed = ya[train_set]
-            frac = revealed.size/m
-            magnified = (2*revealed-1)
+    batch = 0.03
+    nb_methods = 1
+    num_x0 = 40
+    train_set, test_set = [], []
+    for i, row in enumerate(sorted_edges):
+        u, v, s = row
+        if random.random() < batch:
+            train_set.append(i)
+        else:
+            test_set.append(i)
+    train_set = np.array(train_set)
+    test_set = np.array(test_set)
+    gold = ya[test_set]
+    revealed = ya[train_set]
+    frac = revealed.size/m
+    magnified = (2*revealed-1)
 
-            def cost_and_grad(x):
-                p, q, y = x[:n], x[n:2*n], x[2*n:]
-                Aq = aA.dot(q)
-                pA = aA.T.dot(p)
-                c = ((p*p*dout + q*q*din).sum() + 2*p.dot(Aq))
-                t = p[ppf] + q[qpf]
-                c += (4*y*(y-t)).sum()
-                grad_p = 2*p*dout + 2*Aq.T - 4*Bp@y
-                grad_q = 2*q*din + 2*pA - 4*Bq@y
-                grad_y = 4*(2*y - t)
-                grad_y[train_set] = 0
-                return c, np.hstack((grad_p, grad_q, grad_y))
-            f, tt = lm._train_second(Wone, done, train_set, magnified, (m, n), False)
-            feats = f[:m]
-            sstart = clock()
-            k = - find_threshold(-feats[train_set], revealed, True)
-            pred = feats[test_set] > k
-            tt += clock() - sstart
-            mcc = matthews_corrcoef(gold, pred)
-            pl, ql, yl = (f[m:m+n]+1)/2, (f[m+n:]+1)/2, f[:m]
-            cost = cost_and_grad(np.hstack((pl, ql, yl)))[0]
-            res[nb_batch, 0, nrep, :] = (mcc, cost, mcc, mcc, tt)
+    def cost_and_grad(x):
+        p, q, y = x[:n], x[n:2*n], x[2*n:]
+        Aq = aA.dot(q)
+        pA = aA.T.dot(p)
+        c = ((p*p*dout + q*q*din).sum() + 2*p.dot(Aq))
+        t = p[ppf] + q[qpf]
+        c += (4*y*(y-t)).sum()
+        grad_p = 2*p*dout + 2*Aq.T - 4*Bp@y
+        grad_q = 2*q*din + 2*pA - 4*Bq@y
+        grad_y = 4*(2*y - t)
+        grad_y[train_set] = 0
+        return c, np.hstack((grad_p, grad_q, grad_y))
+    f, tt = lm._train_second(Wone, done, train_set, magnified, (m, n), False)
+    feats = f[:m]
+    sstart = clock()
+    k = - find_threshold(-feats[train_set], revealed, True)
+    pred = feats[test_set] > k
+    tt += clock() - sstart
+    mcc = matthews_corrcoef(gold, pred)
+    pl, ql, yl = (f[m:m+n]+1)/2, (f[m+n:]+1)/2, f[:m]
+    cost = cost_and_grad(np.hstack((pl, ql, yl)))[0]
+    res = np.array((mcc, cost, mcc, mcc, tt))
 
-
-            random_res = np.zeros((nb_methods-1, num_x0, 5+f.size))
-            for nx in range(num_x0):
-                x0 = np.random.uniform(0, 1, f.size)
-                x0[2*n:][train_set] = ya[train_set]
-                random_res[0, nx, :] = np.hstack(solve_for_pq(x0))
-                random_res[1, nx, :] = np.hstack(solve_for_pq(x0, bounds=None))
-                random_res[2, nx, :] = np.hstack(solve_for_pq(x0, method='Newton-CG', bounds=None))
-            np.savez_compressed(res_file, res=res, ores=random_res)
-            continue
-
-            p0 = np.random.uniform(.2,.8, n)
-            p0[dout_tr > 0] = dout_p[dout_tr > 0] / dout_tr[dout_tr > 0]
-            q0 = np.random.uniform(.2, .8, n)
-            q0[din_tr > 0] = din_p[din_tr > 0]/din_tr[din_tr > 0]
-            y0 = np.random.uniform(.2, .8, m)
-            y0[train_set] = ya[train_set]
-            x0 = np.hstack((p0, q0, y0))
-            res[nb_batch, 1, nrep, :] = solve_for_pq(x0)
-
-            x0 = np.hstack((pl, ql, yl)) + np.random.normal(0, .04, x0.size)
-            res[nb_batch, 2, nrep, :] = solve_for_pq(x0)
-
+    random_res = np.zeros((2, num_x0, 5+f.size))
+    for nx in range(num_x0):
+        x0 = np.random.uniform(0, 1, f.size)
+        x0[2*n:][train_set] = ya[train_set]
+        random_res[0, nx, :] = np.hstack(solve_for_pq(x0))
+        # random_res[1, nx, :] = np.hstack(solve_for_pq(x0, bounds=None))
+        random_res[1, nx, :] = np.hstack(solve_for_pq(x0, method='Newton-CG', bounds=None))
+    np.savez_compressed(res_file, res=res, ores=random_res,
+                        train_set=train_set)

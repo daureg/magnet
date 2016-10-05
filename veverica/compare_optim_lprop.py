@@ -34,7 +34,7 @@ if __name__ == "__main__":
         u, v = e
         sorted_edges[i, :] = (u, v, s)
     ya = sorted_edges[:, 2]
-    eps = 40
+    eps = 2
 
     W_row, W_col, W_data = [], [], []
     dout, din = (np.zeros(n, dtype=np.uint), np.zeros(n, dtype=np.uint))
@@ -84,25 +84,32 @@ if __name__ == "__main__":
         t[npf] = np.maximum(2 - t[npf], 1e-15)
         return np.log(t/2).sum()
 
-    def solve_for_pq(x0):
+    def solve_for_pq(x0, method='L-BFGS-B', bounds=bounds):
         sstart = clock()
         res = minimize(cost_and_grad, x0, jac=True, bounds=bounds,
-                       options=dict(maxiter=1500))
+                       method=method, options=dict(maxiter=1500))
         x = res.x
-        p, q = x[:n], x[n:n*2]
+        p, q, y = x[:n], x[n:n*2], x[2*n:]
         feats = p[ppf]+q[qpf]
         pred = feats[test_set] > -find_threshold(-feats[train_set], ya[train_set])
         time_elapsed = clock() - sstart
         print(time_elapsed)
-        cost = res.fun
         mcc = matthews_corrcoef(gold, pred)
-        return mcc, cost, log_likelihood(p, q), time_elapsed
 
-    batch_p = [.03, .09, .20]
+        sorted_y = np.sort(y[test_set])
+        frac = 1-ya[train_set].sum()/train_set.size
+        pred_y_frac = y[test_set] > sorted_y[int(frac*sorted_y.size)]
+        mcc_y_frac = matthews_corrcoef(gold, pred_y_frac)
+
+        pred_y_fixed = y[test_set] > 0.5
+        mcc_y_fixed = matthews_corrcoef(gold, pred_y_fixed)
+        cost = res.fun
+        return mcc_y_frac, cost, log_likelihood(p, q), time_elapsed
+
+    batch_p = [.03, .15, .25]
     nb_methods = 2
-    num_x0 = 6
     res = np.zeros((len(batch_p), nb_methods, num_rep,
-                    len(('mcc', 'cost', 'log_likelihood', 'time'))))
+                    len(('mcc', 'cost', 'logll', 'time',))))
     for nb_batch, batch in enumerate(batch_p):
         print(batch, pref)
         for nrep in range(num_rep):
@@ -150,20 +157,8 @@ if __name__ == "__main__":
             cost = cost_and_grad(np.hstack((pl, ql, yl)))[0]
             res[nb_batch, 0, nrep, :] = (mcc, cost, log_likelihood(pl, ql), tt)
 
-            p0 = np.random.uniform(.2,.8, n)
-            p0[dout > 0] = dout_p[dout > 0] / dout[dout > 0]
-            q0 = np.random.uniform(.2, .8, n)
-            q0[din > 0] = din_p[din > 0]/din[din > 0]
-            y0 = np.random.uniform(.2, .8, m)
-            y0[train_set] = ya[train_set]
-            x0 = np.hstack((p0, q0, y0))
+
+            x0 = np.random.uniform(0, 1, f.size)
+            x0[2*n:][train_set] = ya[train_set]
             res[nb_batch, 1, nrep, :] = solve_for_pq(x0)
-            np.savez_compressed(res_file, res=res)
-            continue
-
-            x0 = np.hstack((pl, ql, yl)) + np.random.normal(0, .04, x0.size)
-            res[nb_batch, 2, nrep, :] = solve_for_pq(x0)
-
-            random_res = [solve_for_pq(np.random.uniform(0, 1, x0.size)) for _ in range(num_x0)]
-            res[nb_batch, 3, nrep, :] = np.mean(random_res, 0)
             np.savez_compressed(res_file, res=res)

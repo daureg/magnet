@@ -1,5 +1,5 @@
-time python -O -W ignore epsilon_parameter.py aut -n5
-time python -O -W ignore epsilon_parameter.py wik -n5
-time python -O -W ignore epsilon_parameter.py sla -n5
-time python -O -W ignore epsilon_parameter.py epi -n5
-time python -O -W ignore epsilon_parameter.py kiw -n5
+time python -O -W ignore compare_optim_lprop.py aut -n3
+time python -O -W ignore compare_optim_lprop.py wik -n3
+time python -O -W ignore compare_optim_lprop.py sla -n3
+time python -O -W ignore compare_optim_lprop.py epi -n3
+time python -O -W ignore compare_optim_lprop.py kiw -n3

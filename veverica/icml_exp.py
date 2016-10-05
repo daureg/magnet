@@ -5,6 +5,8 @@ from exp_tworules import pred_with_threshold, find_threshold
 from L1Classifier import L1Classifier
 from rank_nodes import NodesRanker
 from bayes_feature import compute_bayes_features
+from scipy.optimize import minimize
+import scipy.sparse as ssp
 import treestar
 import lprop_matrix as lm
 RBFS, RTST = None, None
@@ -60,6 +62,42 @@ if __name__ == '__main__':
     m = sorted_edges.shape[0]
     n = (P.shape[0] - m)//2
 
+    # variables needed for the cost & grad function
+    dout, din = (np.zeros(n, dtype=np.uint), np.zeros(n, dtype=np.uint))
+    A_row, A_col, A_data = [], [], []
+    Bp_row, Bp_col, Bp_data = [], [], []
+    Bq_row, Bq_col, Bq_data = [], [], []
+    ppf, qpf = [], []
+    for ve, row in enumerate(sorted_edges):
+        i, u, v, s = ve, *row
+        dout[u] += 1
+        din[v] += 1
+        ppf.append(u)
+        qpf.append(v)
+        A_row.append(u)
+        A_col.append(v)
+        A_data.append(1)
+        Bp_row.append(u)
+        Bp_col.append(i)
+        Bp_data.append(1)
+        Bq_row.append(v)
+        Bq_col.append(i)
+        Bq_data.append(1)
+    ppf = np.array(ppf, dtype=int)
+    qpf = np.array(qpf, dtype=int)
+    aA = ssp.coo_matrix((A_data, (A_row, A_col)), shape=(n, n), dtype=np.int).tocsc()
+    Bp = ssp.coo_matrix((Bp_data, (Bp_row, Bp_col)), shape=(n, m), dtype=np.int).tocsc()
+    Bq = ssp.coo_matrix((Bq_data, (Bq_row, Bq_col)), shape=(n, m), dtype=np.int).tocsc()
+    bounds = [(0.0, 1.0) for _ in range(m+2*n)]
+
+    def solve_for_pq(x0):
+        sstart = lp.clock()
+        res = minimize(cost_and_grad, x0, jac=True, bounds=bounds,
+                       options=dict(maxiter=1500))
+        y = res.x[2*n:]
+        time_elapsed = lp.clock() - sstart
+        return y, time_elapsed
+
     if args.balanced:
         pref += '_bal'
 
@@ -74,11 +112,9 @@ if __name__ == '__main__':
           {'sampling': lambda d: int(ceil(4*log(d)))},
           {'sampling': lambda d: int(ceil(5*log(d)))}]
 
-    batch = [{'batch': v/100} for v in range(15, 91, 15)]
-    batch = [{'batch': v} for v in [.03, .05, .07, .09, .15, .20, .25,]]
-    batch = [{'batch': v} for v in [.30, .40, .50, .7, .8, .9]]
+    batch = [{'batch': v} for v in [.03, .09, .15, .20, .25,]]
 
-    fres = [[] for _ in range(33)]
+    fres = [[] for _ in range(35)]
     for r, params in enumerate(cs if args.active else batch):
         only_troll_fixed, l1_fixed, l1_learned = [], [], []
         only_troll_fixed_raw, l1_fixed_raw, l1_learned_raw = [], [], []
@@ -94,6 +130,7 @@ if __name__ == '__main__':
         l1_learned_mcc, both_learned_mcc, lpmin_erm_mcc = [], [], []
         l1_learned_mcc_raw, both_learned_mcc_raw, lpmin_erm_mcc_raw = [], [], []
         lpmin_second, lpmin_second_raw = [], []
+        quad_optim, quad_optim_raw = [], []
         for _ in range(num_rep):
             graph.select_train_set(**params)
             Xl, yl, train_set, test_set = graph.compute_features()
@@ -111,6 +148,35 @@ if __name__ == '__main__':
             gold = ya[test_set]
             revealed = ya[train_set]
             pp = (test_set, idx2edge)
+
+            def cost_and_grad(x):
+                p, q, y = x[:n], x[n:2*n], x[2*n:]
+                Aq = aA.dot(q)
+                pA = aA.T.dot(p)
+                c = ((p*p*dout + q*q*din).sum() + 2*p.dot(Aq))
+                t = p[ppf] + q[qpf]
+                c += (4*y*(y-t)).sum()
+                grad_p = 2*p*dout + 2*Aq.T - 4*Bp@y
+                grad_q = 2*q*din + 2*pA - 4*Bq@y
+                grad_y = 4*(2*y - t)
+                grad_y[train_set] = 0
+                return c, np.hstack((grad_p, grad_q, grad_y))
+
+
+            x0 = np.random.uniform(0, 1, m+2*n)
+            x0[2*n:][train_set] = ya[train_set]
+            feats, time_elapsed = solve_for_pq(x0)
+            sstart = lp.clock()
+            sorted_y = np.sort(feats[test_set])
+            pos_frac = 1-ya[train_set].sum()/len(train_set)
+            k_star = sorted_y[int(pos_frac*sorted_y.size)]
+            time_elapsed += lp.clock() - sstart
+            pred_function = graph.train(lambda features: features > k_star)
+            graph.time_used = time_elapsed
+            res = graph.test_and_evaluate(pred_function, feats[test_set], gold, pp)
+            quad_optim.append(res)
+            graph.time_used = time_elapsed
+            quad_optim_raw.append(graph.test_and_evaluate(pred_function, feats[test_set], gold))
 
             pred_function = graph.train(lambda features: features[:, 0] < 0.5)
             res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold, pp)
@@ -209,7 +275,6 @@ if __name__ == '__main__':
             lpmin_neg.append(res)
             graph.time_used = time_elapsed
             lpmin_neg_raw.append(graph.test_and_evaluate(pred_function, feats[test_set], gold))
-
 
             f, time_elapsed = lm._train_second(W, d, train_set, 2*revealed-1, (m, n))
             feats = f[:m]
@@ -344,6 +409,8 @@ if __name__ == '__main__':
         fres[30].append(lpmin_erm_mcc_raw)
         fres[31].append(lpmin_second)
         fres[32].append(lpmin_second_raw)
+        fres[33].append(quad_optim)
+        fres[34].append(quad_optim_raw)
     if args.active:
         pref += '_active'
     res_file = '{}_{}_{}'.format(pref, start, part+1)

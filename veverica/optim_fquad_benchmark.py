@@ -99,7 +99,7 @@ if __name__ == "__main__":
 
     batch = 0.03
     nb_methods = 1
-    num_x0 = 40
+    num_x0 = 30
     train_set, test_set = [], []
     for i, row in enumerate(sorted_edges):
         u, v, s = row

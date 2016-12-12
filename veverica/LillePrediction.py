@@ -15,7 +15,7 @@ import persistent as p
 import spectral_prediction as sp
 import getWH
 from treestar import initial_spanning_tree
-from pack_graph import load_directed_signed_graph
+from pack_graph import load_directed_signed_graph, msgpack
 
 lambdas_troll = {'EPI': [ 0.3138361 ,  0.78747173,  0.09077966],
                  'SLA': [ 0.32362659,  0.73825876,  0.10942871],
@@ -35,6 +35,7 @@ class LillePrediction(lp.LinkPrediction):
     """My implementation of LinkPrediction"""
 
     def load_data(self, dataset, balanced=False, small_wiki=False):
+        timestamp = 'ts' in dataset
         if small_wiki:
             Gfull, E = p.load_var('small_wiki.my')
         elif balanced:
@@ -53,6 +54,10 @@ class LillePrediction(lp.LinkPrediction):
             Gfull, E = l.rw.G, l.rw.EDGE_SIGN
         else:
             pack_name = 'directed_{}.pack'.format(dataset)
+            if timestamp:
+                order_name = 'directed_{}_order.pack'.format(dataset)
+                with open(order_name, 'r+b') as packfile:
+                    self.time_order = msgpack.unpack(packfile, use_list=False)
             Gfull, E = load_directed_signed_graph(pack_name)
         root = max(Gfull.items(), key=lambda x: len(x[1]))[0]
         Gbfs, _, _ = initial_spanning_tree(Gfull, root)
@@ -80,6 +85,14 @@ class LillePrediction(lp.LinkPrediction):
 
     def select_train_set(self, **params):
         self.out_samples, self.in_samples = defaultdict(int), defaultdict(int)
+        if 'oldest' in params:
+            self.Esign = {}
+            num_edges = int(params['oldest']*len(self.E))
+            for e, _ in self.time_order[:num_edges]:
+                self.Esign[e] = self.E[e]
+            self.out_samples.update(Counter((e[0] for e in self.Esign)))
+            self.in_samples.update(Counter((e[1] for e in self.Esign)))
+            return self.Esign
         if 'batch' in params:
             alpha = min(params['batch']*self.order/len(self.E), 1.0)
             alpha = params['batch']

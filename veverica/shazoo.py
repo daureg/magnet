@@ -1,10 +1,10 @@
-#! /usr/bin/env python
-# vim: set fileencoding=utf-8
-"""Implement the Shazoo node binary classification algorithm from
-Vitale, F., Cesa-Bianchi, N., Gentile, C., & Zappella, G. (2011).
+"""
+Implement the Shazoo node binary classification algorithm.
+
+from Vitale, F., Cesa-Bianchi, N., Gentile, C., & Zappella, G. (2011).
 See the tree through the lines: the Shazoo algorithm.
 In Advances in Neural Information Processing Systems 24 (pp. 1584–1592).
-http://papers.nips.cc/paper/4476-see-the-tree-through-the-lines-the-shazoo-algorithm
+http://papers.nips.cc/paper/4476-see-the-tree-through-the-lines-the-shazoo-algorithm .
 """
 from collections import deque
 import convert_experiment as cexp
@@ -50,7 +50,7 @@ def from_edges_to_tree(edges):
 
 
 def majority_vote(preds):
-    """aggregate all prediction by majority vote"""
+    """Aggregate all prediction by majority vote."""
     if len(preds) == 1:
         return preds
     return [1 if sum(votes) > 0 else -1
@@ -93,7 +93,7 @@ def run_committee(graph, eweights, signs, tree_kind='rst', train_vertices=.1,
 
 @profile
 def _edge(u, v):
-    """reorder u and v"""
+    """Reorder u and v."""
     return (u, v) if u < v else (v, u)
 
 
@@ -152,7 +152,7 @@ def flep(tree_adj, nodes_sign, edge_weight, root):
 
 @profile
 def is_a_fork(tree_adj, node, hinge_lines):
-    """If node has more than 3 hinge edges incident, it's a fork"""
+    """If node has more than 3 hinge edges incident, it's a fork."""
     incident_hinge = 0
     for u in tree_adj[node]:
         incident_hinge += int(hinge_lines[_edge(u, node)])

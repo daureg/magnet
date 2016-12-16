@@ -192,6 +192,12 @@ def reveal_node(tree_adj, node, nodes_status, hinge_lines, ancestors):
 @profile
 def predict_node_sign(tree_adj, node, nodes_status, nodes_sign, hinge_lines,
                       edge_weight):
+    """Perform one step (ie prediction) of the Shazoo algorithm.
+
+    We traverse the `tree_adj` (rooted at `node`) in a BFS manner in order to
+    find the closest connection node (in the sense of the resistance distance)
+    and compute its best sign.
+    """
     q = deque()
     status = {u: (False, 0) for u in tree_adj}
     q.append(node)
@@ -206,6 +212,7 @@ def predict_node_sign(tree_adj, node, nodes_status, nodes_sign, hinge_lines,
             connect_nodes[v] = nodes_sign[v]
             if distance_from_root < min_connect_distance:
                 min_connect, min_connect_distance = v, distance_from_root
+            continue
         if v_status == FORK:
             assert v not in nodes_sign, (v, v_status)
             estim, _ = flep(tree_adj, nodes_sign, edge_weight, v)
@@ -213,6 +220,7 @@ def predict_node_sign(tree_adj, node, nodes_status, nodes_sign, hinge_lines,
                 connect_nodes[v] = 1 if estim > 0 else -1
                 if distance_from_root < min_connect_distance:
                     min_connect, min_connect_distance = v, distance_from_root
+            continue
         if distance_from_root >= min_connect_distance:
             continue
         for w in tree_adj[v]:
@@ -250,6 +258,7 @@ def make_graph(n, tree=True):
 @profile
 def shazoo(tree_adj, nodes_status, edge_weight, hinge_lines, nodes_sign,
            gold_sign):
+    """Predict all the signs of `gold_sign` in an online fashion."""
     from grid_stretch import ancestor_info
     order = list(gold_sign.keys())
     random.shuffle(order)
@@ -331,15 +340,16 @@ if __name__ == '__main__':
     # pylint: disable=C0103
     import sys
     import persistent as p
+    random.seed(123456)
 
     for i in range(10):
-        shazoo(*make_graph(400))
+        shazoo(*make_graph(800))
+    sys.exit()
 
     adj, _, ew, _, _, gold_sign = make_graph(400)
     train_vertices = random.sample(gold_sign.keys(), 70)
     gold, pred = offline_shazoo(adj, ew, gold_sign, train_vertices)
     print(sum((1 for g, p in zip(gold, pred) if g != p)))
-    sys.exit()
 
     timing = []
     for i in range(8):

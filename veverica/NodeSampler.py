@@ -2,7 +2,7 @@
 # vim: set fileencoding=utf-8
 from copy import deepcopy
 import random
-from math import log2, ceil
+from math import ceil
 import itertools
 
 
@@ -29,6 +29,7 @@ class WeightedDegrees(object):
         self.build_tree()
 
     def build_tree(self):
+        from math import log2
         self.weights = [self.map(_) for _ in self.degrees]
         self.num_active = sum((1 for _ in self.degrees if _ > 0))
         # TODO get rid of 0 padding by setting not existing right nodes on the

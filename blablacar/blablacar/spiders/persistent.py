@@ -1,9 +1,8 @@
-#! /usr/bin/python2
 # vim: set fileencoding=utf-8
 import pickle as pickle
 
 
-def save_var(filename, d, proto=3):
+def save_var(filename, d, proto=2):
     with open(filename, 'wb') as f:
         pickle.dump(d, f, proto)
 

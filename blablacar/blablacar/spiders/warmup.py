@@ -7,6 +7,26 @@ from dateparser import parse as parse_date
 MEMBER_PREFIX = 'https://www.blablacar.fr/membre/profil/'
 
 
+def parse_activity(activity, scraptime):
+    activities = [_.strip().encode('utf-8')
+                  for _ in activity.xpath('ul/li/text()').extract()]
+    text_activity = dict()
+    for line in activities:
+        first_word = line.split()[0]
+        content = ':'.join(line.split(':')[1:]).strip()
+        text_activity[first_word] = content
+    num_post, reply_rate, last_ping, joined = 4*[None, ]
+    if 'Annonces' in text_activity:
+        num_post = int(text_activity['Annonces'])
+    if 'Taux' in text_activity:
+        reply_rate = int(text_activity['Taux'][:-1])
+    # for https://github.com/scrapinghub/dateparser/issues/268
+    last_ping = text_activity['Dernière'].replace('mar.', '')
+    last_ping = int((scraptime - parse_date(last_ping)).total_seconds())
+    joined = parse_date(text_activity['Membre']).date()
+    return num_post, reply_rate, last_ping, joined
+
+
 class WarmupSpider(scrapy.Spider):
     name = "warmup"
     allowed_domains = ["blablacar.fr"]
@@ -20,7 +40,6 @@ class WarmupSpider(scrapy.Spider):
             yield scrapy.Request(url=url, callback=self.parse)
 
     def parse(self, response):
-        scraptime = datetime.utcnow()
         # user
         #  info
         id_ = response.url.split('/')[-1].split('?')[0]
@@ -28,37 +47,39 @@ class WarmupSpider(scrapy.Spider):
             return
         if id_ not in self.all_reviews:
             self.all_reviews[id_] = list()
+        scraptime = datetime.utcnow()
         name = response.css('h1.ProfileCard-info--name::text').extract_first().strip().encode('utf-8')
         age = int(response.css('div.ProfileCard-info:nth-child(2)::text').extract_first().strip().split()[0])
         profile_info = response.css('div.ProfileCard').css('div.ProfileCard-row')
-        experience = profile_info[0].css('span.megatip-popover::text').extract_first().strip().encode('utf-8')
+        experience = profile_info[0].css('span.megatip-popover::text').extract_first()
+        if experience is not None:
+            experience = experience.strip().encode('utf-8')
         # might although be oldtitle instead of title
-        prefs = [_.strip().encode('utf-8') for _ in profile_info[2].xpath('span[contains(@class, "big-prefs")]/@title').extract()]
+        prefs = [_.strip().encode('utf-8') for _ in profile_info[-1].xpath('span[contains(@class, "big-prefs")]/@title').extract()]
         bio_raw = response.xpath('//div[contains(@class, "member-bio")]/p/text()').extract()
         bio = ''.join((_.strip().encode('utf-8').replace('\n', ' ') for _ in bio_raw)).strip('""')
         #  activity
-        activity = response.css('div.main-column-block:nth-child(2)')
-        text_activity = [':'.join(_.strip().split(':')[1:]).strip().encode('utf-8')
-                         for _ in activity.xpath('ul/li/text()').extract()]
-        num_post = int(text_activity[0])
-        reply_rate = int(text_activity[1][:-1])
-        last_ping = int((scraptime - parse_date(text_activity[2])).total_seconds())
-        joined = parse_date(text_activity[3]).date()
+        num_post, reply_rate, last_ping, joined = parse_activity(response.css('div.main-column-block:nth-child(2)'), scraptime)
 
         verif = [_.strip().encode('utf-8') for _ in response.css('ul.verification-list li span::text').extract()]
 
         # car
         car = response.css('ul.user-car-details li')
-        car_name = car[0].xpath('h4/strong/text()').extract_first().strip().encode('utf-8')
-        car_color, car_comfort = [_.strip().split(':')[-1].strip().encode('utf-8')
-                                  for _ in car[1:].xpath('text()').extract()]
-        car_comfort_num = [int(i.split('_')[-1])
-                           for i in car[0].xpath('h4/span/@class').extract_first().split()
-                           if 'star' in i][0]
+        if car:
+            car_name = car[0].xpath('h4/strong/text()').extract_first().strip().encode('utf-8')
+            car_color, car_comfort = [_.strip().split(':')[-1].strip().encode('utf-8')
+                                      for _ in car[1:].xpath('text()').extract()]
+            car_comfort_num = [int(i.split('_')[-1])
+                               for i in car[0].xpath('h4/span/@class').extract_first().split()
+                               if 'star' in i][0]
 
         reviews_div = response.css('div.user-comments-container')
         for r in reviews_div.xpath('div/ul/li/article'):
-            from_ = r.xpath('a/@href').extract_first().split('/')[-1].encode('ascii')
+            from_ = r.xpath('a/@href').extract_first()
+            if not from_:
+                # a reviewer without profile, like Estelle here https://www.blablacar.fr/membre/profil/Hx6O3ju2jAXgT7MpEKijcg
+                continue
+            from_ = from_.split('/')[-1].encode('ascii')
             text_raw = r.xpath('div[contains(@class, "Speech-content")]/p/text()').extract()
             text = ''.join((_.strip().encode('utf-8').replace('\n', ' ') for _ in text_raw))
             grade_class = r.xpath('div[contains(@class, "Speech-content")]/h3/@class')
@@ -89,7 +110,7 @@ class WarmupSpider(scrapy.Spider):
                    'joined': str(joined),
                    'last_ping': last_ping,
                    'scraptime': str(scraptime),
-                   'car': {'name': car_name, 'color': car_color, 'comfort': car_comfort_num},
+                   'car': None if len(car) == 0 else {'name': car_name, 'color': car_color, 'comfort': car_comfort_num},
                    'verifications': verif,
                    'reviews': these_reviews,
                    }

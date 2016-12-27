@@ -4,7 +4,14 @@ import ujson
 import blablacar.spiders.persistent as p
 import sys
 
-if __name__ == '__main__':
+
+def initialize():
+    p.save_var('seen_users.my', set())
+    p.save_var('next_users.my', {'tO9TUCYttaFHA0ixh6_Rcw'})
+
+
+
+def merge():
     seen_users = p.load_var('seen_users.my')
     next_users = p.load_var('next_users.my')
     maybe_new = set()
@@ -21,3 +28,8 @@ if __name__ == '__main__':
     next_users.update(maybe_new - seen_users)
     p.save_var('seen_users.my', seen_users)
     p.save_var('next_users.my', next_users)
+
+if __name__ == '__main__':
+    if len(sys.argv) == 2 and sys.argv[1] == 'init':
+        initialize()
+    merge()

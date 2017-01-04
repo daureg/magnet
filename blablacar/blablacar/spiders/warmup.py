@@ -96,8 +96,10 @@ class WarmupSpider(scrapy.Spider):
         bio = ''.join((_.strip().encode('utf-8').replace('\n', ' ') for _ in bio_raw)).strip('""')
         #  activity
         num_post, reply_rate, last_ping, joined = parse_activity(response.css('div.main-column-block:nth-child(2)'), scraptime)
-
+        id_verified = response.css('div.ProfileCard-info.u-blue::text').extract_first()
         verif = [_.strip().encode('utf-8') for _ in response.css('ul.verification-list li span::text').extract()]
+        if id_verified:
+            verif.append(id_verified.strip().encode('utf-8'))
 
         # car
         car = response.css('ul.user-car-details li')

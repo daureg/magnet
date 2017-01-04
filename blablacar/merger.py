@@ -19,6 +19,8 @@ def initialize():
 def merge():
     seen_users = p.load_var('seen_users.my')
     next_users = p.load_var('next_users.my')
+    msg = '{}: {} users are parsed, and {} are to be visited'
+    print(msg.format('Before', len(seen_users), len(next_users)))
     maybe_new = set()
     for filename in sys.argv[1:]:
         if not filename.endswith('.jl'):
@@ -31,6 +33,8 @@ def merge():
                 next_users.discard(uid)
                 maybe_new.update({r['from'] for r in user['reviews']})
     next_users.update(maybe_new - seen_users)
+    msg = '{}: {} users are parsed, and {} are to be visited'
+    print(msg.format('After', len(seen_users), len(next_users)))
     p.save_var('seen_users.my', seen_users)
     p.save_var('next_users.my', next_users)
 

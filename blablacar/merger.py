@@ -7,7 +7,12 @@ import sys
 
 def initialize():
     p.save_var('seen_users.my', set())
-    p.save_var('next_users.my', {'tO9TUCYttaFHA0ixh6_Rcw'})
+    p.save_var('next_users.my', {'vvUfsO__McfaFcJFSYhaeQ',
+                                 'e9OC5d8zznHrePL6ThjyQA',
+                                 'cH7eI-InwxyaxIr7_J6GzQ',
+                                 'wUEz81t9RmnVdJlWLu32mA',
+                                 '7XNi5vaQCDnEpZmW4uhEgQ',
+                                 })
 
 
 

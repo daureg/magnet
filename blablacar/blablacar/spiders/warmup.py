@@ -72,11 +72,11 @@ class WarmupSpider(scrapy.Spider):
             grade_class = r.xpath('div[contains(@class, "Speech-content")]/h3/@class')
             grade = [int(i.split('--')[-1]) for i in grade_class.extract_first().split() if '--' in i][0]
             when = parse_date(r.xpath('footer/time/@datetime').extract_first())
-            self.all_reviews[id_].append({'from': from_,
-                                          'grade': grade,
-                                          'text': text,
-                                          'when': str(when),
-                                          })
+            review = {'from': from_, 'grade': grade, 'text': text, 'when': str(when)}
+            reply = r.xpath('aside[contains(@class, "Rating-rightOfReply")]/blockquote/text()').extract_first()
+            if reply:
+                review['reply'] = reply.strip().encode('utf-8')
+            self.all_reviews[id_].append(review)
 
         next_link = reviews_div.xpath('div[contains(@class, "pagination")]/ul/li[contains(@class, "next")]/a/@href').extract_first()
         if next_link:

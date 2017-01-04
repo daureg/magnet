@@ -4,7 +4,19 @@ import persistent
 import logging
 from datetime import datetime
 from dateparser import parse as parse_date
-MEMBER_PREFIX = 'https://www.blablacar.fr/membre/profil/'
+from urlparse import urlparse
+LANGUAGE = 'fr'
+WEBSITE = {'fr': 'https://www.blablacar.fr',
+           'en': 'https://www.blablacar.co.uk',
+           }[LANGUAGE]
+MEMBER_PREFIX = WEBSITE + {'fr': '/membre/profil/',
+                           'en': '/user/show/',
+                           }[LANGUAGE]
+ACTIVITIES_STR = {'fr': {'post': 'Annonces', 'rate': 'Taux',
+                         'last': 'Dernière', 'member': 'Membre'},
+                  'en': {'post': 'rides', 'rate': 'message',
+                         'last': 'Last', 'member': 'Member'},
+                  }[LANGUAGE]
 
 
 def parse_activity(activity, scraptime):
@@ -29,7 +41,7 @@ def parse_activity(activity, scraptime):
 
 class WarmupSpider(scrapy.Spider):
     name = "warmup"
-    allowed_domains = ["blablacar.fr"]
+    allowed_domains = [urlparse(WEBSITE).netloc[4:]]
     seen_users = set()
     all_reviews = dict()
 
@@ -93,7 +105,7 @@ class WarmupSpider(scrapy.Spider):
 
         next_link = reviews_div.xpath('div[contains(@class, "pagination")]/ul/li[contains(@class, "next")]/a/@href').extract_first()
         if next_link:
-            yield scrapy.Request('https://www.blablacar.fr{}'.format(next_link), callback=self.parse)
+            yield scrapy.Request('{}{}'.format(WEBSITE, next_link), callback=self.parse)
         else:
             these_reviews = list(self.all_reviews[id_])
             del self.all_reviews[id_]

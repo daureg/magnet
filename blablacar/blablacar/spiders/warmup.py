@@ -59,6 +59,30 @@ class WarmupSpider(scrapy.Spider):
             return
         if id_ not in self.all_reviews:
             self.all_reviews[id_] = list()
+
+        reviews_div = response.css('div.user-comments-container')
+        for r in reviews_div.xpath('div/ul/li/article'):
+            from_ = r.xpath('a/@href').extract_first()
+            if not from_:
+                # a reviewer without profile, like Estelle here https://www.blablacar.fr/membre/profil/Hx6O3ju2jAXgT7MpEKijcg
+                continue
+            from_ = from_.split('/')[-1].encode('ascii')
+            text_raw = r.xpath('div[contains(@class, "Speech-content")]/p/text()').extract()
+            text = ''.join((_.strip().encode('utf-8').replace('\n', ' ') for _ in text_raw))
+            grade_class = r.xpath('div[contains(@class, "Speech-content")]/h3/@class')
+            grade = [int(i.split('--')[-1]) for i in grade_class.extract_first().split() if '--' in i][0]
+            when = parse_date(r.xpath('footer/time/@datetime').extract_first())
+            self.all_reviews[id_].append({'from': from_,
+                                          'grade': grade,
+                                          'text': text,
+                                          'when': str(when),
+                                          })
+
+        next_link = reviews_div.xpath('div[contains(@class, "pagination")]/ul/li[contains(@class, "next")]/a/@href').extract_first()
+        if next_link:
+            yield scrapy.Request('{}{}'.format(WEBSITE, next_link), callback=self.parse)
+            return
+
         scraptime = datetime.utcnow()
         name = response.css('h1.ProfileCard-info--name::text').extract_first().strip().encode('utf-8')
         age = int(response.css('div.ProfileCard-info:nth-child(2)::text').extract_first().strip().split()[0])
@@ -85,44 +109,22 @@ class WarmupSpider(scrapy.Spider):
                                for i in car[0].xpath('h4/span/@class').extract_first().split()
                                if 'star' in i][0]
 
-        reviews_div = response.css('div.user-comments-container')
-        for r in reviews_div.xpath('div/ul/li/article'):
-            from_ = r.xpath('a/@href').extract_first()
-            if not from_:
-                # a reviewer without profile, like Estelle here https://www.blablacar.fr/membre/profil/Hx6O3ju2jAXgT7MpEKijcg
-                continue
-            from_ = from_.split('/')[-1].encode('ascii')
-            text_raw = r.xpath('div[contains(@class, "Speech-content")]/p/text()').extract()
-            text = ''.join((_.strip().encode('utf-8').replace('\n', ' ') for _ in text_raw))
-            grade_class = r.xpath('div[contains(@class, "Speech-content")]/h3/@class')
-            grade = [int(i.split('--')[-1]) for i in grade_class.extract_first().split() if '--' in i][0]
-            when = parse_date(r.xpath('footer/time/@datetime').extract_first())
-            self.all_reviews[id_].append({'from': from_,
-                                          'grade': grade,
-                                          'text': text,
-                                          'when': str(when),
-                                          })
-
-        next_link = reviews_div.xpath('div[contains(@class, "pagination")]/ul/li[contains(@class, "next")]/a/@href').extract_first()
-        if next_link:
-            yield scrapy.Request('{}{}'.format(WEBSITE, next_link), callback=self.parse)
-        else:
-            these_reviews = list(self.all_reviews[id_])
-            del self.all_reviews[id_]
-            logging.info('DONE_WITH {}'.format(id_))
-            self.seen_users.add(id_)
-            yield {'id': id_,
-                   'name': name,
-                   'age': age,
-                   'experience': experience,
-                   'preferences': prefs,
-                   'biography': bio,
-                   'num_posts': num_post,
-                   'reply_rate': reply_rate,
-                   'joined': str(joined),
-                   'last_ping': last_ping,
-                   'scraptime': str(scraptime),
-                   'car': None if len(car) == 0 else {'name': car_name, 'color': car_color, 'comfort': car_comfort_num},
-                   'verifications': verif,
-                   'reviews': these_reviews,
-                   }
+        these_reviews = list(self.all_reviews[id_])
+        del self.all_reviews[id_]
+        logging.info('DONE_WITH {}'.format(id_))
+        self.seen_users.add(id_)
+        yield {'id': id_,
+               'name': name,
+               'age': age,
+               'experience': experience,
+               'preferences': prefs,
+               'biography': bio,
+               'num_posts': num_post,
+               'reply_rate': reply_rate,
+               'joined': str(joined),
+               'last_ping': last_ping,
+               'scraptime': str(scraptime),
+               'car': None if len(car) == 0 else {'name': car_name, 'color': car_color, 'comfort': car_comfort_num},
+               'verifications': verif,
+               'reviews': these_reviews,
+               }

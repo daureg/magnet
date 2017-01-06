@@ -104,7 +104,7 @@ def flep(tree_adj, nodes_sign, edge_weight, root):
     start = clock()
     assert isinstance(tree_adj, dict)
     if root in nodes_sign:
-        return nodes_sign[root]
+        return nodes_sign[root]*MAX_WEIGHT, {}
     assert root not in nodes_sign
     stack = []
     status = {_: (False, -1, 0, 0) for _ in tree_adj}

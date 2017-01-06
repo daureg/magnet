@@ -38,7 +38,7 @@ def test_flep_larger_tree():
     root = 0
     correct_answer = {0: (4, 6), 1: (2, 1), 2: (0, 2), 3: (1, 3), 6: (0, 4),
                       11: (5, 0), 3: (2, 3)}
-    assert flep(tree_adj, nodes_sign, edge_weight, root)[1] == correct_answer
+    assert flep(tree_adj, nodes_sign, edge_weight, root, return_fullcut_info=True)[1] == correct_answer
 
 
 def test_flep_one_level_tree():
@@ -57,7 +57,7 @@ def test_flep_one_level_tree():
                    }
     root = 0
     correct_answer = {0: (3, 2.9)}
-    assert flep(tree_adj, nodes_sign, edge_weight, root)[1] == correct_answer
+    assert flep(tree_adj, nodes_sign, edge_weight, root, return_fullcut_info=True)[1] == correct_answer
 
 
 def test_flep_line():
@@ -76,7 +76,7 @@ def test_flep_line():
                       1: (0, 1),
                       2: (0, 1),
                       }
-    assert flep(tree_adj, nodes_sign, edge_weight, root)[1] == correct_answer
+    assert flep(tree_adj, nodes_sign, edge_weight, root, return_fullcut_info=True)[1] == correct_answer
 
 
 def test_flep_leaf():
@@ -85,4 +85,4 @@ def test_flep_leaf():
     edge_weight = {}
     root = 0
     correct_answer = (MAX_WEIGHT - 0, {})
-    assert flep(tree_adj, nodes_sign, edge_weight, root) == correct_answer
+    assert flep(tree_adj, nodes_sign, edge_weight, root, return_fullcut_info=True) == correct_answer

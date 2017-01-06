@@ -6,7 +6,7 @@ See the tree through the lines: the Shazoo algorithm.
 In Advances in Neural Information Processing Systems 24 (pp. 1584–1592).
 http://papers.nips.cc/paper/4476-see-the-tree-through-the-lines-the-shazoo-algorithm .
 """
-from collections import deque
+from collections import deque, defaultdict
 import convert_experiment as cexp
 import random
 from timeit import default_timer as clock
@@ -98,7 +98,7 @@ def _edge(u, v):
 
 
 @profile
-def flep(tree_adj, nodes_sign, edge_weight, root):
+def flep(tree_adj, nodes_sign, edge_weight, root, return_fullcut_info=False):
     """Compute the sign of the `root` that yield the smallest weighted cut in
     `tree_adj` given the already revealed `nodes_sign`."""
     start = clock()
@@ -107,7 +107,7 @@ def flep(tree_adj, nodes_sign, edge_weight, root):
         return nodes_sign[root]*MAX_WEIGHT, {}
     assert root not in nodes_sign
     stack = []
-    status = {_: (False, -1, 0, 0) for _ in tree_adj}
+    status = defaultdict(lambda: (False, -1, 0, 0))
     stack.append(root)
     while stack:
         v = stack.pop()
@@ -126,10 +126,12 @@ def flep(tree_adj, nodes_sign, edge_weight, root):
             status[v] = (discovered, pred, cutp, cutn)
             # print('{}: (+: {}, -: {})'.format(v, cutp, cutn))
             if v == root:
-                intermediate = {n: (vals[2], vals[3])
-                                for n, vals in status.items()
-                                if vals[0] and n not in nodes_sign}
                 FLEP_CALLS_TIMING.append(clock() - start)
+                intermediate = {}
+                if return_fullcut_info:
+                    intermediate = {n: (vals[2], vals[3])
+                                    for n, vals in status.items()
+                                    if vals[0] and n not in nodes_sign}
                 return (cutn - cutp, intermediate)
 
         if not discovered:
@@ -199,7 +201,7 @@ def predict_node_sign(tree_adj, node, nodes_status, nodes_sign, hinge_lines,
     and compute its best sign.
     """
     q = deque()
-    status = {u: (False, 0) for u in tree_adj}
+    status = defaultdict(lambda: (False, 0))
     q.append(node)
     status[node] = (True, 0)
     connect_nodes = {}
@@ -280,7 +282,8 @@ def shazoo(tree_adj, nodes_status, edge_weight, hinge_lines, nodes_sign,
 
 @profile
 def offline_cut_computation(tree_adj, nodes_sign, edge_weight, root):
-    _, rooted_cut = flep(tree_adj, nodes_sign, edge_weight, root)
+    _, rooted_cut = flep(tree_adj, nodes_sign, edge_weight, root,
+                         return_fullcut_info=True)
     queue = deque()
     discovered = {k: k == root for k in tree_adj}
     queue.append(root)
@@ -344,6 +347,9 @@ if __name__ == '__main__':
 
     for i in range(10):
         shazoo(*make_graph(800))
+    start = clock()
+    shazoo(*make_graph(4000))
+    print(clock() - start)
     sys.exit()
 
     adj, _, ew, _, _, gold_sign = make_graph(400)

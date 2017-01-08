@@ -339,6 +339,14 @@ def offline_shazoo(tree_adj, edge_weights, node_signs, train_vertices):
     return gold, pred
 
 
+def find_hinge_nodes(tree_adj, edge_weight, nodes_sign, node_to_predict):
+    """Find hinge nodes in `tree_adj` when trying to predict one node sign.
+
+    This implements the first step of the online shazoo algorithm.
+    """
+    return {}
+
+
 if __name__ == '__main__':
     # pylint: disable=C0103
     import sys

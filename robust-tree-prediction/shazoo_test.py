@@ -102,5 +102,6 @@ def test_find_hinge_nodes():
     correct_answer = {4: 6.75, 7: 5.75, 9: 4.75, 10: 3.75, 11: 2.75, 12: 3.75,
                       26: 2.5, 27: 3.5, 28: 3.5}
     node_to_predict = 14
-    answer = find_hinge_nodes(tree_adj, edge_weight, nodes_sign, node_to_predict)
+    answer = find_hinge_nodes(tree_adj, edge_weight, nodes_sign,
+                              node_to_predict, with_distances=True)
     assert answer == correct_answer

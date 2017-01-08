@@ -1,3 +1,4 @@
+# vim: set fileencoding=utf-8
 """
 Implement the Shazoo node binary classification algorithm.
 
@@ -339,12 +340,93 @@ def offline_shazoo(tree_adj, edge_weights, node_signs, train_vertices):
     return gold, pred
 
 
-def find_hinge_nodes(tree_adj, edge_weight, nodes_sign, node_to_predict):
+def find_hinge_nodes(tree_adj, edge_weight, nodes_sign, node_to_predict,
+                     with_distances=False):
     """Find hinge nodes in `tree_adj` when trying to predict one node sign.
 
     This implements the first step of the online shazoo algorithm.
     """
-    return {}
+    stack = []
+    # the fields are: discovered, distance_from_root, incident_hinge_line, marked
+    status = defaultdict(lambda: [False, float(MAX_WEIGHT), 0, False])
+    stack.append(node_to_predict)
+    status[node_to_predict] = [False, 0.0, 0, False]
+    while stack:
+        v = stack.pop()
+        if v >= 0:
+            discovered, distance_from_root, incident_hinge_line, marked = status[v]
+        else:
+            v = -(v + 100)
+            discovered, distance_from_root, _, _ = status[v]
+            update_mark_status(v, tree_adj, status, distance_from_root)
+            if v == node_to_predict:
+                print("back at root")
+                if status[node_to_predict][2] == 1 and len(nodes_sign) > 1:
+                    clean_root_hinge(node_to_predict, tree_adj, status)
+                return status, extract_hinge_nodes(status, nodes_sign, with_distances)
+        if not discovered:
+            status[v][0] = True
+            if v in nodes_sign:
+                # mark revealed nodes but don't go beyond them
+                status[v][3] = True
+                continue
+            stack.append(-(v+100))
+            for w in tree_adj[v]:
+                if status[w][0]:
+                    continue
+                weight = edge_weight[(v, w) if v < w else (w, v)]
+                status[w][1] = distance_from_root + 1.0/weight
+                stack.append(w)
+
+
+def extract_hinge_nodes(status, nodes_sign, with_distances=False):
+    """Get nodes which are revealed or have at least 3 incident hinge lines,
+    sorted by distance."""
+    res = {}
+    for v, (_, distance_from_root, nb_incident_hinge_lines, _) in status.iteritems():
+        if v in nodes_sign or nb_incident_hinge_lines >= 3:
+            res[v] = distance_from_root
+    if with_distances:
+        return res
+    return [_[0] for _ in sorted(res.iteritems(),
+                                 key=lambda x: (x[1], x[0]))]
+
+
+def clean_root_hinge(root, tree_adj, status):
+    """Remove the single incorrect hinge line starting at the root.
+
+    Done by going down it until we find a node lying on a real hinge line (i.e.
+    with 2 incident hinge edges besides the erroneous one from the root)
+    """
+    node = root
+    seen = set()
+    while True:
+        marked = []
+        for child in tree_adj[node]:
+            if child not in seen:
+                marked.append(child)
+        seen.add(node)
+        status[node][2] -= 1
+        if len(marked) == 1:
+            v = marked[0]
+            status[node][3] = False
+            node = v
+        else:
+            return
+
+
+def update_mark_status(v, tree_adj, status, v_distance_from_root):
+    child_marks = 0
+    for neighbor in tree_adj[v]:
+        if status[neighbor][1] < v_distance_from_root:
+            # that's v parent, as it's closer to root
+            continue
+        child_marked = status[neighbor][3]
+        if child_marked:
+            child_marks += 1
+            status[neighbor][2] += 1
+    status[v][2] = child_marks
+    status[v][3] = status[v][3] or child_marks > 0
 
 
 if __name__ == '__main__':

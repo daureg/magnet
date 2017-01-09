@@ -360,10 +360,9 @@ def find_hinge_nodes(tree_adj, edge_weight, nodes_sign, node_to_predict,
             discovered, distance_from_root, _, _ = status[v]
             update_mark_status(v, tree_adj, status, distance_from_root)
             if v == node_to_predict:
-                print("back at root")
                 if status[node_to_predict][2] == 1 and len(nodes_sign) > 1:
                     clean_root_hinge(node_to_predict, tree_adj, status)
-                return status, extract_hinge_nodes(status, nodes_sign, with_distances)
+                return extract_hinge_nodes(status, nodes_sign, with_distances)
         if not discovered:
             status[v][0] = True
             if v in nodes_sign:
@@ -403,7 +402,9 @@ def clean_root_hinge(root, tree_adj, status):
     while True:
         marked = []
         for child in tree_adj[node]:
-            if child not in seen:
+            if child in seen:
+                continue
+            if status[child][3]:
                 marked.append(child)
         seen.add(node)
         status[node][2] -= 1

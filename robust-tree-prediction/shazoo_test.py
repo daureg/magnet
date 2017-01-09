@@ -89,7 +89,7 @@ def test_flep_leaf():
     assert flep(tree_adj, nodes_sign, edge_weight, root, return_fullcut_info=True) == correct_answer
 
 
-def test_find_hinge_nodes():
+def test_find_hinge_nodes_paper():
     edge_weight = {(1, 3): 1, (2, 3): 1, (3, 5): 1, (4, 5): 1, (5, 6): 1, (6, 10): 1,
                    (7, 8): 1, (8, 10): 1, (9, 10): 1, (10, 11): 1, (11, 12): 1,
                    (11, 19): 1, (13, 14): 1, (14, 16): 2, (15, 16): 1, (16, 18): 1,
@@ -102,6 +102,26 @@ def test_find_hinge_nodes():
     correct_answer = {4: 6.75, 7: 5.75, 9: 4.75, 10: 3.75, 11: 2.75, 12: 3.75,
                       26: 2.5, 27: 3.5, 28: 3.5}
     node_to_predict = 14
+    answer = find_hinge_nodes(tree_adj, edge_weight, nodes_sign,
+                              node_to_predict, with_distances=True)
+    assert answer == correct_answer
+
+
+def test_find_hinge_nodes_random():
+    edge_weight = {(0, 1): 1, (0, 5): 2, (0, 6): 1, (0, 7): 1, (0, 8): 2, (0, 9): 4,
+                   (0, 13): 1, (0, 20): 2, (0, 21): 1, (0, 23): 2, (0, 27): 2,
+                   (1, 2): 2, (1, 4): 5, (1, 16): 3, (1, 25): 3, (2, 3): 4, (2, 10): 2,
+                   (2, 22): 2, (4, 11): 2, (6, 12): 4, (6, 17): 3, (8, 19): 1,
+                   (9, 14): 2, (9, 15): 5, (9, 18): 1, (9, 24): 2, (9, 29): 2,
+                   (20, 26): 3, (20, 28): 1}
+    tree_adj = {}
+    for u, v in edge_weight.keys():
+        add_edge(tree_adj, u, v)
+    nodes_sign = { 3: 1, 10: -1, 11: 1, 12: -1, 15: -1, 19: -1, 28: -1, 29: -1}
+    correct_answer = {0: 1, 9: 1.25, 1: 2, 2: 2.5,
+                      12: .25, 29: 1.75, 15: 1.45, 28: 2.5,
+                      19: 2.5, 11: 2.7, 3: 2.75, 10: 3}
+    node_to_predict = 6
     answer = find_hinge_nodes(tree_adj, edge_weight, nodes_sign,
                               node_to_predict, with_distances=True)
     assert answer == correct_answer

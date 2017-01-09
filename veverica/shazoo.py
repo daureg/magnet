@@ -340,6 +340,7 @@ def offline_shazoo(tree_adj, edge_weights, node_signs, train_vertices):
     return gold, pred
 
 
+@profile
 def find_hinge_nodes(tree_adj, edge_weight, nodes_sign, node_to_predict,
                      with_distances=False):
     """Find hinge nodes in `tree_adj` when trying to predict one node sign.
@@ -378,6 +379,7 @@ def find_hinge_nodes(tree_adj, edge_weight, nodes_sign, node_to_predict,
                 stack.append(w)
 
 
+@profile
 def extract_hinge_nodes(status, nodes_sign, with_distances=False):
     """Get nodes which are revealed or have at least 3 incident hinge lines,
     sorted by distance."""
@@ -391,6 +393,7 @@ def extract_hinge_nodes(status, nodes_sign, with_distances=False):
                                  key=lambda x: (x[1], x[0]))]
 
 
+@profile
 def clean_root_hinge(root, tree_adj, status):
     """Remove the single incorrect hinge line starting at the root.
 
@@ -416,6 +419,7 @@ def clean_root_hinge(root, tree_adj, status):
             return
 
 
+@profile
 def update_mark_status(v, tree_adj, status, v_distance_from_root):
     child_marks = 0
     for neighbor in tree_adj[v]:
@@ -430,6 +434,7 @@ def update_mark_status(v, tree_adj, status, v_distance_from_root):
     status[v][3] = status[v][3] or child_marks > 0
 
 
+@profile
 def predict_one_node(node, tree_adj, edge_weight, node_signs):
     if len(node_signs) <= 1:
         return -1
@@ -440,6 +445,7 @@ def predict_one_node(node, tree_adj, edge_weight, node_signs):
     return -1
 
 
+@profile
 def new_online_shazoo(tree_adj, nodes_status, edge_weight, hinge_lines, node_signs, gold_sign):
     """Predict all the signs of `gold_sign` in an online fashion."""
     order = list(gold_sign.keys())
@@ -461,9 +467,9 @@ if __name__ == '__main__':
 
     for i in range(10):
         gr = make_graph(800)
-        start = clock()
-        shazoo(*gr)
-        print(clock() - start)
+        # start = clock()
+        # shazoo(*gr)
+        # print(clock() - start)
         start = clock()
         new_online_shazoo(gr[0], None, gr[2], None, {}, gr[-1])
         print(clock() - start)

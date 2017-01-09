@@ -430,6 +430,29 @@ def update_mark_status(v, tree_adj, status, v_distance_from_root):
     status[v][3] = status[v][3] or child_marks > 0
 
 
+def predict_one_node(node, tree_adj, edge_weight, node_signs):
+    if len(node_signs) <= 1:
+        return -1
+    for u in find_hinge_nodes(tree_adj, edge_weight, node_signs, node):
+        val = flep(tree_adj, node_signs, edge_weight, node)[0]
+        if abs(val) > 1e-4:
+            return 1 if val > 0 else -1
+    return -1
+
+
+def new_online_shazoo(tree_adj, nodes_status, edge_weight, hinge_lines, node_signs, gold_sign):
+    """Predict all the signs of `gold_sign` in an online fashion."""
+    order = list(gold_sign.keys())
+    random.shuffle(order)
+    allpred = {}
+    for node in order:
+        pred = predict_one_node(node, tree_adj, edge_weight, node_signs)
+        allpred[node] = pred
+        node_signs[node] = gold_sign[node]
+    mistakes = sum((1 for n, p in allpred.items() if p != gold_sign[n]))
+    print('mistakes: {}'.format(mistakes))
+
+
 if __name__ == '__main__':
     # pylint: disable=C0103
     import sys
@@ -437,11 +460,17 @@ if __name__ == '__main__':
     random.seed(123456)
 
     for i in range(10):
-        shazoo(*make_graph(800))
+        gr = make_graph(800)
+        start = clock()
+        shazoo(*gr)
+        print(clock() - start)
+        start = clock()
+        new_online_shazoo(gr[0], None, gr[2], None, {}, gr[-1])
+        print(clock() - start)
+    sys.exit()
     start = clock()
     shazoo(*make_graph(4000))
     print(clock() - start)
-    sys.exit()
 
     adj, _, ew, _, _, gold_sign = make_graph(400)
     train_vertices = random.sample(gold_sign.keys(), 70)

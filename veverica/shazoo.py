@@ -683,6 +683,30 @@ def solve_by_zeroing_derivative(mapped_E, mapped_El_L, mapping, L, reorder=True)
     return res, np_cost_l2(xx, mapped_E, mapped_El_L)
 
 
+def assign_gamma(tree_adj, root, ew, parents, node_signs, faulty_sign):
+    q = deque()
+    gammas = {root: 1}
+    q.append(root)
+    sum_of_weights = defaultdict(int)
+    while q:
+        v = q.popleft()
+        p = parents[v]
+        if p:
+            w = ew[(p, v) if p < v else (v, p)]
+            gamma = gammas[p]*(w/sum_of_weights[p])
+            if v not in node_signs:
+                gammas[v] = gamma
+            else:
+                gammas[v] = gamma if node_signs[v] == faulty_sign else 0
+        for u in tree_adj[v]:
+            if u == parents[v]:
+                continue
+            w = ew[(u, v) if u < v else (v, u)]
+            sum_of_weights[v] += float(w)
+            q.append(u)
+    return gammas
+
+
 if __name__ == '__main__':
     # pylint: disable=C0103
     import sys

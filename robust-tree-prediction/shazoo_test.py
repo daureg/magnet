@@ -1,7 +1,7 @@
 import sys
 sys.path.append('../veverica')
-from shazoo import flep, MAX_WEIGHT, find_hinge_nodes
-from grid_stretch import add_edge
+from shazoo import flep, MAX_WEIGHT, find_hinge_nodes, assign_gamma
+from grid_stretch import add_edge, deque, ancestor_info
 
 
 def test_flep_larger_tree():
@@ -125,3 +125,22 @@ def test_find_hinge_nodes_random():
     answer = find_hinge_nodes(tree_adj, edge_weight, nodes_sign,
                               node_to_predict, with_distances=True)
     assert answer == correct_answer
+
+
+def test_guilt_twice():
+    edge_weight = {(4, 5): 2, (5, 6): 1.5, (6, 10): 2, (7, 8): 3, (8, 10): 1,
+                   (9, 10): 2, (10, 11): 1, (11, 12): 2, (11, 19): 1, (18, 19): 4,
+                   (18, 23): 2, (23, 26): 2, (26, 27): 1, (26, 28): 1.5}
+    tree_adj = {}
+    for u, v in edge_weight.keys():
+        add_edge(tree_adj, u, v)
+    parents = ancestor_info(tree_adj, 11)
+    node_signs = {4: -1, 7: 1, 9: 1, 12: -1, 27: 1, 28: -1}
+    correct_answer_minus = {4: 1./10, 5: 1./10, 6: 1./10, 7: 0, 8: 1./20, 9: 0, 10: 1./4, 11: 1,
+                            12: 1./2, 18: 1./4, 19: 1./4, 23: 1./4, 26: 1./4, 27: 0, 28: 3./20}
+    correct_answer_plus = {4: 0, 5: 1./10, 6: 1./10, 7: 1./20, 8: 1./20, 9: 1./10, 10: 1./4, 11: 1,
+                           12: 0, 18: 1./4, 19: 1./4, 23: 1./4, 26: 1./4, 27: 1./10, 28: 0}
+    minus = assign_gamma(tree_adj, 11, edge_weight, parents, node_signs, -1)
+    assert correct_answer_minus == minus
+    plus = assign_gamma(tree_adj, 11, edge_weight, parents, node_signs, 1)
+    assert correct_answer_plus == plus

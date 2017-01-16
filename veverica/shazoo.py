@@ -7,9 +7,14 @@ See the tree through the lines: the Shazoo algorithm.
 In Advances in Neural Information Processing Systems 24 (pp. 1584–1592).
 http://papers.nips.cc/paper/4476-see-the-tree-through-the-lines-the-shazoo-algorithm .
 """
+from __future__ import division
 from collections import deque, defaultdict
 import convert_experiment as cexp
 import random
+import numpy as np
+import scipy.sparse as sp
+from scipy.sparse.linalg import bicgstab
+from future.utils import iteritems
 from timeit import default_timer as clock
 from random_tree import get_tree as get_rst_tree
 from grid_stretch import perturbed_bfs as get_bfs_tree
@@ -105,7 +110,8 @@ def flep(tree_adj, nodes_sign, edge_weight, root, return_fullcut_info=False):
     start = clock()
     assert isinstance(tree_adj, dict)
     if root in nodes_sign:
-        return nodes_sign[root]*MAX_WEIGHT, {}
+        cutp, cutn = (MAX_WEIGHT, 0) if nodes_sign[root] < 0 else (0, MAX_WEIGHT)
+        return nodes_sign[root]*MAX_WEIGHT, {}, {root: (True, -1, cutp, cutn)}
     assert root not in nodes_sign
     stack = []
     status = defaultdict(lambda: (False, -1, 0, 0))
@@ -133,7 +139,7 @@ def flep(tree_adj, nodes_sign, edge_weight, root, return_fullcut_info=False):
                     intermediate = {n: (vals[2], vals[3])
                                     for n, vals in status.items()
                                     if vals[0] and n not in nodes_sign}
-                return (cutn - cutp, intermediate)
+                return (cutn - cutp, intermediate, status)
 
         if not discovered:
             status[v] = (True, pred, cutp, cutn)
@@ -143,10 +149,9 @@ def flep(tree_adj, nodes_sign, edge_weight, root, return_fullcut_info=False):
             stack.append(-(v+100))
             for w in tree_adj[v]:
                 discovered, pred, cutp, cutn = status[w]
-                if pred == -1:
+                if pred == -1 and w != root:
                     if w in nodes_sign:
-                        cutp, cutn = {-1: (MAX_WEIGHT, 0),
-                                      1: (0, MAX_WEIGHT)}[nodes_sign[w]]
+                        cutp, cutn = (MAX_WEIGHT, 0) if nodes_sign[w] < 0 else (0, MAX_WEIGHT)
                     status[w] = (discovered, v, cutp, cutn)
                 if not discovered:
                     stack.append(w)
@@ -255,7 +260,7 @@ def make_graph(n, tree=True):
     num_phi = sum((1 for e in ew
                    if gold_sign[e[0]] != gold_sign[e[1]]))
     print('phi edges: {}'.format(num_phi))
-    return (adj, nodes_status, ew, hinge_lines, nodes_sign, gold_sign)
+    return (adj, nodes_status, ew, hinge_lines, nodes_sign, gold_sign), num_phi
 
 
 @profile
@@ -384,13 +389,12 @@ def extract_hinge_nodes(status, nodes_sign, with_distances=False):
     """Get nodes which are revealed or have at least 3 incident hinge lines,
     sorted by distance."""
     res = {}
-    for v, (_, distance_from_root, nb_incident_hinge_lines, _) in status.iteritems():
+    for v, (_, distance_from_root, nb_incident_hinge_lines, _) in iteritems(status):
         if v in nodes_sign or nb_incident_hinge_lines >= 3:
             res[v] = distance_from_root
     if with_distances:
         return res
-    return [_[0] for _ in sorted(res.iteritems(),
-                                 key=lambda x: (x[1], x[0]))]
+    return [_[0] for _ in sorted(iteritems(res), key=lambda x: (x[1], x[0]))]
 
 
 @profile
@@ -439,7 +443,7 @@ def predict_one_node(node, tree_adj, edge_weight, node_signs):
     if len(node_signs) <= 1:
         return -1
     for u in find_hinge_nodes(tree_adj, edge_weight, node_signs, node):
-        val = flep(tree_adj, node_signs, edge_weight, node)[0]
+        val = flep(tree_adj, node_signs, edge_weight, u)[0]
         if abs(val) > 1e-4:
             return 1 if val > 0 else -1
     return -1
@@ -457,22 +461,258 @@ def new_online_shazoo(tree_adj, nodes_status, edge_weight, hinge_lines, node_sig
         node_signs[node] = gold_sign[node]
     mistakes = sum((1 for n, p in allpred.items() if p != gold_sign[n]))
     print('mistakes: {}'.format(mistakes))
+    return order
+
+
+def assign_gamma(tree_adj, root, ew, parents, node_signs, faulty_sign, only_faulty=True):
+    gammas = {root: 1}
+    if not tree_adj:
+        return gammas
+    q = deque()
+    q.append(root)
+    sum_of_weights = defaultdict(int)
+    while q:
+        v = q.popleft()
+        p = parents[v]
+        if p is not None:
+            w = ew[(p, v) if p < v else (v, p)]
+            gamma = gammas[p]*(w/sum_of_weights[p])
+            if v not in node_signs:
+                gammas[v] = gamma
+            else:
+                gammas[v] = gamma if node_signs[v] == faulty_sign else 0
+        for u in tree_adj[v]:
+            if u == parents[v]:
+                continue
+            w = ew[(u, v) if u < v else (v, u)]
+            sum_of_weights[v] += float(w)
+            q.append(u)
+    return {u: gammas[u] for u, s in iteritems(node_signs) if s == faulty_sign}
+
+
+def build_border_tree_from_mincut_run(status, edge_weight):
+    parents, leaves_sign, root = {}, {}, None
+    for k, v in iteritems(status):
+        if v[1] >= 0:
+            parents[k] = v[1]
+        else:
+            parents[k] = None
+            root = k
+        if MAX_WEIGHT in v[2:]:
+            leaves_sign[k] = 1 if v[2] == MAX_WEIGHT else -1
+
+    E, El = set(), []
+    tree_adj = {}
+    for u in leaves_sign:
+        p = parents[u]
+        if p is None:
+            assert len(leaves_sign) == 1, 'root is a leaf but not the only one!'
+            continue
+        e = (u, p) if u < p else(p, u)
+        w = edge_weight[e]
+        El.append((e[0], e[1], w))
+        add_edge(tree_adj, *e)
+        while p is not None:
+            prev = p
+            p = parents[prev]
+            if p is None:
+                break
+            e = (prev, p) if prev < p else (p, prev)
+            if e in E:
+                break
+            w = edge_weight[e]
+            E.add((e[0], e[1], w))
+            add_edge(tree_adj, *e)
+    return tree_adj, list(E), El, leaves_sign, parents, root
+
+
+def predict_one_node_three_methods(node, tree_adj, edge_weight, node_vals):
+    node_signs, node_gammas, gamma_signs = node_vals
+    if len(node_signs) <= 1:  # don't even bother
+        return (-1, None)
+    predictions = dict(shazoo=(None, None), rta=(None, None), l2cost=(None, None))
+    hinge_nodes = find_hinge_nodes(tree_adj, edge_weight, node_signs, node)
+    for u in hinge_nodes:
+        status = None
+        if predictions['shazoo'][0] is None:
+            val, _, status = flep(tree_adj, node_signs, edge_weight, u)
+            if abs(val) > 1e-5:
+                predictions['shazoo'] = (1 if val > 0 else -1, None)
+        if predictions['rta'][0] is None:
+            val, _, status = flep(tree_adj, gamma_signs, edge_weight, u)
+            if abs(val) > 1e-5:
+                border_tree = build_border_tree_from_mincut_run(status, edge_weight)
+                predictions['rta'] = (1 if val > 0 else -1, border_tree)
+        if predictions['l2cost'][0] is None:
+            if status is None:
+                _, _, status = flep(tree_adj, node_signs, edge_weight, u)
+            border_tree = build_border_tree_from_mincut_run(status, edge_weight)
+            _, E, El, leaves_sign, _, _ = border_tree
+            L = {u: node_gammas[u] for u in leaves_sign}
+            mapped_E, mapped_El_L, mapping = preprocess_edge_and_leaves(E, El, L)
+            val = solve_by_zeroing_derivative(mapped_E, mapped_El_L, mapping, L,
+                                              reorder=False)[0][u]
+            if abs(val) > 1e-5:
+                predictions['l2cost'] = (1 if val > 0 else -1, border_tree)
+        if all((pred is not None for pred, _ in predictions.values())):
+            return predictions
+    for method, (pred, tree) in iteritems(predictions):
+        if pred is None:
+            predictions[method] = (-1, tree)
+    return predictions
+
+
+def sgn(x):
+    if abs(x) < 1e-7:
+        return 0
+    return 1 if x > 0 else -1
+
+
+def threeway_batch_shazoo(tree_adj, edge_weight, node_signs, gold_sign,
+                          order=None):
+    """Predict all the signs of `gold_sign` in an online fashion."""
+    diff = 0
+    if order is None:
+        order = list(set(gold_sign.keys()) - set(node_signs.keys()))
+        random.shuffle(order)
+    allpred = {'shazoo': {}, 'rta': {}, 'l2cost': {}}
+    gammas_l2, gammas_rta, gamma_signs = dict(node_signs), dict(node_signs), dict(node_signs)
+    node_vals = (node_signs, gammas_l2, gamma_signs)
+    for node in order:
+        predictions = predict_one_node_three_methods(node, tree_adj, edge_weight, node_vals)
+        gold = gold_sign[node]
+        node_signs[node] = gold
+        gammas_l2[node] = gold
+        gammas_rta[node] = gold
+        gamma_signs[node] = gold
+        if not isinstance(predictions, dict):
+            allpred['shazoo'][node] = -1
+            allpred['rta'][node] = -1
+            allpred['l2cost'][node] = -1
+            continue
+        if predictions['rta'][0] != predictions['l2cost'][0]:
+            diff += 1
+        for method in ['shazoo', 'rta', 'l2cost']:
+            pred = predictions[method][0]
+            allpred[method][node] = pred
+            if predictions[method][1] is None:
+                continue
+            if gold != pred and method == 'rta':
+                border_tree_adj, _, _, leaves_sign, parents, root = predictions[method][1]
+                update = assign_gamma(border_tree_adj, root, edge_weight, parents, leaves_sign, -gold)
+                for leaf, gamma in iteritems(update):
+                    assert gamma > 0
+                    gammas_rta[leaf] += gold*gamma
+                    gamma_signs[leaf] = sgn(gammas_rta[leaf])
+            if gold != pred and method == 'l2cost':
+                border_tree_adj, _, _, leaves_sign, parents, root = predictions[method][1]
+                update = assign_gamma(border_tree_adj, root, edge_weight, parents, leaves_sign, -gold)
+                for leaf, gamma in iteritems(update):
+                    gammas_l2[leaf] += gold*gamma
+    gold, pred = [], {'shazoo': [], 'rta': [], 'l2cost': []}
+    for node in sorted(order):
+        pred['shazoo'].append(allpred['shazoo'][node])
+        pred['rta'].append(allpred['rta'][node])
+        pred['l2cost'].append(allpred['l2cost'][node])
+        gold.append(node_signs[node])
+    print(diff)
+    return gold, pred
+
+
+def preprocess_edge_and_leaves(E, El, L):
+    E = sorted(E)
+    El = sorted(El)
+    mapping = {v: i for i, v in enumerate(sorted({u for e in E+El for u in e[:2]}))}
+    mapped_E = np.array([[mapping[u], mapping[v], w] for u, v, w in E])
+    mapped_El_L = np.zeros((len(El), 3))
+    for i, (u, v, w) in enumerate(El):
+        if u in L:
+            u, leaf = v, u
+        else:
+            u, leaf = u, v
+        mapped_El_L[i, :] = (mapping[u], L[leaf], w)
+    return mapped_E, mapped_El_L, mapping
+
+
+def np_cost_l2(x, mapped_E, mapped_El_L):
+    if mapped_E.size > 0:
+        internal = np.sum(mapped_E[:, 2]*((x[mapped_E[:, 0].astype(int)] - x[mapped_E[:, 1].astype(int)])**2))
+    else:
+        internal = 0
+    border = np.sum(mapped_El_L[:, 2]*((x[mapped_El_L[:, 0].astype(int)] - mapped_El_L[:, 1])**2))
+    return internal + border
+
+
+def solve_by_zeroing_derivative(mapped_E, mapped_El_L, mapping, L, reorder=True):
+    n = len(mapping)
+    if n == 0:
+        # no edges mean I have only one node
+        assert len(L) == 1
+        return L, 0
+    n_internal = n-len(L)
+    W_data, W_row, W_col = [], [], []
+    b = np.zeros(n)
+    for u, v, w in mapped_E:
+        W_row.extend((u, u, v, v))
+        W_col.extend((u, v, u, v))
+        W_data.extend((2*w, -2*w, -2*w, 2*w))
+    for u, l, w in mapped_El_L:
+        u = int(u)
+        W_row.append(u)
+        W_col.append(u)
+        W_data.append(2*w)
+        b[u] += 2*w*l
+    W = sp.coo_matrix((W_data, (W_row, W_col)), shape=(n, n)).tocsc()
+    if reorder:
+        r = sp.csgraph.reverse_cuthill_mckee(W, symmetric_mode=True)
+        nmapping = {v: i for i, v in enumerate(r)}
+        mWrow = [nmapping[_] for _ in W_row]
+        mWcol = [nmapping[_] for _ in W_col]
+        W = sp.coo_matrix((W_data, (mWrow, mWcol)), shape=(n, n),).tocsc()
+        x = bicgstab(W[:n_internal, :n_internal], b[r][:n_internal])
+        xx = np.zeros(n)
+        for pos_in_x, real_idx in enumerate(r):
+            if pos_in_x < n_internal:
+                xx[real_idx] = x[0][pos_in_x]
+    else:
+        xx = bicgstab(W, b)[0]
+    res = {}
+    for u, pos_in_x in mapping.items():
+        if u not in L:
+            res[u] = xx[pos_in_x]
+    return res, np_cost_l2(xx, mapped_E, mapped_El_L)
 
 
 if __name__ == '__main__':
     # pylint: disable=C0103
     import sys
     import persistent as p
-    random.seed(123456)
+    random.seed(123458)
 
-    for i in range(10):
-        gr = make_graph(800)
+    num_rep = 10
+    res = np.zeros((num_rep, 6))
+    for i in range(num_rep):
+        gr, phi_edges = make_graph(1000)
         # start = clock()
         # shazoo(*gr)
         # print(clock() - start)
+        from collections import Counter
+        count = Counter(gr[-1].values())
+        res[i, :2] = phi_edges, count[1]
+        # start = clock()
+        # order = new_online_shazoo(gr[0], None, gr[2], None, {}, gr[-1])
+        # print(clock() - start)
+        order = None
         start = clock()
-        new_online_shazoo(gr[0], None, gr[2], None, {}, gr[-1])
-        print(clock() - start)
+        gold, preds = threeway_batch_shazoo(gr[0], gr[2], {}, gr[-1], order)
+        for j, (method, pred) in enumerate(sorted(preds.items(), key=lambda x: x[0])):
+            mistakes = sum((1 for g, p in zip(gold, pred) if p != g))
+            print('{} made {} mistakes'.format(method.ljust(6), mistakes))
+            res[i, 2+j] = mistakes
+        time_elapsed = (clock() - start)
+        res[i, -1] = time_elapsed
+        print(time_elapsed)
+        np.savez_compressed('shazoo_run', res=res, do_compression=True)
     sys.exit()
     start = clock()
     shazoo(*make_graph(4000))

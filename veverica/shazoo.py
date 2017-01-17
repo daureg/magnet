@@ -575,7 +575,7 @@ def sgn(x):
 def threeway_batch_shazoo(tree_adj, edge_weight, node_signs, gold_sign,
                           order=None):
     """Predict all the signs of `gold_sign` in an online fashion."""
-    diff = 0
+    diff_rta_l2, diff_rta_shazoo = 0, 0
     if order is None:
         order = list(set(gold_sign.keys()) - set(node_signs.keys()))
         random.shuffle(order)
@@ -595,7 +595,9 @@ def threeway_batch_shazoo(tree_adj, edge_weight, node_signs, gold_sign,
             allpred['l2cost'][node] = -1
             continue
         if predictions['rta'][0] != predictions['l2cost'][0]:
-            diff += 1
+            diff_rta_l2 += 1
+        if predictions['rta'][0] != predictions['shazoo'][0]:
+            diff_rta_shazoo += 1
         for method in ['shazoo', 'rta', 'l2cost']:
             pred = predictions[method][0]
             allpred[method][node] = pred
@@ -619,7 +621,7 @@ def threeway_batch_shazoo(tree_adj, edge_weight, node_signs, gold_sign,
         pred['rta'].append(allpred['rta'][node])
         pred['l2cost'].append(allpred['l2cost'][node])
         gold.append(node_signs[node])
-    print(diff)
+    print('RTA & L2 differed on {} predictions\nRTA & Shazoo differed on {} predictions'.format(diff_rta_l2, diff_rta_shazoo))
     return gold, pred
 
 

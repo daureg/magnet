@@ -489,7 +489,9 @@ def assign_gamma(tree_adj, root, ew, parents, node_signs, faulty_sign, only_faul
             w = ew[(u, v) if u < v else (v, u)]
             sum_of_weights[v] += float(w)
             q.append(u)
-    return {u: gammas[u] for u, s in iteritems(node_signs) if s == faulty_sign}
+    if only_faulty:
+        return {u: gammas[u] for u, s in iteritems(node_signs) if s == faulty_sign}
+    return gammas
 
 
 def build_border_tree_from_mincut_run(status, edge_weight):

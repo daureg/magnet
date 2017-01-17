@@ -140,7 +140,7 @@ def test_guilt_twice():
                             12: 1./2, 18: 1./4, 19: 1./4, 23: 1./4, 26: 1./4, 27: 0, 28: 3./20}
     correct_answer_plus = {4: 0, 5: 1./10, 6: 1./10, 7: 1./20, 8: 1./20, 9: 1./10, 10: 1./4, 11: 1,
                            12: 0, 18: 1./4, 19: 1./4, 23: 1./4, 26: 1./4, 27: 1./10, 28: 0}
-    minus = assign_gamma(tree_adj, 11, edge_weight, parents, node_signs, -1)
+    minus = assign_gamma(tree_adj, 11, edge_weight, parents, node_signs, -1, only_faulty=False)
     assert correct_answer_minus == minus
-    plus = assign_gamma(tree_adj, 11, edge_weight, parents, node_signs, 1)
+    plus = assign_gamma(tree_adj, 11, edge_weight, parents, node_signs, 1, only_faulty=False)
     assert correct_answer_plus == plus

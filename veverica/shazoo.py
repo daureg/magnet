@@ -503,7 +503,7 @@ def build_border_tree_from_mincut_run(status, edge_weight):
             parents[k] = None
             root = k
         if MAX_WEIGHT in v[2:]:
-            leaves_sign[k] = 1 if v[2] == MAX_WEIGHT else -1
+            leaves_sign[k] = -1 if v[2] == MAX_WEIGHT else 1
 
     E, El = set(), []
     tree_adj = {}

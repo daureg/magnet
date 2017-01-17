@@ -241,7 +241,7 @@ def predict_node_sign(tree_adj, node, nodes_status, nodes_sign, hinge_lines,
     return -1 if min_connect is None else connect_nodes[min_connect]
 
 
-def make_graph(n, tree=True):
+def make_graph(n, tree=True, flipping_p=.04):
     if tree:
         cexp.fast_preferential_attachment(n, 1)
     else:
@@ -252,7 +252,7 @@ def make_graph(n, tree=True):
 
     def to_bin_sign(val):
         val = 1 if val % 2 == 0 else -1
-        return val if random.random() > .04 else -val
+        return val if random.random() > flipping_p else -val
     gold_sign = {i: to_bin_sign(v) for i, v in enumerate(ci)}
     nodes_status = {n: UNKNOWN for n in adj}
     hinge_lines = {e: False for e in ew}

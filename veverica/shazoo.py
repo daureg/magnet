@@ -288,8 +288,8 @@ def shazoo(tree_adj, nodes_status, edge_weight, hinge_lines, nodes_sign,
 
 @profile
 def offline_cut_computation(tree_adj, nodes_sign, edge_weight, root):
-    _, rooted_cut = flep(tree_adj, nodes_sign, edge_weight, root,
-                         return_fullcut_info=True)
+    _, rooted_cut, _ = flep(tree_adj, nodes_sign, edge_weight, root,
+                            return_fullcut_info=True)
     queue = deque()
     discovered = {k: k == root for k in tree_adj}
     queue.append(root)

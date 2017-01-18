@@ -577,7 +577,7 @@ def sgn(x):
 
 
 def threeway_batch_shazoo(tree_adj, edge_weight, node_signs, gold_sign,
-                          order=None):
+                          order=None, return_gammas=False):
     """Predict all the signs of `gold_sign` in an online fashion."""
     diff_rta_l2, diff_rta_shazoo = 0, 0
     if order is None:
@@ -626,6 +626,8 @@ def threeway_batch_shazoo(tree_adj, edge_weight, node_signs, gold_sign,
         pred['l2cost'].append(allpred['l2cost'][node])
         gold.append(node_signs[node])
     print('RTA & L2 differed on {} predictions\nRTA & Shazoo differed on {} predictions'.format(diff_rta_l2, diff_rta_shazoo))
+    if return_gammas:
+        return gold, pred, node_vals
     return gold, pred
 
 
@@ -693,7 +695,7 @@ def solve_by_zeroing_derivative(mapped_E, mapped_El_L, mapping, L, reorder=True)
     return res, np_cost_l2(xx, mapped_E, mapped_El_L)
 
 
-def get_hinge_tree(root, hinge_nodes):
+def get_hinge_tree(root, tree_adj, hinge_nodes):
     """Get the edges of the hinge tree rooted at `root`."""
     queue = deque((root, ))
     discovered = defaultdict(lambda: False)
@@ -745,34 +747,55 @@ def batch_predict(tree_adj, training_signs, edge_weight):
     once), extracting all hinge tree within, and predicting the signs of non revealed by
     propagating hinge values.
     """
+    # since shazoo use the revealed signs as-is, it's ok to use the same name
+    training_signs, l2_values, rta_signs = training_signs
     all_nodes_to_predict = set(tree_adj) - set(training_signs)
+    methods = ['l2cost', 'rta', 'shazoo']
     # fields are current_closest_hinge, current_sign, current_dst_to_closest_hinge
-    node_predictions = defaultdict(lambda: (None, None, 2e9))
-    hinge_value = {}
+    node_predictions = {m: defaultdict(lambda: (None, None, 2e9)) for m in methods}
+    hinge_value = {m: {} for m in methods}
     while all_nodes_to_predict:
         some_root_of_a_border_tree = next(iter(all_nodes_to_predict))
-        hinge_nodes, border_tree_nodes = sz.find_hinge_nodes(tree_adj, edge_weight, training_signs,
-                                                             some_root_of_a_border_tree,
-                                                             with_visited=True)
+        hinge_nodes, border_tree_nodes = find_hinge_nodes(tree_adj, edge_weight, training_signs,
+                                                          some_root_of_a_border_tree,
+                                                          with_visited=True)
         unmarked = border_tree_nodes - hinge_nodes
-        # probably here I should extract border tree for L2 with one flep call
-        # in hinge_nodes (or save it from RTA, but that's a strong coupling)
-        hinge_value.update({u: sz.sgn(sz.flep(tree_adj, training_signs, edge_weight, u)[0])
-                            for u in hinge_nodes if u not in hinge_value})
+        for u in hinge_nodes:
+            if u in hinge_value['shazoo']:
+                continue
+            hinge_value['shazoo'][u] = sgn(flep(tree_adj, training_signs, edge_weight, u)[0])
+            val, _, status = flep(tree_adj, rta_signs, edge_weight, u)
+            hinge_value['rta'][u] = sgn(val)
+            border_tree = build_border_tree_from_mincut_run(status, edge_weight)
+            _, E, El, leaves_sign, _, _ = border_tree
+            L = {u: l2_values[u] for u in leaves_sign}
+            mapped_E, mapped_El_L, mapping = preprocess_edge_and_leaves(E, El, L)
+            val = solve_by_zeroing_derivative(mapped_E, mapped_El_L, mapping, L,
+                                                 reorder=False)[0][u]
+            hinge_value['l2cost'][u] = sgn(val)
         predicted_in_that_border_tree = set()
         while unmarked:
             one_to_predict = next(iter(unmarked))
-            hinge_tree = get_hinge_tree(one_to_predict, hinge_nodes)
+            hinge_tree = get_hinge_tree(one_to_predict, tree_adj, hinge_nodes)
             other_predicted = set()
-            for h, h_val in iteritems(hinge_value):
+            for h, h_val in iteritems(hinge_value['shazoo']):
                 if h not in hinge_tree:
                     continue
-                predicted = propagate_hinge(hinge_tree, h, h_val, node_predictions, edge_weight)
+                predicted = propagate_hinge(hinge_tree, h, h_val, node_predictions['shazoo'],
+                                            edge_weight)
+                for u in predicted:
+                    prediction_info = node_predictions['shazoo'][u]
+                    used_hinge = prediction_info[0]
+                    node_predictions['rta'][u] = (used_hinge, hinge_value['rta'][used_hinge],
+                                                  prediction_info[2])
+                    node_predictions['l2cost'][u] = (used_hinge, hinge_value['l2cost'][used_hinge],
+                                                     prediction_info[2])
                 other_predicted.update(predicted)
             predicted_in_that_border_tree.update(other_predicted)
             unmarked -= other_predicted
         all_nodes_to_predict -= predicted_in_that_border_tree
-    return {u: v[1] for u, v in iteritems(node_predictions) if u not in training_signs}
+    return {m: {u: v[1] for u, v in iteritems(node_predictions[m]) if u not in training_signs}
+            for m in methods}
 
 
 if __name__ == '__main__':

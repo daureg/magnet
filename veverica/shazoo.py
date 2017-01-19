@@ -612,20 +612,20 @@ def threeway_batch_shazoo(tree_adj, edge_weight, node_signs, gold_sign,
                 update = assign_gamma(border_tree_adj, root, edge_weight, parents, leaves_sign, -gold)
                 for leaf, gamma in iteritems(update):
                     assert gamma > 0
-                    gammas_rta[leaf] += gold*gamma
+                    gammas_rta[leaf] += 1.5*gold*gamma
                     gamma_signs[leaf] = sgn(gammas_rta[leaf])
             if gold != pred and method == 'l2cost':
                 border_tree_adj, _, _, leaves_sign, parents, root = predictions[method][1]
                 update = assign_gamma(border_tree_adj, root, edge_weight, parents, leaves_sign, -gold)
                 for leaf, gamma in iteritems(update):
-                    gammas_l2[leaf] += gold*gamma
+                    gammas_l2[leaf] += 1.5*gold*gamma
     gold, pred = [], {'shazoo': [], 'rta': [], 'l2cost': []}
     for node in sorted(order):
         pred['shazoo'].append(allpred['shazoo'][node])
         pred['rta'].append(allpred['rta'][node])
         pred['l2cost'].append(allpred['l2cost'][node])
         gold.append(node_signs[node])
-    print('RTA & L2 differed on {} predictions\nRTA & Shazoo differed on {} predictions'.format(diff_rta_l2, diff_rta_shazoo))
+    # print('RTA & L2 differed on {} predictions\nRTA & Shazoo differed on {} predictions'.format(diff_rta_l2, diff_rta_shazoo))
     if return_gammas:
         return gold, pred, node_vals
     return gold, pred

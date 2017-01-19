@@ -7,6 +7,9 @@ import persistent
 import shazoo as sz
 import numpy as np
 import time
+from itertools import repeat
+from multiprocessing import Pool
+NUM_THREADS = 13
 
 
 def compute_phi(edge_weight, gold):
@@ -80,10 +83,12 @@ def real_exps(num_tree=2, num_run=15, train_fraction=.2):
     sorted_train_set = sorted(train_set)
     sorted_gold = [gold_signs[u] for u in sorted_test_set]
     batch_order = []
+    methods = sorted(['shazoo', 'rta', 'l2cost'])
     z = list(range(len(train_set)))
     for _ in range(num_run):
         sz.random.shuffle(z)
         batch_order.append([sorted_train_set[u] for u in z])
+    pool = Pool(NUM_THREADS)
     for ip, p in enumerate(tqdm(perturbations, desc='perturbation', unit='flip', unit_scale=True)):
         tqdm.write('starting')
         perturbed_gold = {u: (1 if sz.random.random() >= p/100.0 else -1)*s
@@ -95,21 +100,16 @@ def real_exps(num_tree=2, num_run=15, train_fraction=.2):
             sz.GRAPH, sz.EWEIGHTS = g_adj, g_ew
             sz.get_bfs(bfs_root)
             adj, ew = sz.TREE_ADJ, sz.TWEIGHTS
-            start = sz.clock()
-            for k in range(num_run):
-                _, _, node_vals = sz.threeway_batch_shazoo(adj, ew, {}, perturbed_gold,
-                                                           order=batch_order[k], return_gammas=True)
-                bpreds = sz.batch_predict(adj, node_vals, ew)
-                for j, (method, dpred) in enumerate(sorted(bpreds.items(), key=lambda x: x[0])):
-                    mistakes = sum((1 for node, p in sz.iteritems(dpred) if p != gold_signs[node]))
-                    p_mistakes = sum((1 for node, p in sz.iteritems(dpred) if p != perturbed_gold[node]))
-                    res[ip, i, k, j, :] = (p_mistakes, mistakes)
-                    keep_preds[method].append([dpred[u] for u in sorted_test_set])
-                    np.savez_compressed(res_file, res=res)
-            # time_elapsed = sz.clock() - start
-            # print(time_elapsed/num_run)
+            args = zip(repeat(adj, num_tree), batch_order, repeat(ew, num_tree),
+                       repeat(gold_signs, num_tree), repeat(perturbed_gold, num_tree),
+                       repeat(sorted_test_set, num_tree))
+            runs = list(pool.imap_unordered(run_once, args))
+            for k, lres in enumerate(runs):
+                for j, (method, data) in enumerate(zip(methods, lres)):
+                    res[ip, i, k, j, :] = data[:2]
+                    keep_preds[method].append(data[2])
             for j, (method, preds) in enumerate(sorted(keep_preds.items(), key=lambda x: x[0])):
-                pred = sz.majority_vote(preds[:5])
+                pred = sz.majority_vote(preds[:min(5, len(preds))])
                 mistakes = sum((1 for g, p in zip(sorted_gold, pred) if p != g))
                 p_mistakes = sum((1 for g, p in zip(sorted_perturbed_gold, pred) if p != g))
                 res[ip, i, -2, j, :] = (p_mistakes, mistakes)
@@ -118,7 +118,22 @@ def real_exps(num_tree=2, num_run=15, train_fraction=.2):
                 p_mistakes = sum((1 for g, p in zip(sorted_perturbed_gold, pred) if p != g))
                 res[ip, i, -1, j, :] = (p_mistakes, mistakes)
                 tqdm.write('{} made {} mistakes'.format(method.ljust(6), mistakes))
-                np.savez_compressed(res_file, res=res)
+                np.savez_compressed(res_file, res=res, phis=phis)
+    pool.close()
+    pool.join()
+
+
+def run_once(args):
+    tree_adj, batch_order, ew, gold_signs, perturbed_gold, sorted_test_set = args
+    node_vals = sz.threeway_batch_shazoo(tree_adj, ew, {}, perturbed_gold,
+                                         order=batch_order, return_gammas=True)[-1]
+    bpreds = sz.batch_predict(tree_adj, node_vals, ew)
+    local_res = []
+    for j, (method, dpred) in enumerate(sorted(bpreds.items(), key=lambda x: x[0])):
+        mistakes = sum((1 for node, p in sz.iteritems(dpred) if p != gold_signs[node]))
+        p_mistakes = sum((1 for node, p in sz.iteritems(dpred) if p != perturbed_gold[node]))
+        local_res.append((p_mistakes, mistakes, [dpred[u] for u in sorted_test_set]))
+    return local_res
 
 
 def star_exps(n, num_rep=5, p=.1):
@@ -152,4 +167,4 @@ if __name__ == '__main__':
     sz.random.seed(123458)
     # online_repetition_exps(num_rep=1, num_run=9)
     # star_exps(400, 1, .02)
-    real_exps(num_tree=10, num_run=17, train_fraction=.2)
+    real_exps(num_tree=10, num_run=NUM_THREADS, train_fraction=.2)

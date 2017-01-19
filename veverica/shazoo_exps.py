@@ -64,7 +64,7 @@ def online_repetition_exps(num_rep=2, num_run=13):
 def real_exps(num_tree=2, num_run=15, train_fraction=.2):
     exp_start = (int(time.time()-(2017-1970)*365.25*24*60*60))//60
     res_file = 'shazoo_citeseer_{}.npz'.format(exp_start)
-    perturbations = [0, 2.5, 5, 10, 20, 30]
+    perturbations = [0, 2.5, 5, 10, 15, 20]
     res = np.zeros((len(perturbations), num_tree, num_run+2, 3, 2))
     phis = np.zeros(len(perturbations))
     g_adj, g_ew, gold_signs, phi = load_citeseer()
@@ -86,7 +86,7 @@ def real_exps(num_tree=2, num_run=15, train_fraction=.2):
         batch_order.append([sorted_train_set[u] for u in z])
     for ip, p in enumerate(tqdm(perturbations, desc='perturbation', unit='flip', unit_scale=True)):
         tqdm.write('starting')
-        perturbed_gold = {u: (1 if sz.random.random() >= p else -1)*s
+        perturbed_gold = {u: (1 if sz.random.random() >= p/100.0 else -1)*s
                           for u, s in sz.iteritems(gold_signs)}
         sorted_perturbed_gold = [perturbed_gold[u] for u in sorted_test_set]
         phis[ip] = compute_phi(g_ew, perturbed_gold)

@@ -9,7 +9,44 @@ import numpy as np
 import time
 from itertools import repeat
 from multiprocessing import Pool
+import scipy.sparse as sp
+import scipy.io as sio
+import os
 NUM_THREADS = 13
+
+
+def get_weight_matrix(G, E):
+    if os.path.exists('citeseer.mat'):
+        data = sio.loadmat('citeseer.mat', squeeze_me=True)
+        return data['W'], data['d']
+    n, m = len(G), len(E)
+    sorted_edges = np.zeros((m, 3))
+    for i, (e, s) in enumerate(sorted(sz.iteritems(E.items))):
+        u, v = e
+        sorted_edges[i, :] = (u, v, s)
+    W_row, W_col, W_data = [], [], []
+    for ve, row in enumerate(sorted_edges):
+        u, v, s = int(row[0]), int(row[1]), row[2]
+        W_row.extend((u, v))
+        W_col.extend((v, u))
+        W_data.extend((s, s))
+    W = sp.coo_matrix((W_data, (W_row, W_col)), shape=(n, n),
+                      dtype=np.float64).tocsc()
+    d = np.array(np.abs(W).sum(1)).ravel()
+    d[d == 0] = 1
+    d = 1/d
+    sio.savemat('citeseer.mat', dict(W=W, d=d), do_compression=True)
+    return W, d
+
+
+def run_labprop(gold_signs, sorted_test_set, sorted_train_set, W, d):
+    fixed_vals = np.array([gold_signs[u] for u in sorted_train_set], dtype=float)
+    f = np.zeros(len(gold_signs))
+    f[sorted_train_set] = fixed_vals
+    for iter_ in range(20):
+        f = (W@f)*d
+        f[sorted_train_set] = fixed_vals
+    return np.sign(f[sorted_test_set])
 
 
 def compute_phi(edge_weight, gold):
@@ -71,6 +108,8 @@ def real_exps(num_tree=2, num_run=15, train_fraction=.2):
     res = np.zeros((len(perturbations), num_tree, num_run+2, 3, 2))
     phis = np.zeros(len(perturbations))
     g_adj, g_ew, gold_signs, phi = load_citeseer()
+    weights, inv_degree = get_weight_matrix(g_adj, g_ew)
+    lprop_res = np.zeros((len(perturbations), 2))
     n = len(g_adj)
     bfs_root = max(g_adj.items(), key=lambda x: len(x[1]))[0]
     nodes_id = set(range(n))
@@ -90,11 +129,17 @@ def real_exps(num_tree=2, num_run=15, train_fraction=.2):
         batch_order.append([sorted_train_set[u] for u in z])
     pool = Pool(NUM_THREADS)
     for ip, p in enumerate(tqdm(perturbations, desc='perturbation', unit='flip', unit_scale=True)):
-        tqdm.write('starting')
         perturbed_gold = {u: (1 if sz.random.random() >= p/100.0 else -1)*s
                           for u, s in sz.iteritems(gold_signs)}
         sorted_perturbed_gold = [perturbed_gold[u] for u in sorted_test_set]
         phis[ip] = compute_phi(g_ew, perturbed_gold)
+        lprop_pred = run_labprop(perturbed_gold, sorted_test_set,
+                                 sorted_train_set, weights, inv_degree)
+        mistakes = sum((1 for g, p in zip(sorted_gold, lprop_pred) if p != g))
+        p_mistakes = sum((1 for g, p in zip(sorted_perturbed_gold, lprop_pred) if p != g))
+        lprop_res[ip, :] = (p_mistakes, mistakes)
+        print(lprop_res[ip, :])
+        continue
         for i in trange(num_tree, desc='tree', unit='tree', unit_scale=True):
             keep_preds = defaultdict(list)
             sz.GRAPH, sz.EWEIGHTS = g_adj, g_ew

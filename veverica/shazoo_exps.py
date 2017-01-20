@@ -15,13 +15,13 @@ import os
 NUM_THREADS = 13
 
 
-def get_weight_matrix(G, E):
-    if os.path.exists('citeseer.mat'):
-        data = sio.loadmat('citeseer.mat', squeeze_me=True)
+def get_weight_matrix(G, E, dataset='citeseer'):
+    if os.path.exists('{}.mat'.format(dataset)):
+        data = sio.loadmat('{}.mat'.format(dataset), squeeze_me=True)
         return data['W'], data['d']
     n, m = len(G), len(E)
     sorted_edges = np.zeros((m, 3))
-    for i, (e, s) in enumerate(sorted(sz.iteritems(E.items))):
+    for i, (e, s) in enumerate(sorted(sz.iteritems(E))):
         u, v = e
         sorted_edges[i, :] = (u, v, s)
     W_row, W_col, W_data = [], [], []
@@ -35,7 +35,7 @@ def get_weight_matrix(G, E):
     d = np.array(np.abs(W).sum(1)).ravel()
     d[d == 0] = 1
     d = 1/d
-    sio.savemat('citeseer.mat', dict(W=W, d=d), do_compression=True)
+    sio.savemat('{}.mat'.format(dataset), dict(W=W, d=d), do_compression=True)
     return W, d
 
 
@@ -65,8 +65,12 @@ def make_graph(n, tree=True, p=.04):
     return adj, ew, gold, res[1]
 
 
-def load_citeseer(main_class=1):
-    ew, y = persistent.load_var('citeseer_lcc.my')
+def load_real_graph(dataset='citeseer', main_class=None):
+    default_main_class = {'citeseer': 1,
+                          'cora': 2,
+                          }
+    main_class = main_class if main_class is not None else default_main_class[dataset]
+    ew, y = persistent.load_var('{}_lcc.my'.format(dataset))
     adj = {}
     for u, v in ew:
         add_edge(adj, u, v)
@@ -101,14 +105,14 @@ def online_repetition_exps(num_rep=2, num_run=13):
             np.savez_compressed(res_file, res=res)
 
 
-def real_exps(num_tree=2, num_run=15, train_fraction=.2):
+def real_exps(num_tree=2, num_run=15, train_fraction=.2, dataset='citeseer'):
     exp_start = (int(time.time()-(2017-1970)*365.25*24*60*60))//60
-    res_file = 'shazoo_citeseer_{}.npz'.format(exp_start)
+    res_file = 'shazoo_{}_{}.npz'.format(dataset, exp_start)
     perturbations = [0, 2.5, 5, 10, 15, 20]
     res = np.zeros((len(perturbations), num_tree, num_run+2, 3, 2))
     phis = np.zeros(len(perturbations))
-    g_adj, g_ew, gold_signs, phi = load_citeseer()
-    weights, inv_degree = get_weight_matrix(g_adj, g_ew)
+    g_adj, g_ew, gold_signs, phi = load_real_graph(dataset)
+    weights, inv_degree = get_weight_matrix(g_adj, g_ew, dataset)
     lprop_res = np.zeros((len(perturbations), 2))
     n = len(g_adj)
     bfs_root = max(g_adj.items(), key=lambda x: len(x[1]))[0]
@@ -138,8 +142,6 @@ def real_exps(num_tree=2, num_run=15, train_fraction=.2):
         mistakes = sum((1 for g, p in zip(sorted_gold, lprop_pred) if p != g))
         p_mistakes = sum((1 for g, p in zip(sorted_perturbed_gold, lprop_pred) if p != g))
         lprop_res[ip, :] = (p_mistakes, mistakes)
-        print(lprop_res[ip, :])
-        continue
         for i in trange(num_tree, desc='tree', unit='tree', unit_scale=True):
             keep_preds = defaultdict(list)
             sz.GRAPH, sz.EWEIGHTS = g_adj, g_ew
@@ -163,7 +165,7 @@ def real_exps(num_tree=2, num_run=15, train_fraction=.2):
                 p_mistakes = sum((1 for g, p in zip(sorted_perturbed_gold, pred) if p != g))
                 res[ip, i, -1, j, :] = (p_mistakes, mistakes)
                 tqdm.write('{} made {} mistakes'.format(method.ljust(6), mistakes))
-                np.savez_compressed(res_file, res=res, phis=phis)
+                np.savez_compressed(res_file, res=res, phis=phis, lprop=lprop_res)
     pool.close()
     pool.join()
 
@@ -212,4 +214,4 @@ if __name__ == '__main__':
     sz.random.seed(123458)
     # online_repetition_exps(num_rep=1, num_run=9)
     # star_exps(400, 1, .02)
-    real_exps(num_tree=10, num_run=NUM_THREADS, train_fraction=.2)
+    real_exps(num_tree=20, num_run=NUM_THREADS, train_fraction=.2, dataset='cora')

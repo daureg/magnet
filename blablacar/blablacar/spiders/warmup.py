@@ -34,6 +34,7 @@ def parse_activity(activity, scraptime):
         reply_rate = int(text_activity['Taux'][:-1])
     # for https://github.com/scrapinghub/dateparser/issues/268
     last_ping = text_activity['Dernière'].replace('mar.', '')
+    last_ping = last_ping.replace('lun. 29 févr.', 'lun. 29 févr. 2016')
     last_ping = int((scraptime - parse_date(last_ping)).total_seconds())
     joined = parse_date(text_activity['Membre']).date()
     return num_post, reply_rate, last_ping, joined

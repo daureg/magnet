@@ -15,15 +15,16 @@ import os
 NUM_THREADS = 13
 
 
-def get_weight_matrix(G, E, dataset='citeseer'):
+def get_weight_matrix(E, dataset='citeseer'):
     if os.path.exists('{}.mat'.format(dataset)):
         data = sio.loadmat('{}.mat'.format(dataset), squeeze_me=True)
         return data['W'], data['d']
-    n, m = len(G), len(E)
+    m = len(E)
     sorted_edges = np.zeros((m, 3))
     for i, (e, s) in enumerate(sorted(sz.iteritems(E))):
         u, v = e
         sorted_edges[i, :] = (u, v, s)
+    n = sorted_edges[:, :2].astype(int).max() + 1
     W_row, W_col, W_data = [], [], []
     for ve, row in enumerate(sorted_edges):
         u, v, s = int(row[0]), int(row[1]), row[2]

@@ -9,45 +9,15 @@ import numpy as np
 import time
 from itertools import repeat
 from multiprocessing import Pool
-import scipy.sparse as sp
-import scipy.io as sio
-import os
+if sz.USE_SCIPY:
+    from shazoo_scipy import run_labprop, get_weight_matrix
+else:
+    def run_labprop(gold_signs, test_set, *args):
+        return np.sign(2*np.random.random(len(test_set))-1)
+
+    def get_weight_matrix(*args):
+        return None, None
 NUM_THREADS = 13
-
-
-def get_weight_matrix(E, dataset='citeseer'):
-    if os.path.exists('{}.mat'.format(dataset)):
-        data = sio.loadmat('{}.mat'.format(dataset), squeeze_me=True)
-        return data['W'], data['d']
-    m = len(E)
-    sorted_edges = np.zeros((m, 3))
-    for i, (e, s) in enumerate(sorted(sz.iteritems(E))):
-        u, v = e
-        sorted_edges[i, :] = (u, v, s)
-    n = sorted_edges[:, :2].astype(int).max() + 1
-    W_row, W_col, W_data = [], [], []
-    for ve, row in enumerate(sorted_edges):
-        u, v, s = int(row[0]), int(row[1]), row[2]
-        W_row.extend((u, v))
-        W_col.extend((v, u))
-        W_data.extend((s, s))
-    W = sp.coo_matrix((W_data, (W_row, W_col)), shape=(n, n),
-                      dtype=np.float64).tocsc()
-    d = np.array(np.abs(W).sum(1)).ravel()
-    d[d == 0] = 1
-    d = 1/d
-    sio.savemat('{}.mat'.format(dataset), dict(W=W, d=d), do_compression=True)
-    return W, d
-
-
-def run_labprop(gold_signs, sorted_test_set, sorted_train_set, W, d):
-    fixed_vals = np.array([gold_signs[u] for u in sorted_train_set], dtype=float)
-    f = np.zeros(len(gold_signs))
-    f[sorted_train_set] = fixed_vals
-    for iter_ in range(20):
-        f = (W@f)*d
-        f[sorted_train_set] = fixed_vals
-    return np.sign(f[sorted_test_set])
 
 
 def compute_phi(edge_weight, gold):
@@ -180,7 +150,10 @@ def run_once(args):
     for j, (method, dpred) in enumerate(sorted(bpreds.items(), key=lambda x: x[0])):
         mistakes = sum((1 for node, p in sz.iteritems(dpred) if p != gold_signs[node]))
         p_mistakes = sum((1 for node, p in sz.iteritems(dpred) if p != perturbed_gold[node]))
-        local_res.append((p_mistakes, mistakes, [dpred[u] for u in sorted_test_set]))
+        if method == 'l2cost' and not sz.USE_SCIPY:
+            local_res.append((0, 0, run_labprop(None, sorted_test_set)))
+        else:
+            local_res.append((p_mistakes, mistakes, [dpred[u] for u in sorted_test_set]))
     return local_res
 
 

@@ -12,8 +12,11 @@ from collections import deque, defaultdict
 import convert_experiment as cexp
 import random
 import numpy as np
-import scipy.sparse as sp
-from scipy.sparse.linalg import bicgstab
+USE_SCIPY = True
+try:
+    import scipy.sparse as sp
+except ImportError:
+    USE_SCIPY = False
 from future.utils import iteritems
 from timeit import default_timer as clock
 from random_tree import get_tree as get_rst_tree
@@ -26,6 +29,12 @@ UNKNOWN, REVEALED, FORK, HINGE = 0, 1, 2, 3
 FLEP_CALLS_TIMING = []
 GRAPH, TREE_ADJ, TWEIGHTS = None, None, None
 EWEIGHTS, SIGNS, VTRAIN = None, None, None
+USE_SCIPY = False
+if USE_SCIPY:
+    from shazoo_scipy import solve_by_zeroing_derivative
+else:
+    def solve_by_zeroing_derivative(*args):
+        pass
 
 
 def profile(f):
@@ -538,7 +547,8 @@ def predict_one_node_three_methods(node, tree_adj, edge_weight, node_vals):
     node_signs, node_gammas, gamma_signs = node_vals
     if len(node_signs) <= 1:  # don't even bother
         return (-1, None)
-    predictions = dict(shazoo=(None, None), rta=(None, None), l2cost=(None, None))
+    predictions = dict(shazoo=(None, None), rta=(None, None),
+                       l2cost=(None if USE_SCIPY else -1, None))
     hinge_nodes = find_hinge_nodes(tree_adj, edge_weight, node_signs, node)
     for u in hinge_nodes:
         status = None
@@ -646,55 +656,6 @@ def preprocess_edge_and_leaves(E, El, L):
     return mapped_E, mapped_El_L, mapping
 
 
-def np_cost_l2(x, mapped_E, mapped_El_L):
-    if mapped_E.size > 0:
-        internal = np.sum(mapped_E[:, 2]*((x[mapped_E[:, 0].astype(int)] - x[mapped_E[:, 1].astype(int)])**2))
-    else:
-        internal = 0
-    border = np.sum(mapped_El_L[:, 2]*((x[mapped_El_L[:, 0].astype(int)] - mapped_El_L[:, 1])**2))
-    return internal + border
-
-
-def solve_by_zeroing_derivative(mapped_E, mapped_El_L, mapping, L, reorder=True):
-    n = len(mapping)
-    if n == 0:
-        # no edges mean I have only one node
-        assert len(L) == 1
-        return L, 0
-    n_internal = n-len(L)
-    W_data, W_row, W_col = [], [], []
-    b = np.zeros(n)
-    for u, v, w in mapped_E:
-        W_row.extend((u, u, v, v))
-        W_col.extend((u, v, u, v))
-        W_data.extend((2*w, -2*w, -2*w, 2*w))
-    for u, l, w in mapped_El_L:
-        u = int(u)
-        W_row.append(u)
-        W_col.append(u)
-        W_data.append(2*w)
-        b[u] += 2*w*l
-    W = sp.coo_matrix((W_data, (W_row, W_col)), shape=(n, n)).tocsc()
-    if reorder:
-        r = sp.csgraph.reverse_cuthill_mckee(W, symmetric_mode=True)
-        nmapping = {v: i for i, v in enumerate(r)}
-        mWrow = [nmapping[_] for _ in W_row]
-        mWcol = [nmapping[_] for _ in W_col]
-        W = sp.coo_matrix((W_data, (mWrow, mWcol)), shape=(n, n),).tocsc()
-        x = bicgstab(W[:n_internal, :n_internal], b[r][:n_internal])
-        xx = np.zeros(n)
-        for pos_in_x, real_idx in enumerate(r):
-            if pos_in_x < n_internal:
-                xx[real_idx] = x[0][pos_in_x]
-    else:
-        xx = bicgstab(W, b)[0]
-    res = {}
-    for u, pos_in_x in mapping.items():
-        if u not in L:
-            res[u] = xx[pos_in_x]
-    return res, np_cost_l2(xx, mapped_E, mapped_El_L)
-
-
 def get_hinge_tree(root, tree_adj, hinge_nodes):
     """Get the edges of the hinge tree rooted at `root`."""
     queue = deque((root, ))
@@ -766,6 +727,8 @@ def batch_predict(tree_adj, training_signs, edge_weight):
             hinge_value['shazoo'][u] = sgn(flep(tree_adj, training_signs, edge_weight, u)[0])
             val, _, status = flep(tree_adj, rta_signs, edge_weight, u)
             hinge_value['rta'][u] = sgn(val)
+            if not USE_SCIPY:
+                continue
             border_tree = build_border_tree_from_mincut_run(status, edge_weight)
             _, E, El, leaves_sign, _, _ = border_tree
             L = {u: l2_values[u] for u in leaves_sign}
@@ -788,6 +751,8 @@ def batch_predict(tree_adj, training_signs, edge_weight):
                     used_hinge = prediction_info[0]
                     node_predictions['rta'][u] = (used_hinge, hinge_value['rta'][used_hinge],
                                                   prediction_info[2])
+                    if not USE_SCIPY:
+                        continue
                     node_predictions['l2cost'][u] = (used_hinge, hinge_value['l2cost'][used_hinge],
                                                      prediction_info[2])
                 other_predicted.update(predicted)

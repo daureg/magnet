@@ -268,7 +268,7 @@ def make_graph(n, tree=True, flipping_p=.04):
     nodes_sign = {}
     num_phi = sum((1 for e in ew
                    if gold_sign[e[0]] != gold_sign[e[1]]))
-    print('phi edges: {}'.format(num_phi))
+    # print('phi edges: {}'.format(num_phi))
     return (adj, nodes_status, ew, hinge_lines, nodes_sign, gold_sign), num_phi
 
 
@@ -507,6 +507,7 @@ def assign_gamma(tree_adj, root, ew, parents, node_signs, faulty_sign, only_faul
     return gammas
 
 
+@profile
 def build_border_tree_from_mincut_run(status, edge_weight):
     parents, leaves_sign, root = {}, {}, None
     for k, v in iteritems(status):
@@ -543,6 +544,7 @@ def build_border_tree_from_mincut_run(status, edge_weight):
     return tree_adj, list(E), El, leaves_sign, parents, root
 
 
+@profile
 def predict_one_node_three_methods(node, tree_adj, edge_weight, node_vals):
     node_signs, node_gammas, gamma_signs = node_vals
     if len(node_signs) <= 1:  # don't even bother
@@ -586,6 +588,7 @@ def sgn(x):
     return 1 if x > 0 else -1
 
 
+@profile
 def threeway_batch_shazoo(tree_adj, edge_weight, node_signs, gold_sign,
                           order=None, return_gammas=False):
     """Predict all the signs of `gold_sign` in an online fashion."""
@@ -770,9 +773,11 @@ if __name__ == '__main__':
     random.seed(123459)
 
     num_rep = 10
+    n = 2000
+    order = random.sample(list(range(n)), int(.2*n))
     res = np.zeros((num_rep, 6))
     for i in range(num_rep):
-        gr, phi_edges = make_graph(1000)
+        gr, phi_edges = make_graph(n)
         # start = clock()
         # shazoo(*gr)
         # print(clock() - start)
@@ -782,17 +787,16 @@ if __name__ == '__main__':
         # start = clock()
         # order = new_online_shazoo(gr[0], None, gr[2], None, {}, gr[-1])
         # print(clock() - start)
-        order = None
         start = clock()
         gold, preds = threeway_batch_shazoo(gr[0], gr[2], {}, gr[-1], order)
         for j, (method, pred) in enumerate(sorted(preds.items(), key=lambda x: x[0])):
             mistakes = sum((1 for g, p in zip(gold, pred) if p != g))
-            print('{} made {} mistakes'.format(method.ljust(6), mistakes))
+            # print('{} made {} mistakes'.format(method.ljust(6), mistakes))
             res[i, 2+j] = mistakes
         time_elapsed = (clock() - start)
         res[i, -1] = time_elapsed
-        print(time_elapsed)
-        np.savez_compressed('shazoo_run2', res=res, do_compression=True)
+        # print(time_elapsed)
+        # np.savez_compressed('shazoo_run2', res=res, do_compression=True)
     sys.exit()
     start = clock()
     shazoo(*make_graph(4000))

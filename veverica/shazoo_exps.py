@@ -83,7 +83,7 @@ def real_exps(num_tree=2, num_run=15, train_fraction=.2, dataset='citeseer'):
     res = np.zeros((len(perturbations), num_tree, num_run+2, 3, 2))
     phis = np.zeros(len(perturbations))
     g_adj, g_ew, gold_signs, phi = load_real_graph(dataset)
-    weights, inv_degree = get_weight_matrix(g_adj, g_ew, dataset)
+    weights, inv_degree = get_weight_matrix(g_ew, dataset)
     lprop_res = np.zeros((len(perturbations), 2))
     n = len(g_adj)
     bfs_root = max(g_adj.items(), key=lambda x: len(x[1]))[0]
@@ -135,7 +135,7 @@ def real_exps(num_tree=2, num_run=15, train_fraction=.2, dataset='citeseer'):
                 mistakes = sum((1 for g, p in zip(sorted_gold, pred) if p != g))
                 p_mistakes = sum((1 for g, p in zip(sorted_perturbed_gold, pred) if p != g))
                 res[ip, i, -1, j, :] = (p_mistakes, mistakes)
-                tqdm.write('{} made {} mistakes'.format(method.ljust(6), mistakes))
+                # tqdm.write('{} made {} mistakes'.format(method.ljust(6), mistakes))
                 np.savez_compressed(res_file, res=res, phis=phis, lprop=lprop_res)
     pool.close()
     pool.join()
@@ -183,9 +183,34 @@ def make_star(n, p=.1):
     return tree_adj, E, gold, n - num_neg
 
 
+def benchmark(dataset='citeseer', num_run=10, train_fraction=.2):
+    g_adj, g_ew, gold_signs, phi = load_real_graph(dataset)
+    bfs_root = max(g_adj.items(), key=lambda x: len(x[1]))[0]
+    n = len(g_adj)
+    nodes_id = set(range(n))
+    z = list(range(n))
+    sz.random.shuffle(z)
+    z = z[:int(train_fraction*n)]
+    train_set = {u: gold_signs[u] for u in z}
+    test_set = nodes_id - set(train_set)
+    sorted_test_set = sorted(test_set)
+    sorted_train_set = sorted(train_set)
+    z = list(range(len(train_set)))
+    sz.GRAPH, sz.EWEIGHTS = g_adj, g_ew
+    sz.get_rst(bfs_root)
+    adj, ew = sz.TREE_ADJ, sz.TWEIGHTS
+    print(len(adj), len(ew))
+    persistent.save_var('{}_rst.my'.format(dataset), (adj, ew, gold_signs), 2)
+    for _ in range(num_run):
+        sz.random.shuffle(z)
+        batch_order = [sorted_train_set[u] for u in z]
+        run_once((adj, batch_order, ew, gold_signs, gold_signs, sorted_test_set))
+
+
 if __name__ == '__main__':
     # pylint: disable=C0103
     sz.random.seed(123458)
     # online_repetition_exps(num_rep=1, num_run=9)
     # star_exps(400, 1, .02)
-    real_exps(num_tree=20, num_run=NUM_THREADS, train_fraction=.2, dataset='cora')
+    # real_exps(num_tree=3, num_run=NUM_THREADS, train_fraction=.2, dataset='citeseer')
+    benchmark('citeseer', num_run=1)

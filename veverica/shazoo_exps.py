@@ -76,69 +76,77 @@ def online_repetition_exps(num_rep=2, num_run=13):
             np.savez_compressed(res_file, res=res)
 
 
-def real_exps(num_tree=2, num_run=15, train_fraction=.2, dataset='citeseer'):
+def real_exps(num_tree=2, num_batch_order=15, train_fraction=.2, dataset='citeseer'):
     exp_start = (int(time.time()-(2017-1970)*365.25*24*60*60))//60
     res_file = 'shazoo_{}_{}.npz'.format(dataset, exp_start)
-    perturbations = [0, 2.5, 5, 10, 15, 20]
-    res = np.zeros((len(perturbations), num_tree, num_run+2, 3, 2))
-    phis = np.zeros(len(perturbations))
+    perturbations = [0, 2.5, 5, 10, 20]
+    train_size = np.array([2.5, 5, 10, 20, 40]) / 100
+    nrep = 3
+    res = np.zeros((len(train_size), len(perturbations), nrep, 3, 2))
+    phis = np.zeros((len(train_size), len(perturbations), nrep))
+    lprop_res = np.zeros((len(train_size), len(perturbations), nrep, 2))
     g_adj, g_ew, gold_signs, phi = load_real_graph(dataset)
     weights, inv_degree = get_weight_matrix(g_ew, dataset)
-    lprop_res = np.zeros((len(perturbations), 2))
     n = len(g_adj)
     bfs_root = max(g_adj.items(), key=lambda x: len(x[1]))[0]
     nodes_id = set(range(n))
-    z = list(range(n))
-    sz.random.shuffle(z)
-    z = z[:int(train_fraction*n)]
-    train_set = {u: gold_signs[u] for u in z}
-    test_set = nodes_id - set(train_set)
-    sorted_test_set = sorted(test_set)
-    sorted_train_set = sorted(train_set)
-    sorted_gold = [gold_signs[u] for u in sorted_test_set]
-    batch_order = []
     methods = sorted(['shazoo', 'rta', 'l2cost'])
-    z = list(range(len(train_set)))
-    for _ in range(num_run):
-        sz.random.shuffle(z)
-        batch_order.append([sorted_train_set[u] for u in z])
     pool = Pool(NUM_THREADS)
-    for ip, p in enumerate(tqdm(perturbations, desc='perturbation', unit='flip', unit_scale=True)):
-        perturbed_gold = {u: (1 if sz.random.random() >= p/100.0 else -1)*s
-                          for u, s in sz.iteritems(gold_signs)}
-        sorted_perturbed_gold = [perturbed_gold[u] for u in sorted_test_set]
-        phis[ip] = compute_phi(g_ew, perturbed_gold)
-        lprop_pred = run_labprop(perturbed_gold, sorted_test_set,
-                                 sorted_train_set, weights, inv_degree)
-        mistakes = sum((1 for g, p in zip(sorted_gold, lprop_pred) if p != g))
-        p_mistakes = sum((1 for g, p in zip(sorted_perturbed_gold, lprop_pred) if p != g))
-        lprop_res[ip, :] = (p_mistakes, mistakes)
-        for i in trange(num_tree, desc='tree', unit='tree', unit_scale=True):
-            keep_preds = defaultdict(list)
-            sz.GRAPH, sz.EWEIGHTS = g_adj, g_ew
-            sz.get_bfs(bfs_root)
-            adj, ew = sz.TREE_ADJ, sz.TWEIGHTS
-            args = zip(repeat(adj, num_tree), batch_order, repeat(ew, num_tree),
-                       repeat(gold_signs, num_tree), repeat(perturbed_gold, num_tree),
-                       repeat(sorted_test_set, num_tree))
-            runs = list(pool.imap_unordered(run_once, args))
-            for k, lres in enumerate(runs):
-                for j, (method, data) in enumerate(zip(methods, lres)):
-                    res[ip, i, k, j, :] = data[:2]
-                    keep_preds[method].append(data[2])
-            for j, (method, preds) in enumerate(sorted(keep_preds.items(), key=lambda x: x[0])):
-                pred = sz.majority_vote(preds[:min(5, len(preds))])
-                mistakes = sum((1 for g, p in zip(sorted_gold, pred) if p != g))
-                p_mistakes = sum((1 for g, p in zip(sorted_perturbed_gold, pred) if p != g))
-                res[ip, i, -2, j, :] = (p_mistakes, mistakes)
-                pred = sz.majority_vote(preds)
-                mistakes = sum((1 for g, p in zip(sorted_gold, pred) if p != g))
-                p_mistakes = sum((1 for g, p in zip(sorted_perturbed_gold, pred) if p != g))
-                res[ip, i, -1, j, :] = (p_mistakes, mistakes)
-                # tqdm.write('{} made {} mistakes'.format(method.ljust(6), mistakes))
+    for rep_id in trange(nrep, desc='rep.', unit='rep.'):
+        for j, train_fraction in enumerate(tqdm(train_size, desc='tr.size', unit='trained')):
+            z = list(range(n))
+            sz.random.shuffle(z)
+            train_set = {u: gold_signs[u] for u in z[:int(train_fraction * n)]}
+            test_set = nodes_id - set(train_set)
+            sorted_test_set = sorted(test_set)
+            sorted_train_set = sorted(train_set)
+            sorted_gold = [gold_signs[u] for u in sorted_test_set]
+            batch_order = []
+            z = list(range(len(train_set)))
+            for _ in range(num_batch_order):
+                sz.random.shuffle(z)
+                batch_order.append([sorted_train_set[u] for u in z])
+            for ip, p in enumerate(tqdm(perturbations, desc='perturbation', unit='flip')):
+                perturbed_gold = {u: (1 if sz.random.random() >= p/100.0 else -1)*s
+                                  for u, s in sz.iteritems(gold_signs)}
+                sorted_perturbed_gold = [perturbed_gold[u] for u in sorted_test_set]
+                phis[j, ip, rep_id] = compute_phi(g_ew, perturbed_gold)
+                lprop_pred = run_labprop(perturbed_gold, sorted_test_set,
+                                         sorted_train_set, weights, inv_degree)
+                mistakes = sum((1 for g, p in zip(sorted_gold, lprop_pred) if p != g))
+                p_mistakes = sum((1 for g, p in zip(sorted_perturbed_gold, lprop_pred) if p != g))
+                lprop_res[j, ip, rep_id, :] = (p_mistakes, mistakes)
+                lres = aggregate_trees(batch_order, (g_adj, g_ew, bfs_root), gold_signs, methods,
+                                       num_tree, perturbed_gold, pool, sorted_gold,
+                                       sorted_perturbed_gold, sorted_test_set)
+                res[j, ip, rep_id, :, :] = lres
                 np.savez_compressed(res_file, res=res, phis=phis, lprop=lprop_res)
     pool.close()
     pool.join()
+
+
+def aggregate_trees(batch_order, graph, gold_signs, methods, num_tree, perturbed_gold, pool,
+                    sorted_gold, sorted_perturbed_gold, sorted_test_set):
+    keep_preds = defaultdict(list)
+    g_adj, g_ew, bfs_root = graph
+    for i in range(num_tree):
+        sz.GRAPH, sz.EWEIGHTS = g_adj, g_ew
+        sz.get_bfs(bfs_root)
+        adj, ew = sz.TREE_ADJ, sz.TWEIGHTS
+        args = zip(repeat(adj, num_tree), batch_order, repeat(ew, num_tree),
+                   repeat(gold_signs, num_tree), repeat(perturbed_gold, num_tree),
+                   repeat(sorted_test_set, num_tree))
+        runs = list(pool.imap_unordered(run_once, args))
+        for lres in runs:
+            for method, data in zip(methods, lres):
+                keep_preds[method].append(data[2])
+    res = []
+    for j, (method, preds) in enumerate(sorted(keep_preds.items(), key=lambda x: x[0])):
+        pred = sz.majority_vote(preds)
+        mistakes = sum((1 for g, p in zip(sorted_gold, pred) if p != g))
+        p_mistakes = sum((1 for g, p in zip(sorted_perturbed_gold, pred) if p != g))
+        res.append((p_mistakes, mistakes))
+    return res
 
 
 def run_once(args):
@@ -212,5 +220,5 @@ if __name__ == '__main__':
     sz.random.seed(123458)
     # online_repetition_exps(num_rep=1, num_run=9)
     # star_exps(400, 1, .02)
-    # real_exps(num_tree=3, num_run=NUM_THREADS, train_fraction=.2, dataset='citeseer')
-    benchmark('citeseer', num_run=1)
+    real_exps(num_tree=17, num_batch_order=NUM_THREADS, dataset='citeseer')
+    # benchmark('citeseer', num_run=1)

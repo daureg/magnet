@@ -20,6 +20,17 @@ else:
 NUM_THREADS = 13
 
 
+def get_perturb_proba(degrees, p0):
+    """Assign a probability of being pertubed proportional to degree in original graph"""
+    low_deg = degrees <= degrees.mean()
+    high_deg = np.logical_not(low_deg)
+    pi = np.zeros_like(degrees, dtype=float)
+    pi[low_deg] = p0*((degrees[low_deg] - 0)/(degrees[low_deg].max() - 0))
+    d_range = degrees[high_deg].max() - degrees[high_deg].min()
+    pi[high_deg] = p0*((degrees[high_deg] - degrees[high_deg].min())/(d_range))+p0
+    return pi * (p0/pi.mean())
+
+
 def compute_phi(edge_weight, gold):
     return sum(1 for u, v in edge_weight if gold[u] != gold[v])
 
@@ -88,6 +99,7 @@ def real_exps(num_tree=2, num_batch_order=15, train_fraction=.2, dataset='citese
     g_adj, g_ew, gold_signs, phi = load_real_graph(dataset)
     weights, inv_degree = get_weight_matrix(g_ew, dataset)
     n = len(g_adj)
+    degrees = np.array([len(g_adj[u]) for u in range(n)])
     bfs_root = max(g_adj.items(), key=lambda x: len(x[1]))[0]
     nodes_id = set(range(n))
     methods = sorted(['shazoo', 'rta', 'l2cost'])
@@ -107,7 +119,8 @@ def real_exps(num_tree=2, num_batch_order=15, train_fraction=.2, dataset='citese
                 sz.random.shuffle(z)
                 batch_order.append([sorted_train_set[u] for u in z])
             for ip, p in enumerate(tqdm(perturbations, desc='perturbation', unit='flip')):
-                perturbed_gold = {u: (1 if sz.random.random() >= p/100.0 else -1)*s
+                probas = get_perturb_proba(degrees, p/100.0)
+                perturbed_gold = {u: (1 if sz.random.random() >= probas[u] else -1)*s
                                   for u, s in sz.iteritems(gold_signs)}
                 sorted_perturbed_gold = [perturbed_gold[u] for u in sorted_test_set]
                 phis[j, ip, rep_id] = compute_phi(g_ew, perturbed_gold)

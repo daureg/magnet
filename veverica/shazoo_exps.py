@@ -173,7 +173,7 @@ def run_once(args):
         mistakes = sum((1 for node, p in sz.iteritems(dpred) if p != gold_signs[node]))
         p_mistakes = sum((1 for node, p in sz.iteritems(dpred) if p != perturbed_gold[node]))
         if method == 'l2cost' and not sz.USE_SCIPY:
-            local_res.append((0, 0, run_labprop(None, sorted_test_set)))
+            local_res.append((0, 0, np.sign(2*np.random.random(len(sorted_test_set))-1))
         else:
             local_res.append((p_mistakes, mistakes, [dpred[u] for u in sorted_test_set]))
     return local_res

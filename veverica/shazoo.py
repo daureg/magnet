@@ -240,6 +240,7 @@ def predict_node_sign(tree_adj, node, nodes_status, nodes_sign, hinge_lines,
         if v_status == FORK:
             assert v not in nodes_sign, (v, v_status)
             estim, _ = flep(tree_adj, nodes_sign, edge_weight, v)
+            estim = estim[0]
             if abs(estim) > 1e-4:
                 connect_nodes[v] = 1 if estim > 0 else -1
                 if distance_from_root < min_connect_distance:
@@ -463,7 +464,7 @@ def predict_one_node(node, tree_adj, edge_weight, node_signs):
     if len(node_signs) <= 1:
         return -1
     for u in find_hinge_nodes(tree_adj, edge_weight, node_signs, node):
-        val = flep(tree_adj, node_signs, edge_weight, u)[0]
+        val = flep(tree_adj, node_signs, edge_weight, u)[0][0]
         if abs(val) > 1e-4:
             return 1 if val > 0 else -1
     return -1
@@ -574,10 +575,12 @@ def predict_one_node_three_methods(node, tree_adj, edge_weight, node_vals):
             return predictions
         if predictions['shazoo'][0] is None:
             val, _, status = flep(tree_adj, node_signs, edge_weight, u)
+            val = val[0]
             if abs(val) > 1e-5:
                 predictions['shazoo'] = (1 if val > 0 else -1, None)
         if predictions['rta'][0] is None:
             val, _, status = flep(tree_adj, gamma_signs, edge_weight, u)
+            val = val[0]
             if abs(val) > 1e-5:
                 border_tree = build_border_tree_from_mincut_run(status, edge_weight)
                 predictions['rta'] = (1 if val > 0 else -1, border_tree)
@@ -745,9 +748,9 @@ def batch_predict(tree_adj, training_signs, edge_weight):
         for u in hinge_nodes:
             if u in hinge_value['shazoo']:
                 continue
-            hinge_value['shazoo'][u] = sgn(flep(tree_adj, training_signs, edge_weight, u)[0])
-            val, _, status = flep(tree_adj, rta_signs, edge_weight, u)
-            hinge_value['rta'][u] = sgn(val)
+            vals, _, status = flep(tree_adj, (training_signs, rta_signs), edge_weight, u)
+            hinge_value['shazoo'][u] = sgn(vals[0])
+            hinge_value['rta'][u] = sgn(vals[1])
             if not USE_SCIPY:
                 continue
             border_tree = build_border_tree_from_mincut_run(status, edge_weight)

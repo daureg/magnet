@@ -116,52 +116,59 @@ def _edge(u, v):
 def flep(tree_adj, nodes_sign, edge_weight, root, return_fullcut_info=False):
     """Compute the sign of the `root` that yield the smallest weighted cut in
     `tree_adj` given the already revealed `nodes_sign`."""
-    start = clock()
+    # start = clock()
     assert isinstance(tree_adj, dict)
-    if root in nodes_sign:
-        cutp, cutn = (MAX_WEIGHT, 0) if nodes_sign[root] < 0 else (0, MAX_WEIGHT)
-        return nodes_sign[root]*MAX_WEIGHT, {}, {root: (True, -1, cutp, cutn)}
-    assert root not in nodes_sign
+    if not (isinstance(nodes_sign, tuple) and len(nodes_sign) == 2):
+        nodes_sign = (nodes_sign, nodes_sign)
+    if root in nodes_sign[0]:
+        cutp, cutn = (MAX_WEIGHT, 0) if nodes_sign[0][root] < 0 else (0, MAX_WEIGHT)
+        val_1 = nodes_sign[0][root]*MAX_WEIGHT
+        cutp_, cutn_ = (MAX_WEIGHT, 0) if nodes_sign[1][root] < 0 else (0, MAX_WEIGHT)
+        val_2 = nodes_sign[1][root]*MAX_WEIGHT
+        return (val_1, val_2), {}, {root: (True, -1, cutp, cutn, cutp_, cutn_)}
     stack = []
-    status = defaultdict(lambda: (False, -1, 0, 0))
+    status = defaultdict(lambda: (False, -1, 0, 0, 0, 0))
     stack.append(root)
     while stack:
         v = stack.pop()
         if v >= 0:
-            discovered, pred, cutp, cutn = status[v]
+            discovered, pred, cutp, cutn, cutp_, cutn_ = status[v]
         else:
             v = -(v+100)
-            discovered, pred, cutp, cutn = status[v]
+            discovered, pred, cutp, cutn, cutp_, cutn_ = status[v]
             for child in tree_adj[v]:
                 if status[child][1] != v:
                     continue
                 eweight = edge_weight[(child, v) if child < v else (v, child)]
-                _, _, childp, childn = status[child]
+                _, _, childp, childn, childp_, childn_ = status[child]
                 cutp += min(childp, childn + eweight)
                 cutn += min(childn, childp + eweight)
-            status[v] = (discovered, pred, cutp, cutn)
+                cutp_ += min(childp_, childn_ + eweight)
+                cutn_ += min(childn_, childp_ + eweight)
+            status[v] = (discovered, pred, cutp, cutn, cutp_, cutn_)
             # print('{}: (+: {}, -: {})'.format(v, cutp, cutn))
             if v == root:
-                FLEP_CALLS_TIMING.append(clock() - start)
+                # FLEP_CALLS_TIMING.append(clock() - start)
                 intermediate = {}
                 if return_fullcut_info:
                     intermediate = {n: (vals[2], vals[3])
                                     for n, vals in status.items()
-                                    if vals[0] and n not in nodes_sign}
-                return (cutn - cutp, intermediate, status)
+                                    if vals[0] and n not in nodes_sign[0]}
+                return (((cutn - cutp), (cutn_ - cutp_)), intermediate, status)
 
         if not discovered:
-            status[v] = (True, pred, cutp, cutn)
-            if v in nodes_sign:
+            status[v] = (True, pred, cutp, cutn, cutp_, cutn_)
+            if v in nodes_sign[0]:
                 # don't go beyond revealed nodes
                 continue
             stack.append(-(v+100))
             for w in tree_adj[v]:
-                discovered, pred, cutp, cutn = status[w]
+                discovered, pred, cutp, cutn, cutp_, cutn_ = status[w]
                 if pred == -1 and w != root:
-                    if w in nodes_sign:
-                        cutp, cutn = (MAX_WEIGHT, 0) if nodes_sign[w] < 0 else (0, MAX_WEIGHT)
-                    status[w] = (discovered, v, cutp, cutn)
+                    if w in nodes_sign[0]:
+                        cutp, cutn = (MAX_WEIGHT, 0) if nodes_sign[0][w] < 0 else (0, MAX_WEIGHT)
+                        cutp_, cutn_ = (MAX_WEIGHT, 0) if nodes_sign[1][w] < 0 else (0, MAX_WEIGHT)
+                    status[w] = (discovered, v, cutp, cutn, cutp_, cutn_)
                 if not discovered:
                     stack.append(w)
     assert False, root
@@ -554,6 +561,17 @@ def predict_one_node_three_methods(node, tree_adj, edge_weight, node_vals):
     hinge_nodes = find_hinge_nodes(tree_adj, edge_weight, node_signs, node)
     for u in hinge_nodes:
         status = None
+        shazoo_done, rta_done = False, False
+        if predictions['shazoo'][0] is None and predictions['rta'][0] is None:
+            vals, _, status = flep(tree_adj, (node_signs, gamma_signs), edge_weight, u)
+            if abs(vals[0]) > 1e-5:
+                predictions['shazoo'] = (1 if vals[0] > 0 else -1, None)
+                shazoo_done = True
+            if abs(vals[1]) > 1e-5:
+                predictions['rta'] = (1 if vals[1] > 0 else -1, None)
+                rta_done = True
+        if shazoo_done and rta_done not USE_SCIPY:
+            return predictions
         if predictions['shazoo'][0] is None:
             val, _, status = flep(tree_adj, node_signs, edge_weight, u)
             if abs(val) > 1e-5:

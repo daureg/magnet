@@ -85,7 +85,7 @@ def test_flep_leaf():
     nodes_sign = {0: 1}
     edge_weight = {}
     root = 0
-    correct_answer = (MAX_WEIGHT - 0, {}, {0: (True, -1, 0, MAX_WEIGHT)})
+    correct_answer = ((MAX_WEIGHT - 0, MAX_WEIGHT), {}, {0: (True, -1, 0, MAX_WEIGHT, 0, MAX_WEIGHT)})
     assert flep(tree_adj, nodes_sign, edge_weight, root, return_fullcut_info=True) == correct_answer
 
 

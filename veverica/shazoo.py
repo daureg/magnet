@@ -570,7 +570,7 @@ def predict_one_node_three_methods(node, tree_adj, edge_weight, node_vals):
             if abs(vals[1]) > 1e-5:
                 predictions['rta'] = (1 if vals[1] > 0 else -1, None)
                 rta_done = True
-        if shazoo_done and rta_done not USE_SCIPY:
+        if shazoo_done and rta_done and not USE_SCIPY:
             return predictions
         if predictions['shazoo'][0] is None:
             val, _, status = flep(tree_adj, node_signs, edge_weight, u)

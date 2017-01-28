@@ -9,7 +9,8 @@ import numpy as np
 import time
 from itertools import repeat
 from multiprocessing import Pool
-if sz.USE_SCIPY:
+import sys
+if sz.USE_SCIPY or sys.version_info.major == 3:
     from shazoo_scipy import run_labprop, get_weight_matrix
 else:
     def run_labprop(gold_signs, test_set, *args):
@@ -17,7 +18,7 @@ else:
 
     def get_weight_matrix(*args):
         return None, None
-NUM_THREADS = 13
+NUM_THREADS = 11
 
 
 def get_perturb_proba(degrees, p0):
@@ -230,8 +231,10 @@ def benchmark(dataset='citeseer', num_run=10, train_fraction=.2):
 
 if __name__ == '__main__':
     # pylint: disable=C0103
-    sz.random.seed(123458)
+    import socket
+    part = int(socket.gethostname()[-1])-1
+    sz.random.seed(123460 + part)
     # online_repetition_exps(num_rep=1, num_run=9)
     # star_exps(400, 1, .02)
-    real_exps(num_tree=17, num_batch_order=NUM_THREADS, dataset='citeseer')
+    real_exps(num_tree=17, num_batch_order=NUM_THREADS, dataset='cora')
     # benchmark('citeseer', num_run=1)

@@ -23,6 +23,10 @@ NUM_THREADS = 11
 
 def get_perturb_proba(degrees, p0):
     """Assign a probability of being pertubed proportional to degree in original graph"""
+    if p0 > 1:
+        p0 /= 100
+    if p0 < 1e-5:
+        return np.zeros(degrees.shape, dtype=float)
     low_deg = degrees <= degrees.mean()
     high_deg = np.logical_not(low_deg)
     pi = np.zeros_like(degrees, dtype=float)

@@ -13,6 +13,7 @@ import convert_experiment as cexp
 import random
 import logging
 import numpy as np
+import persistent
 USE_SCIPY = True
 try:
     import scipy.sparse as sp
@@ -745,6 +746,7 @@ def batch_predict(tree_adj, training_signs, edge_weight):
     # fields are current_closest_hinge, current_sign, current_dst_to_closest_hinge
     node_predictions = {m: defaultdict(lambda: (None, None, 2e9)) for m in methods}
     hinge_value = {m: {} for m in methods}
+    total_iter = 0
     while all_nodes_to_predict:
         some_root_of_a_border_tree = next(iter(all_nodes_to_predict))
         hinge_nodes, border_tree_nodes = find_hinge_nodes(tree_adj, edge_weight, training_signs,
@@ -764,9 +766,10 @@ def batch_predict(tree_adj, training_signs, edge_weight):
             L = {u: l2_values[u] for u in leaves_sign}
             mapped_E, mapped_El_L, mapping = preprocess_edge_and_leaves(E, El, L)
             val = solve_by_zeroing_derivative(mapped_E, mapped_El_L, mapping, L,
-                                                 reorder=False)[0][u]
+                                              reorder=False)[0][u]
             hinge_value['l2cost'][u] = sgn(val)
         predicted_in_that_border_tree = set()
+        inner_iter = 0
         while unmarked:
             one_to_predict = next(iter(unmarked))
             hinge_tree = get_hinge_tree(one_to_predict, tree_adj, hinge_nodes)
@@ -788,7 +791,19 @@ def batch_predict(tree_adj, training_signs, edge_weight):
                 other_predicted.update(predicted)
             predicted_in_that_border_tree.update(other_predicted)
             unmarked -= other_predicted
+            inner_iter += max(1, len(other_predicted))
+            if inner_iter > len(tree_adj):
+                import time
+                logging.warning('batch predict failed in the inner loop')
+                persistent.save_var('__fail_{}.my'.format(int(time.time())), (tree_adj, training_signs, edge_weight))
+                raise RuntimeError('batch predict failed in the inner loop')
         all_nodes_to_predict -= predicted_in_that_border_tree
+        total_iter += max(1, len(predicted_in_that_border_tree))
+        if total_iter > len(tree_adj):
+            import time
+            logging.warning('batch predict failed in the outer loop')
+            persistent.save_var('__fail_{}.my'.format(int(time.time())), (tree_adj, training_signs, edge_weight))
+            raise RuntimeError('batch predict failed in the outer loop')
     logging.debug('batch_predict has actually predicted %d nodes', len(node_predictions) - len(training_signs))
     return {m: {u: v[1] for u, v in iteritems(node_predictions[m]) if u not in training_signs}
             for m in methods}

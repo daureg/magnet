@@ -10,6 +10,7 @@ import time
 from itertools import repeat
 from multiprocessing import Pool
 import sys
+import logging
 if sz.USE_SCIPY or sys.version_info.major == 3:
     from shazoo_scipy import run_labprop, get_weight_matrix
 else:
@@ -93,6 +94,9 @@ def online_repetition_exps(num_rep=2, num_run=13):
 
 
 def real_exps(num_tree=2, num_batch_order=15, train_fraction=.2, dataset='citeseer'):
+    logging.basicConfig(filename='shazoo.log', level=logging.DEBUG,
+                        format='%(relativeCreated)d:%(filename)s.%(funcName)s.%(thread)d:%(lineno)d(%(levelname)s):%(message)s')
+    logging.info('Started')
     exp_start = (int(time.time()-(2017-1970)*365.25*24*60*60))//60
     res_file = 'shazoo_{}_{}.npz'.format(dataset, exp_start)
     perturbations = [0, 2.5, 5, 10, 20]
@@ -110,7 +114,9 @@ def real_exps(num_tree=2, num_batch_order=15, train_fraction=.2, dataset='citese
     methods = sorted(['shazoo', 'rta', 'l2cost'])
     pool = Pool(NUM_THREADS)
     for rep_id in trange(nrep, desc='rep.', unit='rep.'):
+        logging.info('Starting rep %d', rep_id+1)
         for j, train_fraction in enumerate(tqdm(train_size, desc='tr.size', unit='trained')):
+            logging.info('Starting train_fraction %d %%', train_fraction*100)
             z = list(range(n))
             sz.random.shuffle(z)
             train_set = {u: gold_signs[u] for u in z[:int(train_fraction * n)]}
@@ -124,15 +130,18 @@ def real_exps(num_tree=2, num_batch_order=15, train_fraction=.2, dataset='citese
                 sz.random.shuffle(z)
                 batch_order.append([sorted_train_set[u] for u in z])
             for ip, p in enumerate(tqdm(perturbations, desc='perturbation', unit='flip')):
+                logging.info('Starting perturbation %d %%', p)
                 probas = get_perturb_proba(degrees, p/100.0)
                 perturbed_gold = {u: (1 if sz.random.random() >= probas[u] else -1)*s
                                   for u, s in sz.iteritems(gold_signs)}
                 sorted_perturbed_gold = [perturbed_gold[u] for u in sorted_test_set]
                 phis[j, ip, rep_id] = compute_phi(g_ew, perturbed_gold)
+                logging.info('There are %d phi edges (%f)', phis[j, ip, rep_id], phis[j, ip, rep_id]/len(ew))
                 lprop_pred = run_labprop(perturbed_gold, sorted_test_set,
                                          sorted_train_set, weights, inv_degree)
                 mistakes = sum((1 for g, p in zip(sorted_gold, lprop_pred) if p != g))
                 p_mistakes = sum((1 for g, p in zip(sorted_perturbed_gold, lprop_pred) if p != g))
+                logging.info('Lprop made %d and %d mistakes', p_mistakes, mistakes)
                 lprop_res[j, ip, rep_id, :] = (p_mistakes, mistakes)
                 lres = aggregate_trees(batch_order, (g_adj, g_ew, bfs_root), gold_signs, methods,
                                        num_tree, perturbed_gold, pool, sorted_gold,
@@ -141,16 +150,18 @@ def real_exps(num_tree=2, num_batch_order=15, train_fraction=.2, dataset='citese
                 np.savez_compressed(res_file, res=res, phis=phis, lprop=lprop_res)
     pool.close()
     pool.join()
+    logging.info('Finished')
 
 
 def aggregate_trees(batch_order, graph, gold_signs, methods, num_tree, perturbed_gold, pool,
                     sorted_gold, sorted_perturbed_gold, sorted_test_set):
     keep_preds = defaultdict(list)
     g_adj, g_ew, bfs_root = graph
-    for i in range(num_tree):
+    for i in trange(num_tree, desc='tree', unit='tree', unit_scale=True):
         sz.GRAPH, sz.EWEIGHTS = g_adj, g_ew
         sz.get_bfs(bfs_root)
         adj, ew = sz.TREE_ADJ, sz.TWEIGHTS
+        logging.debug('drawn BFS tree number %d', i+1)
         args = zip(repeat(adj, num_tree), batch_order, repeat(ew, num_tree),
                    repeat(gold_signs, num_tree), repeat(perturbed_gold, num_tree),
                    repeat(sorted_test_set, num_tree))
@@ -158,19 +169,25 @@ def aggregate_trees(batch_order, graph, gold_signs, methods, num_tree, perturbed
         for lres in runs:
             for method, data in zip(methods, lres):
                 keep_preds[method].append(data[2])
+        logging.debug('All threads finished for tree %d', i+1)
     res = []
     for j, (method, preds) in enumerate(sorted(keep_preds.items(), key=lambda x: x[0])):
+        # TODO compute variance of individual prediction mistakes (splitting by
+        # tree, since I know NUM_THREADS and num_tree)
         pred = sz.majority_vote(preds)
         mistakes = sum((1 for g, p in zip(sorted_gold, pred) if p != g))
         p_mistakes = sum((1 for g, p in zip(sorted_perturbed_gold, pred) if p != g))
+        logging.debug('Aggregated over %d trees, %s made %d mistakes', method, p_mistakes)
         res.append((p_mistakes, mistakes))
     return res
 
 
 def run_once(args):
     tree_adj, batch_order, ew, gold_signs, perturbed_gold, sorted_test_set = args
+    logging.debug('Starting the online phase for one the batch order')
     node_vals = sz.threeway_batch_shazoo(tree_adj, ew, {}, perturbed_gold,
                                          order=batch_order, return_gammas=True)[-1]
+    logging.debug('Starting the batch phase for one the batch order')
     bpreds = sz.batch_predict(tree_adj, node_vals, ew)
     local_res = []
     for j, (method, dpred) in enumerate(sorted(bpreds.items(), key=lambda x: x[0])):
@@ -179,6 +196,7 @@ def run_once(args):
         if method == 'l2cost' and not sz.USE_SCIPY:
             local_res.append((0, 0, np.sign(2*np.random.random(len(sorted_test_set))-1)))
         else:
+            logging.debug('in one the batch order, %s made %d mistakes', method, p_mistakes)
             local_res.append((p_mistakes, mistakes, [dpred[u] for u in sorted_test_set]))
     return local_res
 

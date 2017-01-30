@@ -11,6 +11,7 @@ from __future__ import division
 from collections import deque, defaultdict
 import convert_experiment as cexp
 import random
+import logging
 import numpy as np
 USE_SCIPY = True
 try:
@@ -560,6 +561,7 @@ def predict_one_node_three_methods(node, tree_adj, edge_weight, node_vals):
     predictions = dict(shazoo=(None, None), rta=(None, None),
                        l2cost=(None if USE_SCIPY else -1, None))
     hinge_nodes = find_hinge_nodes(tree_adj, edge_weight, node_signs, node)
+    logging.debug('Found %d hinge nodes while trying to predict %d', len(hinge_nodes), node)
     for u in hinge_nodes:
         status = None
         shazoo_done, rta_done = False, False
@@ -613,6 +615,7 @@ def sgn(x):
 def threeway_batch_shazoo(tree_adj, edge_weight, node_signs, gold_sign,
                           order=None, return_gammas=False):
     """Predict all the signs of `gold_sign` in an online fashion."""
+    logging.debug('Starting threeway_batch_shazoo')
     diff_rta_l2, diff_rta_shazoo = 0, 0
     if order is None:
         order = list(set(gold_sign.keys()) - set(node_signs.keys()))
@@ -654,6 +657,7 @@ def threeway_batch_shazoo(tree_adj, edge_weight, node_signs, gold_sign,
                 for leaf, gamma in iteritems(update):
                     gammas_l2[leaf] += 1.5*gold*gamma
     gold, pred = [], {'shazoo': [], 'rta': [], 'l2cost': []}
+    logging.debug('Predicted all online nodes in threeway_batch_shazoo')
     for node in sorted(order):
         pred['shazoo'].append(allpred['shazoo'][node])
         pred['rta'].append(allpred['rta'][node])
@@ -735,6 +739,7 @@ def batch_predict(tree_adj, training_signs, edge_weight):
     # since shazoo use the revealed signs as-is, it's ok to use the same name
     training_signs, l2_values, rta_signs = training_signs
     all_nodes_to_predict = set(tree_adj) - set(training_signs)
+    logging.debug('batch_predict has %d nodes to predict', len(all_nodes_to_predict))
     methods = ['l2cost', 'rta', 'shazoo']
     # fields are current_closest_hinge, current_sign, current_dst_to_closest_hinge
     node_predictions = {m: defaultdict(lambda: (None, None, 2e9)) for m in methods}
@@ -783,6 +788,7 @@ def batch_predict(tree_adj, training_signs, edge_weight):
             predicted_in_that_border_tree.update(other_predicted)
             unmarked -= other_predicted
         all_nodes_to_predict -= predicted_in_that_border_tree
+    logging.debug('batch_predict has actually predicted %d nodes', len(node_predictions) - len(training_signs))
     return {m: {u: v[1] for u, v in iteritems(node_predictions[m]) if u not in training_signs}
             for m in methods}
 

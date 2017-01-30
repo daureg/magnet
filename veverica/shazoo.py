@@ -561,7 +561,7 @@ def predict_one_node_three_methods(node, tree_adj, edge_weight, node_vals):
     predictions = dict(shazoo=(None, None), rta=(None, None),
                        l2cost=(None if USE_SCIPY else -1, None))
     hinge_nodes = find_hinge_nodes(tree_adj, edge_weight, node_signs, node)
-    logging.debug('Found %d hinge nodes while trying to predict %d', len(hinge_nodes), node)
+    # logging.debug('Found %d hinge nodes while trying to predict %d', len(hinge_nodes), node)
     for u in hinge_nodes:
         status = None
         shazoo_done, rta_done = False, False

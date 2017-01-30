@@ -94,10 +94,10 @@ def online_repetition_exps(num_rep=2, num_run=13):
 
 
 def real_exps(num_tree=2, num_batch_order=15, train_fraction=.2, dataset='citeseer'):
-    logging.basicConfig(filename='shazoo.log', level=logging.DEBUG,
-                        format='%(relativeCreated)d:%(filename)s.%(funcName)s.%(thread)d:%(lineno)d(%(levelname)s):%(message)s')
-    logging.info('Started')
     exp_start = (int(time.time()-(2017-1970)*365.25*24*60*60))//60
+    dbg_fmt = '%(asctime)s - %(relativeCreated)d:%(filename)s.%(funcName)s.%(threadName)s:%(lineno)d(%(levelname)s):%(message)s '
+    logging.basicConfig(filename='shazoo_{}.log'.format(exp_start), level=logging.DEBUG, format=dbg_fmt)
+    logging.info('Started')
     res_file = 'shazoo_{}_{}.npz'.format(dataset, exp_start)
     perturbations = [0, 2.5, 5, 10, 20]
     train_size = np.array([2.5, 5, 10, 20, 40]) / 100
@@ -177,7 +177,7 @@ def aggregate_trees(batch_order, graph, gold_signs, methods, num_tree, perturbed
         pred = sz.majority_vote(preds)
         mistakes = sum((1 for g, p in zip(sorted_gold, pred) if p != g))
         p_mistakes = sum((1 for g, p in zip(sorted_perturbed_gold, pred) if p != g))
-        logging.debug('Aggregated over %d trees, %s made %d mistakes', method, p_mistakes)
+        logging.debug('Aggregated over %d trees, %s made %d mistakes', num_tree, method, p_mistakes)
         res.append((p_mistakes, mistakes))
     return res
 

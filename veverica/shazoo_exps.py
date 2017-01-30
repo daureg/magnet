@@ -254,7 +254,10 @@ def benchmark(dataset='citeseer', num_run=10, train_fraction=.2):
 if __name__ == '__main__':
     # pylint: disable=C0103
     import socket
-    part = int(socket.gethostname()[-1])-1
+    try:
+        part = int(socket.gethostname()[-1])-1
+    except ValueError:
+        part = 0
     sz.random.seed(123460 + part)
     # online_repetition_exps(num_rep=1, num_run=9)
     # star_exps(400, 1, .02)

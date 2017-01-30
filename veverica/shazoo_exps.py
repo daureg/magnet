@@ -136,7 +136,7 @@ def real_exps(num_tree=2, num_batch_order=15, train_fraction=.2, dataset='citese
                                   for u, s in sz.iteritems(gold_signs)}
                 sorted_perturbed_gold = [perturbed_gold[u] for u in sorted_test_set]
                 phis[j, ip, rep_id] = compute_phi(g_ew, perturbed_gold)
-                logging.info('There are %d phi edges (%f)', phis[j, ip, rep_id], phis[j, ip, rep_id]/len(ew))
+                logging.info('There are %d phi edges (%f)', phis[j, ip, rep_id], phis[j, ip, rep_id]/len(g_adj))
                 lprop_pred = run_labprop(perturbed_gold, sorted_test_set,
                                          sorted_train_set, weights, inv_degree)
                 mistakes = sum((1 for g, p in zip(sorted_gold, lprop_pred) if p != g))

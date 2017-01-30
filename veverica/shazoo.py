@@ -791,18 +791,18 @@ def batch_predict(tree_adj, training_signs, edge_weight):
                 other_predicted.update(predicted)
             predicted_in_that_border_tree.update(other_predicted)
             unmarked -= other_predicted
-            inner_iter += max(1, len(other_predicted))
+            inner_iter += 1
             if inner_iter > len(tree_adj):
                 import time
-                logging.warning('batch predict failed in the inner loop')
-                persistent.save_var('__fail_{}.my'.format(int(time.time())), (tree_adj, training_signs, edge_weight))
+                logging.critical('batch predict failed in the inner loop')
+                persistent.save_var('__fail_{}.my'.format(int(time.time())), (tree_adj, (training_signs, l2_values, rta_signs), edge_weight))
                 raise RuntimeError('batch predict failed in the inner loop')
         all_nodes_to_predict -= predicted_in_that_border_tree
-        total_iter += max(1, len(predicted_in_that_border_tree))
+        total_iter += 1
         if total_iter > len(tree_adj):
             import time
-            logging.warning('batch predict failed in the outer loop')
-            persistent.save_var('__fail_{}.my'.format(int(time.time())), (tree_adj, training_signs, edge_weight))
+            logging.critical('batch predict failed in the outer loop')
+            persistent.save_var('__fail_{}.my'.format(int(time.time())), (tree_adj, (training_signs, l2_values, rta_signs), edge_weight))
             raise RuntimeError('batch predict failed in the outer loop')
     logging.debug('batch_predict has actually predicted %d nodes', len(node_predictions) - len(training_signs))
     return {m: {u: v[1] for u, v in iteritems(node_predictions[m]) if u not in training_signs}

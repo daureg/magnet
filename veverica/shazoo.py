@@ -691,7 +691,7 @@ def get_hinge_tree(root, tree_adj, hinge_nodes):
     queue = deque((root, ))
     discovered = defaultdict(lambda: False)
     discovered[root] = True
-    sub_adj = {}
+    sub_adj = {root: set()}
     while queue:
         v = queue.popleft()
         if v in hinge_nodes:
@@ -770,6 +770,8 @@ def batch_predict(tree_adj, training_signs, edge_weight):
             hinge_value['l2cost'][u] = sgn(val)
         predicted_in_that_border_tree = set()
         inner_iter = 0
+        # to avoid the same fork being picked again and again
+        unmarked.add(some_root_of_a_border_tree)
         while unmarked:
             one_to_predict = next(iter(unmarked))
             hinge_tree = get_hinge_tree(one_to_predict, tree_adj, hinge_nodes)

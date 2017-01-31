@@ -260,6 +260,6 @@ if __name__ == '__main__':
     sz.random.seed(123460 + part)
     # online_repetition_exps(num_rep=1, num_run=9)
     # star_exps(400, 1, .02)
-    dataset = 'citeseer' if len(sys.argv) <= 1 else sys.argv[2]
+    dataset = 'citeseer' if len(sys.argv) <= 1 else sys.argv[1]
     real_exps(num_tree=17, num_batch_order=NUM_THREADS, dataset=dataset)
     # benchmark('citeseer', num_run=1)

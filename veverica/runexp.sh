@@ -1,2 +1,3 @@
-time python -O -W ignore icml_exp.py wik_ts -n1
-time python -O -W ignore icml_exp.py epi_ts -n1
+time python -O -W ignore citeseer
+time python -O -W ignore pubmed_core
+time python -O -W ignore usps4500

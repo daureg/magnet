@@ -56,6 +56,8 @@ def make_graph(n, tree=True, p=.04):
 def load_real_graph(dataset='citeseer', main_class=None):
     default_main_class = {'citeseer': 1,
                           'cora': 2,
+                          'pubmed_core': 1,
+                          'usps4500': 4,
                           }
     main_class = main_class if main_class is not None else default_main_class[dataset]
     ew, y = persistent.load_var('{}_lcc.my'.format(dataset))
@@ -261,5 +263,6 @@ if __name__ == '__main__':
     sz.random.seed(123460 + part)
     # online_repetition_exps(num_rep=1, num_run=9)
     # star_exps(400, 1, .02)
-    real_exps(num_tree=17, num_batch_order=NUM_THREADS, dataset='cora')
+    dataset = 'citeseer' if len(sys.argv) <= 1 else sys.argv[1]
+    real_exps(num_tree=17, num_batch_order=NUM_THREADS, dataset=dataset)
     # benchmark('citeseer', num_run=1)

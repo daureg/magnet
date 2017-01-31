@@ -95,12 +95,12 @@ def online_repetition_exps(num_rep=2, num_run=13):
             np.savez_compressed(res_file, res=res)
 
 
-def real_exps(num_tree=2, num_batch_order=15, train_fraction=.2, dataset='citeseer'):
+def real_exps(num_tree=2, num_batch_order=15, train_fraction=.2, dataset='citeseer', part=0):
     exp_start = (int(time.time()-(2017-1970)*365.25*24*60*60))//60
     dbg_fmt = '%(asctime)s - %(relativeCreated)d:%(filename)s.%(funcName)s.%(threadName)s:%(lineno)d(%(levelname)s):%(message)s '
     logging.basicConfig(filename='shazoo_{}.log'.format(exp_start), level=logging.DEBUG, format=dbg_fmt)
     logging.info('Started')
-    res_file = 'shazoo_{}_{}.npz'.format(dataset, exp_start)
+    res_file = 'shazoo_{}_{}_{}.npz'.format(dataset, exp_start, part)
     perturbations = [0, 2.5, 5, 10, 20]
     train_size = np.array([2.5, 5, 10, 20, 40]) / 100
     nrep = 3
@@ -264,5 +264,5 @@ if __name__ == '__main__':
     # online_repetition_exps(num_rep=1, num_run=9)
     # star_exps(400, 1, .02)
     dataset = 'citeseer' if len(sys.argv) <= 1 else sys.argv[1]
-    real_exps(num_tree=17, num_batch_order=NUM_THREADS, dataset=dataset)
+    real_exps(num_tree=17, num_batch_order=NUM_THREADS, dataset=dataset, part=part)
     # benchmark('citeseer', num_run=1)

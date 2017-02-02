@@ -1,0 +1,243 @@
+\documentclass[a4paper,final,notitlepage,11pt,svgnames]{article}
+\usepackage[english]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{microtype}
+\usepackage{csquotes}
+\usepackage{fullpage}
+\usepackage{charter}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{setspace}
+\usepackage{booktabs}
+\usepackage[np,autolanguage]{numprint}
+% \usepackage{geometry}
+\usepackage[final]{pdfpages}
+\usepackage[citestyle=numeric-comp,bibstyle=ieee,isbn=false,maxnames=1,minnames=1,sorting=none,backend=biber,defernumbers=true]{biblatex}
+\AtEveryBibitem{
+   \clearfield{arxivId}
+   % \clearfield{booktitle}
+   % \clearfield{doi}
+   \clearfield{eprint}
+   \clearfield{eventdate}
+   \clearfield{isbn}
+   \clearfield{issn}
+   % \clearfield{journaltitle}
+   \clearfield{month}
+   % \clearfield{number}
+   % \clearfield{pages}
+   \clearfield{series}
+   % \clearfield{url}
+   \clearfield{urldate}
+   \clearfield{venue}
+   % \clearfield{volume}
+   \clearlist{location} % alias to field 'address'
+   \clearlist{publisher}
+   \clearname{editor}
+}
+\usepackage{hyperref}
+\hypersetup{%
+    % draft,    % = no hyperlinking at all (useful in b/w printouts)
+    colorlinks=true, linktocpage=true, pdfstartpage=3, pdfstartview=FitV,%
+    % uncomment the following line if you want to have black links (e.g., for printing)
+    %colorlinks=false, linktocpage=false, pdfborder={0 0 0}, pdfstartpage=3, pdfstartview=FitV,%
+    breaklinks=true, pdfpagemode=UseNone, pageanchor=true, pdfpagemode=UseOutlines,%
+    plainpages=false, bookmarksnumbered, bookmarksopen=true, bookmarksopenlevel=1,%
+    hypertexnames=true, pdfhighlight=/O,%nesting=true,%frenchlinks,%
+    urlcolor=Chocolate, linkcolor=DodgerBlue, citecolor=LimeGreen, %pagecolor=RoyalBlue,%
+}
+\begin{filecontents}{jobname.bib}
+@article{WTA13,
+  author  = {Nicol{\`o} Cesa-Bianchi and Claudio Gentile and Fabio Vitale and Giovanni Zappella},
+  title   = {Random Spanning Trees and the Prediction of Weighted Graphs},
+  journal = {Journal of Machine Learning Research},
+  year    = {2013},
+  volume  = {14},
+  pages   = {1251-1284},
+  url     = {http://jmlr.org/papers/v14/cesa-bianchi13a.html}
+}
+@article{ImdbData07,
+  author  = {Sofus A. Macskassy and Foster Provost},
+  title   = {Classification in Networked Data: A Toolkit and a Univariate Case Study},
+  journal = {Journal of Machine Learning Research},
+  year    = {2007},
+  volume  = {8},
+  pages   = {935-983},
+  url     = {http://www.jmlr.org/papers/v8/macskassy07a.html}
+}
+
+\end{filecontents}
+\addbibresource{jobname.bib}
+
+\title{\rta{} first experiments}
+\author{Géraud Le Falher}
+% \date{}
+
+\newcommand{\rta}{\textsc{RTA}}
+\newcommand{\shazoo}{\textsc{Shazoo}}
+\newcommand{\lprop}{\textsc{Lab. Prop}}
+\newcommand{\cora}{\textsc{Cora}}
+\newcommand{\citeseer}{\textsc{Citeseer}}
+\newcommand{\pubmed}{\textsc{Pubmed}}
+\newcommand{\usps}{\textsc{USPS-50}}
+\newcommand{\rcv1}{\textsc{RCV1}}
+\newcommand{\imdb}{\textsc{IMDB}}
+\begin{document}
+\maketitle
+
+\section*{Datasets}
+\label{sec:Datasets}
+
+The first 3 datasets under consideration are citations
+networks\footnote{Available at
+\url{http://linqs.cs.umd.edu/projects/projects/lbc/}} (with directions removed).
+Nodes are papers, which belong to a few categories (Agents, AI, DB, IR, ML and
+HCI for \citeseer{}; Case Based, Genetic Algorithms, Neural Networks,
+Probabilistic Methods, Reinforcement Learning, Rule Learning and Theory for
+\cora{}; and \enquote{Diabetes Mellitus, Experimental}, \enquote{Diabetes
+Mellitus Type 1}, and \enquote{Diabetes Mellitus Type 2} for \pubmed{}). Edges
+between papers are weighted by the cosine similarity between their abstracts
+seen as bag of words. I consider only the largest connected component of each
+graph, and for \pubmed{}, I further restrict it to its 3-core\footnote{The main
+3-core is the largest set of nodes that have at least 3 neighbors in that same
+set.}. Then, I built a 50 nearest neighbors graph from 4500 images of digit
+chosen at random in the USPS dataset, following the experimental setting
+described in~\autocite{WTA13}. The size of those graphs is displayed
+in~\autoref{tab:datasets}.
+
+\imdb{}~\autocite{ImdbData07} nodes are movies released in the United States
+between 1996 and 2001, they are linked if they share a production company, and
+the weight of an edge is the number of such shared production companies. Movies
+belong to two classes, depending of whether they grossed more than 2 million
+dollars on their opening
+weekend\footnote{\url{http://netkit-srl.sourceforge.net/data.html}}.
+
+\begin{table}[hb]
+  \centering
+  \caption{Datasets statistics}
+  \label{tab:datasets}
+  \begin{tabular}{lrr}
+    \toprule
+    Dataset     & $|V|$     & $|E|$      \\
+    \midrule
+    \imdb{}     & \np{1126} & \np{20282} \\
+    \citeseer{} & \np{2110} & \np{3668}  \\
+    \cora{}     & \np{2484} & \np{5068}  \\
+    \usps{}     & \np{4500} & \np{33121} \\
+    \rcv1{}     & \np{4500} & \np{32715} \\
+    \pubmed{}   & \np{4201} & \np{21042} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+Later I would like to add the same Reuters Corpus Volume 1 dataset as used
+in~\autocite{WTA13}, and another one based on airport traffic. Basically, from
+the list of all flights which departed from or arrived at a US airport in
+2016, I would build a graph where nodes are airports, connected by an edge
+weighted by the number of flights between those two airports. Then I would
+divide airports between regional and worldwide ones (based on the data), giving
+a binary label the to the nodes. My assumption is that most regional airports are
+connected to others regional ones (the same being true for international ones),
+meaning there should be a small number of $\Phi$ edges.
+
+\section*{Setup}
+\label{sec:Protocol}
+
+I performed the following experiment. For each dataset, I chose 5 sizes of
+training set: $2.5\%$, $5\%$, $10\%$, $20\%$ and $40\%$. For each size of
+training set, I also chose 5 perturbation levels $p_0$: $0\%$ (that is, no
+perturbation at all), $2.5\%$, $5\%$, $10\%$ and $20\%$. In the results section,
+the yellow line correspond to the number of $\Phi$ edges (without taking weights
+into account) and as expected, it increases with $p_0$.
+
+When we say that the perturbation level is $p_0$ (for instance $p_0=5\%)$, the
+actual probability $p_i$ of each node $i$ to have its sign flipped depends of
+its degree $d_i$ in the following way. Denoting $\bar{d}$ the average degree and
+$\Delta$ the maximum degree, we first map linearly degrees in the interval $[0,
+\bar{d}]$ to probability in $[0, p_0]$ and degrees in the interval $[\bar{d},
+\Delta]$ to probability in $[p_0, 2p_0]$. Then we rescale the resulting
+probabilities so that their average is $p_0$.
+
+Once the training set has been fixed and the labelling perturbed, we repeat the
+following procedure 9 times:\footnote{Unfortunately, this does let us know
+which part of the variance is due to the choice of the training set and which
+part is due to the perturbation (but based on the $0\%$ results, I would say the
+training set has only a small influence on the overall variance).}
+
+We draw 17 trees in a breadth first manner from the highest degree node, but
+with children visited in a random order. For each of these trees, the training
+set is presented with 11 different orders during the online phase, which
+introduce a variance in the guilt coefficient computed for nodes of the training
+set\footnote{Because of the way the code is organized, it's easier to do the
+same for \shazoo{}, although in that case, it has naturally no effect on the
+results.}. We predict the remaining nodes in a batch fashion. We use majority
+vote on each node to aggregate these $17\times 11 = 187$ predictions into a
+single one. Finally we evaluate the performance by the number of times the
+predicted label of a node differs from the original (unperturbed label) of that
+same node (more shortly, the number of mistakes).
+
+So far the only competitor is label propagation\footnote{\lprop{} implementation
+is very fast, as it only requires a constant number of multiplications between
+the sparse weighted adjacency matrix of the graph and the binary vector of
+labels.} but later I plan to include WTA~\autocite{WTA13} (as soon as I
+implement it).
+
+\section*{Results}
+\label{sec:Results}
+
+One immediate comment on the results showed in the following pages is that the
+number of mistakes is not monotonically increasing with the perturbation level.
+First, this does not happen when I compute the mistakes with respect to the
+perturbed labelling (i.e. the labelling actually showed to the learner) and
+second, I suspect this is an artefact due to the number of repetitions ($9$) not
+being large enough. Indeed, if we take for instance the case of the \citeseer{}
+dataset with a $5\%$ training set and perturbation going from $2.5\%$ to $5\%$,
+and repeat the same experience 60 times, we get the following results:
+\begin{center}
+  \begin{tabular}{lcc}
+    \toprule
+    Perturbation & $2.5\%$ & $5\%$ \\
+    \midrule
+    17*\rta{}+BFS & $304.2 \pm 51$& $311.0 \pm 39$\\
+    17*\shazoo{}+BFS & $306.6 \pm 46$& $316.3 \pm 46$\\
+    \bottomrule
+  \end{tabular}
+\end{center}
+which shows that the difference in number of mistakes between the two levels of
+perturbation is well within one standard deviation, making comparison between few
+measurements misleading.
+\medskip
+
+Another disturbing fact is that as the training size increases, the performance
+of both \shazoo{} and \rta{} does not to seem to improve (and even decreases
+sometimes, for instance on \cora{} between $20\%$ and $40\%$ at the $0\%$
+perturbation level).  I have no explanation for that so far, although I'm sure
+(by looking at the execution time) that both algorithm indeed used a larger
+training set during the experiments.
+
+As for the performance themselves, there are a few general trends. \rta{} and
+\shazoo{} are close to each other and there is no clear situation where one is
+better than the other. Furthermore, \lprop{} is better, although as the
+perturbation level increases, \rta{} and \shazoo{} get more competitive on the
+two citation datasets. On the other hand, on \usps{}, \lprop{} remains almost always
+unchallenged, especially as the training size increases.  Because each nodes has
+50 neighbors (and we expect them to be more or less of the same class), a train
+set of size $40\%$ is enough to compensate for the perturbation of $20\%$ of the
+signs, yet \shazoo{} and \rta{} do not appear to take advantage of that fact.
+
+\newpage
+% \newgeometry{hmargin=1.2cm,top=1.2cm,bottom=1cm}
+\pagestyle{empty}
+\includepdf[pages=-]{res_shazoo_citeseer.pdf}
+\includepdf[pages=-]{res_shazoo_cora.pdf}
+\includepdf[pages=-]{res_shazoo_usps.pdf}
+\includepdf[pages=-]{res_shazoo_pubmed.pdf}
+% \restoregeometry
+
+\begingroup
+\setstretch{0.9}
+\setlength\bibitemsep{2pt}
+\printbibliography
+\endgroup
+\end{document}

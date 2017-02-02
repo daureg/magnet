@@ -98,12 +98,12 @@ def online_repetition_exps(num_rep=2, num_run=13):
 def real_exps(num_tree=2, num_batch_order=15, train_fraction=.2, dataset='citeseer', part=0):
     exp_start = (int(time.time()-(2017-1970)*365.25*24*60*60))//60
     dbg_fmt = '%(asctime)s - %(relativeCreated)d:%(filename)s.%(funcName)s.%(threadName)s:%(lineno)d(%(levelname)s):%(message)s '
-    logging.basicConfig(filename='shazoo_{}.log'.format(exp_start), level=logging.DEBUG, format=dbg_fmt)
+    # logging.basicConfig(filename='shazoo_{}.log'.format(exp_start), level=logging.DEBUG, format=dbg_fmt)
     logging.info('Started')
     res_file = 'shazoo_{}_{}_{}.npz'.format(dataset, exp_start, part)
     perturbations = [0, 2.5, 5, 10, 20]
     train_size = np.array([2.5, 5, 10, 20, 40]) / 100
-    nrep = 3
+    nrep = 5
     res = np.zeros((len(train_size), len(perturbations), nrep, 3, 2))
     phis = np.zeros((len(train_size), len(perturbations), nrep))
     lprop_res = np.zeros((len(train_size), len(perturbations), nrep, 2))
@@ -133,7 +133,8 @@ def real_exps(num_tree=2, num_batch_order=15, train_fraction=.2, dataset='citese
                 batch_order.append([sorted_train_set[u] for u in z])
             for ip, p in enumerate(tqdm(perturbations, desc='perturbation', unit='flip')):
                 logging.info('Starting perturbation %d %%', p)
-                probas = get_perturb_proba(degrees, p/100.0)
+                # probas = get_perturb_proba(degrees, p/100.0)
+                probas = (p/100.0)*np.ones(degrees.size)
                 perturbed_gold = {u: (1 if sz.random.random() >= probas[u] else -1)*s
                                   for u, s in sz.iteritems(gold_signs)}
                 sorted_perturbed_gold = [perturbed_gold[u] for u in sorted_test_set]
@@ -260,9 +261,9 @@ if __name__ == '__main__':
         part = int(socket.gethostname()[-1])-1
     except ValueError:
         part = 0
-    sz.random.seed(123460 + part)
+    sz.random.seed(123464 + part)
     # online_repetition_exps(num_rep=1, num_run=9)
     # star_exps(400, 1, .02)
     dataset = 'citeseer' if len(sys.argv) <= 1 else sys.argv[1]
-    real_exps(num_tree=17, num_batch_order=NUM_THREADS, dataset=dataset, part=part)
+    real_exps(num_tree=17, num_batch_order=NUM_THREADS, dataset=dataset, part=part+1)
     # benchmark('citeseer', num_run=1)

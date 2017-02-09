@@ -153,7 +153,7 @@ def flep(tree_adj, nodes_sign, edge_weight, root, return_fullcut_info=False):
                 # FLEP_CALLS_TIMING.append(clock() - start)
                 intermediate = {}
                 if return_fullcut_info:
-                    intermediate = {n: (vals[2], vals[3])
+                    intermediate = {n: vals[2:6]
                                     for n, vals in status.items()
                                     if vals[0] and n not in nodes_sign[0]}
                 return (((cutn - cutp), (cutn_ - cutp_)), intermediate, status)

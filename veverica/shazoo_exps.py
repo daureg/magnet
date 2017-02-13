@@ -216,7 +216,7 @@ def simple_offline_shazoo(tree_adj, edge_weights, seen_signs):
                     for n, cut in cuts.items()}
         assert all([n not in preds for n in new_pred])
         preds.update(new_pred)
-    pred = defaultdict(list)
+    pred = defaultdict(dict)
     assert set(preds) == test_vertices
     for node, signs in sorted(preds.items()):
         pred['rta'][node] = signs[0]

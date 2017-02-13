@@ -101,10 +101,9 @@ def real_exps(num_tree=2, num_batch_order=15, train_fraction=.2, dataset='citese
     # logging.basicConfig(filename='shazoo_{}.log'.format(exp_start), level=logging.DEBUG, format=dbg_fmt)
     logging.info('Started')
     res_file = 'shazoo_{}_{}_{}.npz'.format(dataset, exp_start, part)
-    perturbations = [0,]#, 2.5, 5, 10, 20]
+    perturbations = [0, 2.5, 5, 10, 20]
     train_size = np.array([2.5, 5, 10, 20, 40]) / 100
-    train_size = np.array([10, 20]) / 100
-    nrep = 20
+    nrep = 3
     res = np.zeros((len(train_size), len(perturbations), nrep, 3, 2))
     phis = np.zeros((len(train_size), len(perturbations), nrep))
     lprop_res = np.zeros((len(train_size), len(perturbations), nrep, 2))
@@ -163,12 +162,13 @@ def aggregate_trees(batch_order, graph, gold_signs, methods, num_tree, perturbed
     g_adj, g_ew, bfs_root = graph
     for i in trange(num_tree, desc='tree', unit='tree', unit_scale=True):
         sz.GRAPH, sz.EWEIGHTS = g_adj, g_ew
-        sz.get_bfs(bfs_root)
+        sz.get_rst(None)
         adj, ew = sz.TREE_ADJ, sz.TWEIGHTS
         logging.debug('drawn BFS tree number %d', i+1)
-        args = zip(repeat(adj, num_tree), batch_order, repeat(ew, num_tree),
-                   repeat(gold_signs, num_tree), repeat(perturbed_gold, num_tree),
-                   repeat(sorted_test_set, num_tree))
+        num_order = len(batch_order)
+        args = zip(repeat(adj, num_order), batch_order, repeat(ew, num_order),
+                   repeat(gold_signs, num_order), repeat(perturbed_gold, num_order),
+                   repeat(sorted_test_set, num_order))
         runs = list(pool.imap_unordered(run_once, args))
         for lres in runs:
             for method, data in zip(methods, lres):
@@ -312,9 +312,9 @@ if __name__ == '__main__':
         part = int(socket.gethostname()[-1])-1
     except ValueError:
         part = 0
-    sz.random.seed(123464 + part)
+    sz.random.seed(123500 + part)
     # online_repetition_exps(num_rep=1, num_run=9)
     # star_exps(400, 1, .02)
     dataset = 'citeseer' if len(sys.argv) <= 1 else sys.argv[1]
-    real_exps(num_tree=17, num_batch_order=NUM_THREADS, dataset=dataset, part=part+1)
+    real_exps(num_tree=15, num_batch_order=NUM_THREADS, dataset=dataset, part=part+1)
     # benchmark('citeseer', num_run=1)

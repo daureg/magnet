@@ -1,6 +1,6 @@
 # vim: set fileencoding=utf-8
 """Perform various experiments using the shazoo code."""
-from collections import defaultdict
+from collections import defaultdict, deque
 from grid_stretch import add_edge
 from tqdm import trange, tqdm
 import persistent
@@ -19,7 +19,7 @@ else:
 
     def get_weight_matrix(*args):
         return None, None
-NUM_THREADS = 11
+NUM_THREADS = 13
 
 
 def get_perturb_proba(degrees, p0):
@@ -101,9 +101,10 @@ def real_exps(num_tree=2, num_batch_order=15, train_fraction=.2, dataset='citese
     # logging.basicConfig(filename='shazoo_{}.log'.format(exp_start), level=logging.DEBUG, format=dbg_fmt)
     logging.info('Started')
     res_file = 'shazoo_{}_{}_{}.npz'.format(dataset, exp_start, part)
-    perturbations = [0, 2.5, 5, 10, 20]
+    perturbations = [0,]#, 2.5, 5, 10, 20]
     train_size = np.array([2.5, 5, 10, 20, 40]) / 100
-    nrep = 5
+    train_size = np.array([10, 20]) / 100
+    nrep = 20
     res = np.zeros((len(train_size), len(perturbations), nrep, 3, 2))
     phis = np.zeros((len(train_size), len(perturbations), nrep))
     lprop_res = np.zeros((len(train_size), len(perturbations), nrep, 2))
@@ -191,17 +192,67 @@ def run_once(args):
     node_vals = sz.threeway_batch_shazoo(tree_adj, ew, {}, perturbed_gold,
                                          order=batch_order, return_gammas=True)[-1]
     logging.debug('Starting the batch phase for one the batch order')
-    bpreds = sz.batch_predict(tree_adj, node_vals, ew)
-    local_res = []
+    # bpreds = sz.batch_predict(tree_adj, node_vals, ew)
+    bpreds = simple_offline_shazoo(tree_adj, ew, (node_vals[0], node_vals[2]))
+    local_res = [(0, 0, np.sign(2*np.random.random(len(sorted_test_set))-1)), ]
     for j, (method, dpred) in enumerate(sorted(bpreds.items(), key=lambda x: x[0])):
         mistakes = sum((1 for node, p in sz.iteritems(dpred) if p != gold_signs[node]))
         p_mistakes = sum((1 for node, p in sz.iteritems(dpred) if p != perturbed_gold[node]))
-        if method == 'l2cost' and not sz.USE_SCIPY:
-            local_res.append((0, 0, np.sign(2*np.random.random(len(sorted_test_set))-1)))
-        else:
-            logging.debug('in one the batch order, %s made %d mistakes', method, p_mistakes)
-            local_res.append((p_mistakes, mistakes, [dpred[u] for u in sorted_test_set]))
+        logging.debug('in one the batch order, %s made %d mistakes', method, p_mistakes)
+        local_res.append((p_mistakes, mistakes, [dpred[u] for u in sorted_test_set]))
     return local_res
+
+
+def simple_offline_shazoo(tree_adj, edge_weights, seen_signs):
+    shazoo_signs, rta_signs = seen_signs
+    test_vertices = set(tree_adj) - set(shazoo_signs)
+    preds = {}
+    for node in test_vertices:
+        if node in preds:
+            continue
+        cuts = double_offline_cut_computation(tree_adj, seen_signs, edge_weights, node)
+        new_pred = {n: (1 if cut[2] < cut[3] else -1,
+                        1 if cut[0] < cut[1] else -1)
+                    for n, cut in cuts.items()}
+        assert all([n not in preds for n in new_pred])
+        preds.update(new_pred)
+    pred = defaultdict(list)
+    assert set(preds) == test_vertices
+    for node, signs in sorted(preds.items()):
+        pred['rta'][node] = signs[0]
+        pred['shazoo'][node] = signs[1]
+    return pred
+
+
+def double_offline_cut_computation(tree_adj, nodes_sign, edge_weight, root):
+    _, rooted_cut, _ = sz.flep(tree_adj, nodes_sign, edge_weight, root,
+                               return_fullcut_info=True)
+    discovered = defaultdict(bool)
+    discovered[root] = True
+    queue = deque()
+    queue.append(root)
+    while queue:
+        v = queue.popleft()
+        if v in nodes_sign[0]:
+            continue
+        for u in tree_adj[v]:
+            if not discovered[u]:
+                queue.append(u)
+                discovered[u] = True
+                if u in nodes_sign[0]:
+                    continue
+                ew = edge_weight[(u, v) if u < v else (v, u)]
+                u_cp, u_cn, u_cp_, u_cn_ = rooted_cut[u]
+                p_cp, p_cn, p_cp_, p_cn_ = rooted_cut[v]
+                no_child_cp = p_cp - min(u_cp, u_cn + ew)
+                no_child_cn = p_cn - min(u_cn, u_cp + ew)
+                no_child_cp_ = p_cp_ - min(u_cp_, u_cn_ + ew)
+                no_child_cn_ = p_cn_ - min(u_cn_, u_cp_ + ew)
+                rooted_cut[u] = (u_cp + min(no_child_cp, no_child_cn + ew),
+                                 u_cn + min(no_child_cn, no_child_cp + ew),
+                                 u_cp_ + min(no_child_cp_, no_child_cn_ + ew),
+                                 u_cn_ + min(no_child_cn_, no_child_cp_ + ew),)
+    return rooted_cut
 
 
 def star_exps(n, num_rep=5, p=.1):

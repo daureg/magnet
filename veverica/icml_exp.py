@@ -113,7 +113,7 @@ if __name__ == '__main__':
           {'sampling': lambda d: int(ceil(4*log(d)))},
           {'sampling': lambda d: int(ceil(5*log(d)))}]
 
-    batch = [{'oldest': v} for v in [.03, .05, .07, .09, .15, .20, .25]]
+    batch = [{'batch': v} for v in [.05, .10]]
 
     fres = [[] for _ in range(35)]
     for r, params in enumerate(cs if args.active else batch):

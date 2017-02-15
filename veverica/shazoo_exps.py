@@ -58,6 +58,8 @@ def load_real_graph(dataset='citeseer', main_class=None):
                           'cora': 2,
                           'pubmed_core': 1,
                           'usps4500': 4,
+                          'rcv1': 2,
+                          'imdb': 0,
                           }
     main_class = main_class if main_class is not None else default_main_class[dataset]
     ew, y = persistent.load_var('{}_lcc.my'.format(dataset))

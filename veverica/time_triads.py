@@ -9,7 +9,7 @@ if __name__ == '__main__':
     import argparse
     from exp_tworules import find_threshold
     part = int(socket.gethostname()[-1])-1
-    num_threads = 16
+    num_threads = 14
 
     parser = argparse.ArgumentParser()
     parser.add_argument("data", help="Which data to use",
@@ -40,7 +40,7 @@ if __name__ == '__main__':
     m = sorted_edges.shape[0]
     n = (W.shape[0] - m)//2
 
-    batch = [{'batch': v} for v in [.03, .05, .07, .09, .15, .20, .25]]
+    batch = [{'batch': v} for v in [.05, .1]]
     fres = [[] for _ in range(1)]
     for r, params in enumerate(batch):
         lesko, lpmin_erm, asym = [], [], []

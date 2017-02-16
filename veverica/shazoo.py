@@ -69,7 +69,7 @@ def from_edges_to_tree(edges):
 def majority_vote(preds):
     """Aggregate all prediction by majority vote."""
     if len(preds) == 1:
-        return preds
+        return preds[0]
     return [1 if sum(votes) > 0 else -1
             for votes in zip(*preds)]
 

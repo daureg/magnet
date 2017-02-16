@@ -350,7 +350,7 @@ if __name__ == '__main__':
         part = int(socket.gethostname()[-1])-1
     except ValueError:
         part = 0
-    sz.random.seed(123500 + part)
+    sz.random.seed(123504 + part)
     # online_repetition_exps(num_rep=1, num_run=9)
     # star_exps(400, 1, .02)
     dataset = 'citeseer' if len(sys.argv) <= 1 else sys.argv[1]

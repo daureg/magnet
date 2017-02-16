@@ -62,6 +62,21 @@ def test_dfs_order(tree):
     assert answer == correct_anwser
 
 
+def test_dfs_order_big_leaf():
+    ew = {(1, 2): 4,
+          (1, 3): 1,
+          (1, 100): 1/2,
+          (2, 4): 3,
+          (2, 5): 3,
+          (3, 6): 1/2}
+    tree_adj = {}
+    for u, v in ew.keys():
+        add_edge(tree_adj, u, v)
+    correct_anwser = [1, 2, 4, 2, 5, 2, 1, 3, 6, 3, 1, 100]
+    answer = dfs_order(tree_adj, ew, 1)
+    assert answer == correct_anwser
+
+
 def test_remove_duplicates(tree):
     tree_adj, ew = tree
     initial_order = [1, 5, 1, 6, 0, 6, 3, 6, 7, 6, 1, 8, 2, 8, 4]

@@ -86,7 +86,7 @@ def dfs_order(tree_adj, edge_weight, root):
     assert isinstance(tree_adj, dict)
     stack = [root, ]
     status = defaultdict(bool)
-    res = []
+    res, seen = [], set()
     last_node = None
     while stack:
         v = stack.pop()
@@ -94,7 +94,8 @@ def dfs_order(tree_adj, edge_weight, root):
             v = -(v+100)
         discovered = status[v]
         res.append(v)
-        if v == last_node:
+        seen.add(v)
+        if len(seen) == len(tree_adj):
             return res
         if not discovered:
             status[v] = True

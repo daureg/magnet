@@ -116,7 +116,6 @@ if __name__ == "__main__":
     timings = []
     for _ in range(nrep):
         start = clock()
-        # mst = [(u, v) for (u, v) in kruskal_mst_edges(ew)]
         mst = kruskal_mst_edges(ew)
         timings.append(clock() - start)
     print('\t'.join(('{:.3g}'.format(t) for t in timings)))

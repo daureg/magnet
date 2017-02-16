@@ -118,7 +118,7 @@ def test_predict_signs(tree):
     root = 1
     signs = {0: 1, 1: 1, 2: 1, 3: 1, 4: 1, 5: -1, 6: -1, 7: -1, 8: -1}
     n = len(signs)
-    nodes_line, edge_weight = convert_to_line(linearize_tree(tree_adj, ew, root))
+    nodes_line, edge_weight = linearize_tree(tree_adj, ew, root)
     for i in range(10):
         training_set = {u: signs[u] for u in [random.randint(0, n-1), random.randint(0, n-1)]}
         predict_signs(nodes_line, edge_weight, training_set)
@@ -126,7 +126,3 @@ def test_predict_signs(tree):
     answer = predict_signs(nodes_line, edge_weight, training_set)
     correct_anwser = {0: -1, 1: -1, 3: -1, 4: 1, 5: -1, 7: 1, 8: 1}
     assert answer == correct_anwser
-
-
-if __name__ == "__main__":
-    test_convert_line()

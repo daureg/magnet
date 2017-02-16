@@ -123,7 +123,7 @@ def remove_duplicates(line, ew):
 
 def linearize_tree(tree_adj, edge_weight, root):
     ordered_node = dfs_order(tree_adj, edge_weight, root)
-    return remove_duplicates(ordered_node, edge_weight)
+    return convert_to_line(remove_duplicates(ordered_node, edge_weight))
 
 
 def convert_to_line(node_and_weight):
@@ -156,7 +156,7 @@ if __name__ == "__main__":
     random.seed(123)
     tree_adj, ew, signs, _ = make_graph(20000)
     timings = []
-    nodes_line, edge_weight = convert_to_line(linearize_tree(tree_adj, ew, 0))
+    nodes_line, edge_weight = linearize_tree(tree_adj, ew, 0)
     nrep = 20
     for _ in range(nrep):
         training_set = {u: signs[u] for u in random.sample(list(range(n)), int(.1*n))}

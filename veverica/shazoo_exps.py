@@ -3,6 +3,7 @@
 from collections import defaultdict, deque
 from grid_stretch import add_edge
 from tqdm import trange, tqdm
+from wta import linearize_tree, predict_signs as wta_predict
 import persistent
 import shazoo as sz
 import numpy as np
@@ -109,6 +110,7 @@ def real_exps(num_tree=2, num_batch_order=15, train_fraction=.2, dataset='citese
     res = np.zeros((len(train_size), len(perturbations), nrep, 3, 2))
     phis = np.zeros((len(train_size), len(perturbations), nrep))
     lprop_res = np.zeros((len(train_size), len(perturbations), nrep, 2))
+    wta_res = np.zeros_like(lprop_res)
     g_adj, g_ew, gold_signs, phi = load_real_graph(dataset)
     weights, inv_degree = get_weight_matrix(g_ew, dataset)
     n = len(g_adj)
@@ -148,10 +150,11 @@ def real_exps(num_tree=2, num_batch_order=15, train_fraction=.2, dataset='citese
                 p_mistakes = sum((1 for g, p in zip(sorted_perturbed_gold, lprop_pred) if p != g))
                 logging.info('Lprop made %d and %d mistakes', p_mistakes, mistakes)
                 lprop_res[j, ip, rep_id, :] = (p_mistakes, mistakes)
-                lres = aggregate_trees(batch_order, (g_adj, g_ew, bfs_root), gold_signs, methods,
-                                       num_tree, perturbed_gold, pool, sorted_gold,
-                                       sorted_perturbed_gold, sorted_test_set)
+                lres, wta = aggregate_trees(batch_order, (g_adj, g_ew, bfs_root), gold_signs,
+                                            methods, num_tree, perturbed_gold, pool, sorted_gold,
+                                            sorted_perturbed_gold, sorted_test_set)
                 res[j, ip, rep_id, :, :] = lres
+                wta_res[j, ip, rep_id, :] = wta
                 np.savez_compressed(res_file, res=res, phis=phis, lprop=lprop_res)
     pool.close()
     pool.join()
@@ -161,12 +164,23 @@ def real_exps(num_tree=2, num_batch_order=15, train_fraction=.2, dataset='citese
 def aggregate_trees(batch_order, graph, gold_signs, methods, num_tree, perturbed_gold, pool,
                     sorted_gold, sorted_perturbed_gold, sorted_test_set):
     keep_preds = defaultdict(list)
+    wta_preds = []
+    wta_training_set = {u: gold_signs[u] for u in batch_order[0]}
     g_adj, g_ew, bfs_root = graph
     for i in trange(num_tree, desc='tree', unit='tree', unit_scale=True):
         sz.GRAPH, sz.EWEIGHTS = g_adj, g_ew
         sz.get_rst(None)
         adj, ew = sz.TREE_ADJ, sz.TWEIGHTS
         logging.debug('drawn BFS tree number %d', i+1)
+
+        nodes_line, line_weight = linearize_tree(adj, ew, bfs_root)
+        pred = wta_predict(nodes_line, line_weight, wta_training_set)
+        try:
+            wta_preds.append([pred[u] for u in sorted_test_set])
+        except KeyError:
+            persistent.save_var('__fail.my', (adj, ew, bfs_root, batch_order[0], sorted_test_set))
+            raise
+
         num_order = len(batch_order)
         args = zip(repeat(adj, num_order), batch_order, repeat(ew, num_order),
                    repeat(gold_signs, num_order), repeat(perturbed_gold, num_order),
@@ -185,7 +199,10 @@ def aggregate_trees(batch_order, graph, gold_signs, methods, num_tree, perturbed
         p_mistakes = sum((1 for g, p in zip(sorted_perturbed_gold, pred) if p != g))
         logging.debug('Aggregated over %d trees, %s made %d mistakes', num_tree, method, p_mistakes)
         res.append((p_mistakes, mistakes))
-    return res
+    pred = sz.majority_vote(wta_preds)
+    mistakes = sum((1 for g, p in zip(sorted_gold, pred) if p != g))
+    p_mistakes = sum((1 for g, p in zip(sorted_perturbed_gold, pred) if p != g))
+    return res, (p_mistakes, mistakes)
 
 
 def run_once(args):

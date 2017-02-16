@@ -174,7 +174,7 @@ def get_mst(edge_weight):
     tree_edges = kruskal_mst_edges(edge_weight)
     tree_adj = {}
     for u, v in tree_edges:
-        add_edge(adj, u, v)
+        add_edge(tree_adj, u, v)
     return tree_adj, {e: edge_weight[e] for e in tree_edges}
 
 
@@ -186,7 +186,7 @@ def aggregate_trees(batch_order, graph, gold_signs, methods, num_tree, perturbed
     g_adj, g_ew, bfs_root = graph
     ranging = range(1)
     if num_tree > 1:
-        ranging = trange(num_tree, desc='tree', unit='tree', unit_scale=True) 
+        ranging = trange(num_tree, desc='tree', unit='tree', unit_scale=True)
     for i in ranging:
         if num_tree > 1:
             sz.GRAPH, sz.EWEIGHTS = g_adj, g_ew
@@ -194,7 +194,7 @@ def aggregate_trees(batch_order, graph, gold_signs, methods, num_tree, perturbed
             adj, ew = sz.TREE_ADJ, sz.TWEIGHTS
             logging.debug('drawn BFS tree number %d', i+1)
         else:
-            adj, ew = get_mst(edge_weight)
+            adj, ew = get_mst(g_ew)
 
         nodes_line, line_weight = linearize_tree(adj, ew, bfs_root)
         pred = wta_predict(nodes_line, line_weight, wta_training_set)

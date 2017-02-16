@@ -4,6 +4,7 @@ from collections import defaultdict, deque
 from grid_stretch import add_edge
 from tqdm import trange, tqdm
 from wta import linearize_tree, predict_signs as wta_predict
+from nxmst import kruskal_mst_edges
 import persistent
 import shazoo as sz
 import numpy as np
@@ -108,9 +109,11 @@ def real_exps(num_tree=2, num_batch_order=15, train_fraction=.2, dataset='citese
     train_size = np.array([2.5, 5, 10, 20, 40]) / 100
     nrep = 3
     res = np.zeros((len(train_size), len(perturbations), nrep, 3, 2))
+    res_mst = np.zeros_like(res)
     phis = np.zeros((len(train_size), len(perturbations), nrep))
     lprop_res = np.zeros((len(train_size), len(perturbations), nrep, 2))
     wta_res = np.zeros_like(lprop_res)
+    wta_res_mst = np.zeros_like(wta_res)
     g_adj, g_ew, gold_signs, phi = load_real_graph(dataset)
     weights, inv_degree = get_weight_matrix(g_ew, dataset)
     n = len(g_adj)
@@ -155,10 +158,24 @@ def real_exps(num_tree=2, num_batch_order=15, train_fraction=.2, dataset='citese
                                             sorted_perturbed_gold, sorted_test_set)
                 res[j, ip, rep_id, :, :] = lres
                 wta_res[j, ip, rep_id, :] = wta
-                np.savez_compressed(res_file, res=res, phis=phis, lprop=lprop_res)
+                lres, wta = aggregate_trees(batch_order, (g_adj, g_ew, bfs_root), gold_signs,
+                                            methods, 1, perturbed_gold, pool, sorted_gold,
+                                            sorted_perturbed_gold, sorted_test_set)
+                res_mst[j, ip, rep_id, :, :] = lres
+                wta_res_mst[j, ip, rep_id, :] = wta
+                np.savez_compressed(res_file, res=res, wta_res=wta_res, phis=phis, lprop=lprop_res,
+                                    res_mst=res_mst, wta_res_mst=wta_res_mst)
     pool.close()
     pool.join()
     logging.info('Finished')
+
+
+def get_mst(edge_weight):
+    tree_edges = kruskal_mst_edges(edge_weight)
+    tree_adj = {}
+    for u, v in tree_edges:
+        add_edge(adj, u, v)
+    return tree_adj, {e: edge_weight[e] for e in tree_edges}
 
 
 def aggregate_trees(batch_order, graph, gold_signs, methods, num_tree, perturbed_gold, pool,
@@ -167,19 +184,21 @@ def aggregate_trees(batch_order, graph, gold_signs, methods, num_tree, perturbed
     wta_preds = []
     wta_training_set = {u: gold_signs[u] for u in batch_order[0]}
     g_adj, g_ew, bfs_root = graph
-    for i in trange(num_tree, desc='tree', unit='tree', unit_scale=True):
-        sz.GRAPH, sz.EWEIGHTS = g_adj, g_ew
-        sz.get_rst(None)
-        adj, ew = sz.TREE_ADJ, sz.TWEIGHTS
-        logging.debug('drawn BFS tree number %d', i+1)
+    ranging = range(1)
+    if num_tree > 1:
+        ranging = trange(num_tree, desc='tree', unit='tree', unit_scale=True) 
+    for i in ranging:
+        if num_tree > 1:
+            sz.GRAPH, sz.EWEIGHTS = g_adj, g_ew
+            sz.get_rst(None)
+            adj, ew = sz.TREE_ADJ, sz.TWEIGHTS
+            logging.debug('drawn BFS tree number %d', i+1)
+        else:
+            adj, ew = get_mst(edge_weight)
 
         nodes_line, line_weight = linearize_tree(adj, ew, bfs_root)
         pred = wta_predict(nodes_line, line_weight, wta_training_set)
-        try:
-            wta_preds.append([pred[u] for u in sorted_test_set])
-        except KeyError:
-            persistent.save_var('__fail.my', (adj, ew, bfs_root, batch_order[0], sorted_test_set))
-            raise
+        wta_preds.append([pred[u] for u in sorted_test_set])
 
         num_order = len(batch_order)
         args = zip(repeat(adj, num_order), batch_order, repeat(ew, num_order),

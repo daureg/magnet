@@ -182,7 +182,7 @@ def aggregate_trees(batch_order, graph, gold_signs, methods, num_tree, perturbed
                     sorted_gold, sorted_perturbed_gold, sorted_test_set):
     keep_preds = defaultdict(list)
     wta_preds = []
-    wta_training_set = {u: gold_signs[u] for u in batch_order[0]}
+    wta_training_set = {u: perturbed_gold[u] for u in batch_order[0]}
     g_adj, g_ew, bfs_root = graph
     ranging = range(1)
     if num_tree > 1:
@@ -350,7 +350,7 @@ if __name__ == '__main__':
         part = int(socket.gethostname()[-1])-1
     except ValueError:
         part = 0
-    sz.random.seed(123504 + part)
+    sz.random.seed(123508 + part)
     # online_repetition_exps(num_rep=1, num_run=9)
     # star_exps(400, 1, .02)
     dataset = 'citeseer' if len(sys.argv) <= 1 else sys.argv[1]

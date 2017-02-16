@@ -1,5 +1,6 @@
-python -O -W ignore time_triads.py aut -n12
-python -O -W ignore time_triads.py wik -n12
-python -O -W ignore time_triads.py sla -n12
-python -O -W ignore time_triads.py epi -n12
-python -O -W ignore time_triads.py kiw -n12
+python -O -W ignore shazoo_exps.py imdb
+python -O -W ignore shazoo_exps.py citeseer
+python -O -W ignore shazoo_exps.py cora
+python -O -W ignore shazoo_exps.py pubmed_core
+python -O -W ignore shazoo_exps.py usps4500
+python -O -W ignore shazoo_exps.py rcv1

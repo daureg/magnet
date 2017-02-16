@@ -85,28 +85,20 @@ def propagate_revelead_signs(nodes_line, edge_weight, return_prediction=True):
 def dfs_order(tree_adj, edge_weight, root):
     assert isinstance(tree_adj, dict)
     stack = [root, ]
-    status = defaultdict(bool)
-    res, seen = [], set()
-    last_node = None
+    discovered = defaultdict(bool)
+    order, seen = [], set()
     while stack:
         v = stack.pop()
-        if v < 0:
-            v = -(v+100)
-        discovered = status[v]
-        res.append(v)
+        order.append(v)
         seen.add(v)
         if len(seen) == len(tree_adj):
-            return res
-        if not discovered:
-            status[v] = True
-            if v not in tree_adj or len(tree_adj[v]) == 1:
-                continue
+            return order
+        if not discovered[v]:
+            discovered[v] = True
+            # TODO: I use sorted here for testing but in practice I could get more variety
             for w in sorted(tree_adj[v], reverse=True):
-                discovered = status[w]
-                if len(status) == len(tree_adj) and last_node is None:
-                    last_node = max(tree_adj[v])
-                if not discovered:
-                    stack.append(-(v+100))
+                if not discovered[w]:
+                    stack.append(v)
                     stack.append(w)
 
 

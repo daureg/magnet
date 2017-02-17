@@ -27,22 +27,22 @@ def is_line_node(instance, attribute, x):
 
 @attr.s(slots=True)
 class LineNode(object):
-    id_ = attr.ib(validator=instance_of(int))
+    id_ = attr.ib(convert=int, validator=instance_of(int))
     left = attr.ib(default=None, cmp=False, repr=False, validator=is_line_node)
     right = attr.ib(default=None, cmp=False, repr=False, validator=is_line_node)
     sign = attr.ib(default=None, validator=is_binary)
     smallest_dst = attr.ib(default=1e9, validator=instance_of(float))
-    source = attr.ib(default=-1, validator=instance_of(int))
+    source = attr.ib(convert=int, default=-1, validator=instance_of(int))
     pred_sign = attr.ib(default=None, validator=is_binary)
 
 
 @attr.s(slots=True)
 class Propagated(object):
-    id_ = attr.ib(validator=instance_of(int))
+    id_ = attr.ib(convert=int, validator=instance_of(int))
     sign = attr.ib(validator=is_binary)
-    origin = attr.ib(validator=instance_of(int))
+    origin = attr.ib(convert=int, validator=instance_of(int))
     going_right = attr.ib(validator=instance_of(bool))
-    pos = attr.ib(cmp=False, hash=False, validator=instance_of(int))
+    pos = attr.ib(cmp=False, hash=False, convert=int, validator=instance_of(int))
     dst = attr.ib(cmp=False, hash=False, convert=float, validator=instance_of(float))
 
 

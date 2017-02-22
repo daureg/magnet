@@ -99,15 +99,60 @@ def online_repetition_exps(num_rep=2, num_run=13):
             np.savez_compressed(res_file, res=res)
 
 
+def lots_of_tree(dataset='imdb', part=0):
+    exp_start = (int(time.time()-(2017-1970)*365.25*24*60*60))//60
+    res_file = 'tree_shazoo_{}_{}_{}.npz'.format(dataset, exp_start, part)
+    g_adj, g_ew, gold_signs, phi = load_real_graph(dataset)
+    n = len(g_adj)
+    train_fraction = .1
+    num_trees = 28
+    nodes_id = set(range(n))
+    pool = Pool(NUM_THREADS)
+    z = list(range(n))
+    sz.random.shuffle(z)
+    train_set = {u: gold_signs[u] for u in z[:int(train_fraction * n)]}
+    test_set = nodes_id - set(train_set)
+    sorted_test_set = sorted(test_set)
+    sorted_train_set = sorted(train_set)
+    sorted_gold = [gold_signs[u] for u in sorted_test_set]
+    batch_order = []
+    chunk_size = 9
+    num_batch_order = NUM_THREADS*chunk_size
+    res = np.zeros((num_trees, num_batch_order, len(sorted_test_set)), dtype=int)
+    z = list(range(len(train_set)))
+    for _ in range(num_batch_order):
+        sz.random.shuffle(z)
+        batch_order.append([sorted_train_set[u] for u in z])
+    sz.GRAPH, sz.EWEIGHTS = g_adj, g_ew
+    p = .1
+    probas = (p/100.0)*np.ones(n)
+    perturbed_gold = {u: (1 if sz.random.random() >= probas[u] else -1)*s
+                      for u, s in sz.iteritems(gold_signs)}
+    sorted_perturbed_gold = [perturbed_gold[u] for u in sorted_test_set]
+    num_order = len(batch_order)
+    for j in trange(num_trees, desc='tree', unit='tree', unit_scale=True):
+        sz.get_rst(None)
+        adj, ew = sz.TREE_ADJ, sz.TWEIGHTS
+        args = zip(repeat(adj, num_order), batch_order, repeat(ew, num_order),
+                   repeat(gold_signs, num_order), repeat(perturbed_gold, num_order),
+                   repeat(sorted_test_set, num_order))
+        runs = pool.imap_unordered(run_once, args, chunk_size)
+        for i, lres in enumerate(runs):
+            res[j, i, :] = lres[1][2]
+        np.savez_compressed(res_file, res=res, gold=sorted_gold)
+
+
 def real_exps(num_tree=2, num_batch_order=15, train_fraction=.2, dataset='citeseer', part=0):
     exp_start = (int(time.time()-(2017-1970)*365.25*24*60*60))//60
     dbg_fmt = '%(asctime)s - %(relativeCreated)d:%(filename)s.%(funcName)s.%(threadName)s:%(lineno)d(%(levelname)s):%(message)s '
     # logging.basicConfig(filename='shazoo_{}.log'.format(exp_start), level=logging.DEBUG, format=dbg_fmt)
     logging.info('Started')
     res_file = 'shazoo_{}_{}_{}.npz'.format(dataset, exp_start, part)
-    perturbations = [0, 2.5, 5, 10, 20]
-    train_size = np.array([2.5, 5, 10, 20, 40]) / 100
-    nrep = 3
+    # perturbations = [0, 2.5, 5, 10, 20]
+    perturbations = [2.5, 5]
+    # train_size = np.array([2.5, 5, 10, 20, 40]) / 100
+    train_size = np.array([2.5,]) / 100
+    nrep = 30
     res = np.zeros((len(train_size), len(perturbations), nrep, 3, 2))
     res_mst = np.zeros_like(res)
     phis = np.zeros((len(train_size), len(perturbations), nrep))
@@ -158,11 +203,11 @@ def real_exps(num_tree=2, num_batch_order=15, train_fraction=.2, dataset='citese
                                             sorted_perturbed_gold, sorted_test_set)
                 res[j, ip, rep_id, :, :] = lres
                 wta_res[j, ip, rep_id, :] = wta
-                lres, wta = aggregate_trees(batch_order, (g_adj, g_ew, bfs_root), gold_signs,
-                                            methods, 1, perturbed_gold, pool, sorted_gold,
-                                            sorted_perturbed_gold, sorted_test_set)
-                res_mst[j, ip, rep_id, :, :] = lres
-                wta_res_mst[j, ip, rep_id, :] = wta
+                # lres, wta = aggregate_trees(batch_order, (g_adj, g_ew, bfs_root), gold_signs,
+                #                             methods, 1, perturbed_gold, pool, sorted_gold,
+                #                             sorted_perturbed_gold, sorted_test_set)
+                # res_mst[j, ip, rep_id, :, :] = lres
+                # wta_res_mst[j, ip, rep_id, :] = wta
                 np.savez_compressed(res_file, res=res, wta_res=wta_res, phis=phis, lprop=lprop_res,
                                     res_mst=res_mst, wta_res_mst=wta_res_mst)
     pool.close()
@@ -350,9 +395,10 @@ if __name__ == '__main__':
         part = int(socket.gethostname()[-1])-1
     except ValueError:
         part = 0
-    sz.random.seed(123508 + part)
+    sz.random.seed(123524 + part)
     # online_repetition_exps(num_rep=1, num_run=9)
     # star_exps(400, 1, .02)
     dataset = 'citeseer' if len(sys.argv) <= 1 else sys.argv[1]
-    real_exps(num_tree=15, num_batch_order=NUM_THREADS, dataset=dataset, part=part+1)
+    # real_exps(num_tree=15, num_batch_order=NUM_THREADS, dataset=dataset, part=part+1)
+    lots_of_tree(dataset)
     # benchmark('citeseer', num_run=1)

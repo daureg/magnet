@@ -5,14 +5,15 @@
 \usepackage{amssymb}
 \usepackage{microtype}
 \usepackage{csquotes}
-\usepackage{fullpage}
+% \usepackage{fullpage}
 \usepackage{charter}
 \usepackage{xcolor}
 \usepackage{enumitem}
 \usepackage{setspace}
 \usepackage{booktabs}
+\usepackage{caption}
+\usepackage{subcaption}
 \usepackage[np,autolanguage]{numprint}
-% \usepackage{geometry}
 \usepackage[final]{pdfpages}
 \usepackage[citestyle=numeric-comp,bibstyle=ieee,isbn=false,maxnames=1,minnames=1,sorting=none,backend=biber,defernumbers=true]{biblatex}
 \AtEveryBibitem{
@@ -69,20 +70,23 @@
 
 \end{filecontents}
 \addbibresource{jobname.bib}
+\usepackage[hmargin=2.5cm,vmargin=1.5cm]{geometry}
 
 \title{\rta{} first experiments}
 \author{Géraud Le Falher}
 % \date{}
 
 \newcommand{\rta}{\textsc{RTA}}
+\newcommand{\wta}{\textsc{WTA}}
 \newcommand{\shazoo}{\textsc{Shazoo}}
 \newcommand{\lprop}{\textsc{Lab. Prop}}
 \newcommand{\cora}{\textsc{Cora}}
 \newcommand{\citeseer}{\textsc{Citeseer}}
 \newcommand{\pubmed}{\textsc{Pubmed}}
-\newcommand{\usps}{\textsc{USPS-50}}
-\newcommand{\rcv1}{\textsc{RCV1}}
+\newcommand{\usps}{\textsc{USPS-10}}
+\newcommand{\rcv}{\textsc{RCV1-10}}
 \newcommand{\imdb}{\textsc{IMDB}}
+
 \begin{document}
 \maketitle
 
@@ -91,27 +95,29 @@
 
 The first 3 datasets under consideration are citations
 networks\footnote{Available at
-\url{http://linqs.cs.umd.edu/projects/projects/lbc/}} (with directions removed).
-Nodes are papers, which belong to a few categories (Agents, AI, DB, IR, ML and
-HCI for \citeseer{}; Case Based, Genetic Algorithms, Neural Networks,
-Probabilistic Methods, Reinforcement Learning, Rule Learning and Theory for
-\cora{}; and \enquote{Diabetes Mellitus, Experimental}, \enquote{Diabetes
-Mellitus Type 1}, and \enquote{Diabetes Mellitus Type 2} for \pubmed{}). Edges
-between papers are weighted by the cosine similarity between their abstracts
-seen as bag of words. I consider only the largest connected component of each
-graph, and for \pubmed{}, I further restrict it to its 3-core\footnote{The main
-3-core is the largest set of nodes that have at least 3 neighbors in that same
-set.}. Then, I built a 50 nearest neighbors graph from 4500 images of digit
-chosen at random in the USPS dataset, following the experimental setting
-described in~\autocite{WTA13}. The size of those graphs is displayed
-in~\autoref{tab:datasets}.
-
-\imdb{}~\autocite{ImdbData07} nodes are movies released in the United States
-between 1996 and 2001, they are linked if they share a production company, and
-the weight of an edge is the number of such shared production companies. Movies
-belong to two classes, depending of whether they grossed more than 2 million
-dollars on their opening
-weekend\footnote{\url{http://netkit-srl.sourceforge.net/data.html}}.
+\url{http://linqs.cs.umd.edu/projects/projects/lbc/}} (with directions
+removed).  Nodes are papers, which belong to a few categories (Agents, AI, DB,
+IR, ML and HCI for \citeseer{}; Case Based, Genetic Algorithms, Neural
+Networks, Probabilistic Methods, Reinforcement Learning, Rule Learning and
+Theory for \cora{}; and \enquote{Diabetes Mellitus, Experimental},
+\enquote{Diabetes Mellitus Type 1}, and \enquote{Diabetes Mellitus Type 2} for
+\pubmed{}). Edges between papers are weighted by the cosine similarity between
+their abstracts seen as bag of words. I consider only the largest connected
+component of each graph, and for \pubmed{}, I further restrict it to its
+3-core\footnote{The main 3-core is the largest set of nodes that have at least
+3 neighbors in that same set.}. Then, I built 10 nearest neighbors graphs from
+4500 images of digit chosen at random in the USPS dataset and from 4500 news
+article of Reuters Corpus Volume 1 chosen at random among those having a single
+category among the 6 most frequent ones, following the experimental setting
+described in~\autocite{WTA13} (which also describes how to ascribe weight to
+the edges based on a Gaussian kernel of the Euclidean distance between
+instances). Finally, in \imdb{}~\autocite{ImdbData07}, nodes are movies
+released in the United States between 1996 and 2001, they are linked if they
+share a production company, and the weight of an edge is the number of such
+shared production companies. Movies belong to two classes, depending of whether
+they grossed more than 2 million dollars on their opening
+weekend\footnote{\url{http://netkit-srl.sourceforge.net/data.html}}.  The size
+of those 6 weighted graphs is displayed in~\autoref{tab:datasets}.
 
 \begin{table}[hb]
   \centering
@@ -124,22 +130,21 @@ weekend\footnote{\url{http://netkit-srl.sourceforge.net/data.html}}.
     \imdb{}     & \np{1126} & \np{20282} \\
     \citeseer{} & \np{2110} & \np{3668}  \\
     \cora{}     & \np{2484} & \np{5068}  \\
-    \usps{}     & \np{4500} & \np{33121} \\
-    \rcv1{}     & \np{4500} & \np{32715} \\
     \pubmed{}   & \np{4201} & \np{21042} \\
+    \usps{}     & \np{4500} & \np{33121} \\
+    \rcv{}     & \np{4500} & \np{32715} \\
     \bottomrule
   \end{tabular}
 \end{table}
 
-Later I would like to add the same Reuters Corpus Volume 1 dataset as used
-in~\autocite{WTA13}, and another one based on airport traffic. Basically, from
-the list of all flights which departed from or arrived at a US airport in
+Later I would like to add another dataset based on airport traffic. Basically,
+from the list of all flights which departed from or arrived at a US airport in
 2016, I would build a graph where nodes are airports, connected by an edge
 weighted by the number of flights between those two airports. Then I would
 divide airports between regional and worldwide ones (based on the data), giving
-a binary label the to the nodes. My assumption is that most regional airports are
-connected to others regional ones (the same being true for international ones),
-meaning there should be a small number of $\Phi$ edges.
+a binary label the to the nodes. My assumption is that most regional airports
+are connected to others regional ones (the same being true for international
+ones), meaning there should be a small number of $\Phi$ edges.
 
 \section*{Setup}
 \label{sec:Protocol}
@@ -151,37 +156,43 @@ perturbation at all), $2.5\%$, $5\%$, $10\%$ and $20\%$. In the results section,
 the yellow line correspond to the number of $\Phi$ edges (without taking weights
 into account) and as expected, it increases with $p_0$.
 
-When we say that the perturbation level is $p_0$ (for instance $p_0=5\%)$, the
-actual probability $p_i$ of each node $i$ to have its sign flipped depends of
+When we say that the perturbation level is $p_0$ (for instance $p_0=5\%)$, it
+means that the sign of each node in the training set is flipped with probability
+$p_0$. Although I didn't compute the number of such flipped signs, it is a
+random variable following a binomial distribution of parameters (size of the
+training set, $p_0$) and is therefore concentrated around its mean.
+\iffalse
+the actual probability $p_i$ of each node $i$ to have its sign flipped depends of
 its degree $d_i$ in the following way. Denoting $\bar{d}$ the average degree and
 $\Delta$ the maximum degree, we first map linearly degrees in the interval $[0,
 \bar{d}]$ to probability in $[0, p_0]$ and degrees in the interval $[\bar{d},
 \Delta]$ to probability in $[p_0, 2p_0]$. Then we rescale the resulting
 probabilities so that their average is $p_0$.
+\fi
 
 Once the training set has been fixed and the labelling perturbed, we repeat the
-following procedure 9 times:\footnote{Unfortunately, this does let us know
+following procedure 12 times:\footnote{Unfortunately, this does let us know
 which part of the variance is due to the choice of the training set and which
 part is due to the perturbation (but based on the $0\%$ results, I would say the
 training set has only a small influence on the overall variance).}
 
-We draw 17 trees in a breadth first manner from the highest degree node, but
-with children visited in a random order. For each of these trees, the training
-set is presented with 11 different orders during the online phase, which
+We draw 15 random spanning trees\footnote{I also plotted the results for a
+minimum spanning tree (MST) but on all the graphs there is a unique one, hence
+we cannot aggregate results over multiple MST.} and for each of these trees, the training
+set is presented with 13 different orders during the online phase, which
 introduce a variance in the guilt coefficient computed for nodes of the training
 set\footnote{Because of the way the code is organized, it's easier to do the
 same for \shazoo{}, although in that case, it has naturally no effect on the
 results.}. We predict the remaining nodes in a batch fashion. We use majority
-vote on each node to aggregate these $17\times 11 = 187$ predictions into a
+vote on each node to aggregate these $15\times 13 = 195$ predictions into a
 single one. Finally we evaluate the performance by the number of times the
-predicted label of a node differs from the original (unperturbed label) of that
-same node (more shortly, the number of mistakes).
+predicted label of a node differs from the real label, divided by the size of
+the testing set (more shortly, the mistake rate).
 
-So far the only competitor is label propagation\footnote{\lprop{} implementation
+The two competitors are label propagation\footnote{\lprop{} implementation
 is very fast, as it only requires a constant number of multiplications between
 the sparse weighted adjacency matrix of the graph and the binary vector of
-labels.} but later I plan to include WTA~\autocite{WTA13} (as soon as I
-implement it).
+labels.} and \wta{}~\autocite{WTA13} running on the same trees.
 
 \section*{Results}
 \label{sec:Results}
@@ -190,17 +201,17 @@ One immediate comment on the results showed in the following pages is that the
 number of mistakes is not monotonically increasing with the perturbation level.
 First, this does not happen when I compute the mistakes with respect to the
 perturbed labelling (i.e. the labelling actually showed to the learner) and
-second, I suspect this is an artefact due to the number of repetitions ($9$) not
+second, I suspect this is an artefact due to the number of repetitions ($12$) not
 being large enough. Indeed, if we take for instance the case of the \citeseer{}
-dataset with a $5\%$ training set and perturbation going from $2.5\%$ to $5\%$,
-and repeat the same experience 60 times, we get the following results:
+dataset with a $2.5\%$ training set and perturbation going from $2.5\%$ to $5\%$,
+and repeat the same experience 90 times, we get the following results:
 \begin{center}
   \begin{tabular}{lcc}
     \toprule
     Perturbation & $2.5\%$ & $5\%$ \\
     \midrule
-    17*\rta{}+BFS & $304.2 \pm 51$& $311.0 \pm 39$\\
-    17*\shazoo{}+BFS & $306.6 \pm 46$& $316.3 \pm 46$\\
+    15*\shazoo{}+RTS & $13.73 \pm 2.22$\% & $14.09 \pm 2.42$\% \\
+    15*\rta{}+RTS & $13.56 \pm 1.91$\% & $13.82 \pm 2.25$\% \\
     \bottomrule
   \end{tabular}
 \end{center}
@@ -209,31 +220,175 @@ perturbation is well within one standard deviation, making comparison between fe
 measurements misleading.
 \medskip
 
+\iffalse
 Another disturbing fact is that as the training size increases, the performance
 of both \shazoo{} and \rta{} does not to seem to improve (and even decreases
 sometimes, for instance on \cora{} between $20\%$ and $40\%$ at the $0\%$
 perturbation level).  I have no explanation for that so far, although I'm sure
 (by looking at the execution time) that both algorithm indeed used a larger
 training set during the experiments.
+\fi
 
 As for the performance themselves, there are a few general trends. \rta{} and
 \shazoo{} are close to each other and there is no clear situation where one is
-better than the other. Furthermore, \lprop{} is better, although as the
-perturbation level increases, \rta{} and \shazoo{} get more competitive on the
-two citation datasets. On the other hand, on \usps{}, \lprop{} remains almost always
-unchallenged, especially as the training size increases.  Because each nodes has
-50 neighbors (and we expect them to be more or less of the same class), a train
-set of size $40\%$ is enough to compensate for the perturbation of $20\%$ of the
-signs, yet \shazoo{} and \rta{} do not appear to take advantage of that fact.
+better than the other. Furthermore, \lprop{} is better, although depending of
+the dataset, \rta{} and \shazoo{} can get more competitive. Overall, \wta{} is
+clearly the worst.  Here are some percentile of mistake rates, over the all
+$12\times 5\times 5\times 6=1800$ point computed during the
+experiments\footnote{12 repetitions, 5 training size, 5 perturbation level, 6
+datasets.}:
+
+\begin{center}
+\begin{tabular}{lccccc|c}
+  \toprule
+  & $10\%$       & $25\%$       & median       & $75\%$       & $90\%$       & mean         \\
+  \midrule
+  \lprop{}    & \np{3.04}\% & \np{10.41}\% & \np{13.08}\% & \np{18.38}\% & \np{23.74}\% & \np{14.08}\% \\
+  \rta{}      & \np{3.95}\% & \np{10.68}\% & \np{13.55}\% & \np{19.67}\% & \np{25.94}\% & \np{15.01}\% \\
+  \shazoo{}   & \np{4.07}\% & \np{10.74}\% & \np{13.72}\% & \np{19.92}\% & \np{26.32}\% & \np{15.19}\% \\
+  \wta{}      & \np{4.80}\% & \np{11.42}\% & \np{14.72}\% & \np{22.04}\% & \np{28.15}\% & \np{16.42}\% \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+For instance, in half of the experiments, \rta{} made less than \np{13.55}\%
+mistakes. Even though the average performance of \rta{} and \shazoo{} is close,
+we can reject the hypothesis of equal means with a $p$-value of \np{5.856e-8}.
+The distributions of the mistake rate over the full 1800 experiments are showed
+in \autoref{fig:mistake}.
+
+\begin{figure}[htpb]
+  \centering
+  \includegraphics[width=1.0\linewidth]{res_shazoo_all.pdf}
+  \caption{Distribution of mistake rate. \label{fig:mistake}}
+\end{figure}
+
+
+After the results showed in the next 6 pages,  I also performed smaller scale
+experiments to study the variance of the results with respect to number of trees
+and number of training set presentation orders. For that, I draw a single
+training set of size 10\%, and perturb it once with $p_0=10\%$. Then I draw
+\np{29} random spanning trees and, for each tree, I present the training size in
+\np{117} different order. I now have $29\times 117$ predictions for each node in
+the testing set.
+
+Then let me fix an odd number $k$ of trees and an odd number $\ell$ of
+presentation orders. I choose 20 times $k$ trees (among the 29), and for each
+such set of trees, I choose 30 times $\ell$ training order (among the 117
+possible). For each of these 600 choices, I compute the mistake rate of the
+majority vote of their $k\times \ell$ combined predictions. For a given pair
+$(k, \ell)$, I then average mistakes rate over the 600 trials. Finally, I do
+that for $k \in \{1,5,9,13,17,21,27\} \times \ell \in \{13,  17,  21,  25,  29,
+33,  37,  43,  47,  51,  55,  59, 63,  67,  71,  75,  79,  83,  87,  93,  97,
+101, 105, 109, 113, 117\}$.
+
+As showed in Figures~\ref{fig:imdb_var}--\ref{fig:rcv1_var}, adding more trees
+markedly decreases the mistakes rate and the variance. On the other hand, the
+number of training set presentations seems to have little to no effect (except
+maybe in \citeseer{}---see \autoref{fig:citeseer_var}).
+
+\iffalse
+\newpage
+\newgeometry{hmargin=0cm,top=1.2cm,bottom=1cm}
+\pagestyle{empty}
+\begin{figure*}[!p]
+	\centering
+	\begin{subfigure}[b]{.945\textwidth}
+		\centering
+		\includegraphics[height=.30\textheight]{sz_treevar_imdb.pdf}
+		\caption{\imdb{}, 10\% training size and 10\% perturbation}
+	\end{subfigure}
+	\begin{subfigure}[b]{.945\textwidth}
+		\centering
+		\includegraphics[height=.30\textheight]{sz_treevar_citeseer.pdf}
+		\caption{\citeseer{}, 10\% training size and 10\% perturbation}
+	\end{subfigure}
+	\begin{subfigure}[b]{.945\textwidth}
+		\centering
+		\includegraphics[height=.30\textheight]{sz_treevar_cora.pdf}
+		\caption{\cora{}, 10\% training size and 10\% perturbation}
+	\end{subfigure}
+  \caption{Mistake rate (and its standard deviation) as the number of trees
+  drawn on the graph increases. \label{fig:tree_variance}}
+\end{figure*}
+\clearpage
+\restoregeometry
 
 \newpage
-% \newgeometry{hmargin=1.2cm,top=1.2cm,bottom=1cm}
+\newgeometry{hmargin=0cm,top=1.2cm,bottom=1cm}
 \pagestyle{empty}
+\begin{figure*}[!p]
+	\centering
+	\begin{subfigure}[b]{.945\textwidth}
+		\centering
+		\includegraphics[height=.30\textheight]{sz_batchvar_imdb.pdf}
+		\caption{\imdb{}, 10\% training size and 10\% perturbation}
+	\end{subfigure}
+	\begin{subfigure}[b]{.945\textwidth}
+		\centering
+		\includegraphics[height=.30\textheight]{sz_batchvar_citeseer.pdf}
+		\caption{\citeseer{}, 10\% training size and 10\% perturbation}
+	\end{subfigure}
+	\begin{subfigure}[b]{.945\textwidth}
+		\centering
+		\includegraphics[height=.30\textheight]{sz_batchvar_cora.pdf}
+		\caption{\cora{}, 10\% training size and 10\% perturbation}
+	\end{subfigure}
+	\caption{Mistake rate (and its standard deviation) as the number of training
+    set presentations increases.\label{fig:batch_variance}}
+\end{figure*}
+\clearpage
+\restoregeometry
+\fi
+
+\newpage
+
+\pagestyle{empty}
+\includepdf[pages=-]{res_shazoo_imdb.pdf}
 \includepdf[pages=-]{res_shazoo_citeseer.pdf}
 \includepdf[pages=-]{res_shazoo_cora.pdf}
-\includepdf[pages=-]{res_shazoo_usps.pdf}
 \includepdf[pages=-]{res_shazoo_pubmed.pdf}
-% \restoregeometry
+\includepdf[pages=-]{res_shazoo_usps.pdf}
+\includepdf[pages=-]{res_shazoo_rcv1.pdf}
+
+
+\newpage
+\pagestyle{empty}
+\newgeometry{hmargin=2.0cm,top=0.6cm,bottom=0.6cm}
+\begin{figure}[!t]
+  \centering
+  \includegraphics[height=.46\textheight]{sz_allvar_imdb.pdf}
+  \caption{Variance in \imdb{} at 10\% training size with 10\% perturbation level.\label{fig:imdb_var}}
+\end{figure}
+\begin{figure}[!b]
+  \centering
+  \includegraphics[height=.46\textheight]{sz_allvar_citeseer.pdf}
+  \caption{Variance in \citeseer{} at 10\% training size with 10\% perturbation level.\label{fig:citeseer_var}}
+\end{figure}
+
+\begin{figure}[!t]
+  \centering
+  \includegraphics[height=.46\textheight]{sz_allvar_cora.pdf}
+  \caption{Variance in \cora{} at 10\% training size with 10\% perturbation level.\label{fig:cora_var}}
+\end{figure}
+\begin{figure}[!b]
+  \centering
+  \includegraphics[height=.46\textheight]{sz_allvar_pubmed.pdf}
+  \caption{Variance in \pubmed{} at 10\% training size with 10\% perturbation level.\label{fig:pubmed_var}}
+\end{figure}
+
+\begin{figure}[!t]
+  \centering
+  \includegraphics[height=.46\textheight]{sz_allvar_usps.pdf}
+  \caption{Variance in \usps{} at 10\% training size with 10\% perturbation level.\label{fig:usps_var}}
+\end{figure}
+\begin{figure}[!b]
+  \centering
+  \includegraphics[height=.46\textheight]{sz_allvar_rcv1.pdf}
+  \caption{Variance in \rcv1{} at 10\% training size with 10\% perturbation level.\label{fig:rcv1_var}}
+\end{figure}
+\clearpage
+\restoregeometry
 
 \begingroup
 \setstretch{0.9}

@@ -615,10 +615,14 @@ def sgn(x):
 
 @profile
 def threeway_batch_shazoo(tree_adj, edge_weight, node_signs, gold_sign,
-                          order=None, return_gammas=False):
+                          order=None, return_gammas=False, params=None):
     """Predict all the signs of `gold_sign` in an online fashion."""
     logging.debug('Starting threeway_batch_shazoo')
     diff_rta_l2, diff_rta_shazoo = 0, 0
+    a, b, c = 1, 1, 0
+    if params:
+        a, b, c = params
+        print(a, b, c)
     if order is None:
         order = list(set(gold_sign.keys()) - set(node_signs.keys()))
         random.shuffle(order)
@@ -657,7 +661,10 @@ def threeway_batch_shazoo(tree_adj, edge_weight, node_signs, gold_sign,
                 border_tree_adj, _, _, leaves_sign, parents, root = predictions[method][1]
                 update = assign_gamma(border_tree_adj, root, edge_weight, parents, leaves_sign, -gold)
                 for leaf, gamma in iteritems(update):
-                    gammas_l2[leaf] += 1.5*gold*gamma
+                    if params:
+                        gammas_l2[leaf] += gold*(a*gamma**b + c)
+                    else:
+                        gammas_l2[leaf] += 1.5*gold*gamma
     gold, pred = [], {'shazoo': [], 'rta': [], 'l2cost': []}
     logging.debug('Predicted all online nodes in threeway_batch_shazoo')
     for node in sorted(order):

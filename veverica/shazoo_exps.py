@@ -22,6 +22,7 @@ else:
     def get_weight_matrix(*args):
         return None, None
 NUM_THREADS = 13
+PARAMS_ABC = None
 
 
 def get_perturb_proba(degrees, p0):
@@ -135,11 +136,57 @@ def lots_of_tree(dataset='imdb', part=0):
         adj, ew = sz.TREE_ADJ, sz.TWEIGHTS
         args = zip(repeat(adj, num_order), batch_order, repeat(ew, num_order),
                    repeat(gold_signs, num_order), repeat(perturbed_gold, num_order),
-                   repeat(sorted_test_set, num_order))
+                   repeat(sorted_test_set, num_order), repeat(None, num_order))
         runs = pool.imap_unordered(run_once, args, chunk_size)
         for i, lres in enumerate(runs):
             res[j, i, :] = lres[1][2]
         np.savez_compressed(res_file, res=res, gold=sorted_gold)
+    pool.close()
+    pool.join()
+
+
+def linear_rta(dataset='imdb', part=0):
+    global PARAMS_ABC
+    exp_start = (int(time.time()-(2017-1970)*365.25*24*60*60))//60
+    res_file = 'linear_rta_{}_{}_{}.npz'.format(dataset, exp_start, part)
+    g_adj, g_ew, gold_signs, phi = load_real_graph(dataset)
+    n = len(g_adj)
+    train_fraction = .1
+    num_trees, num_exps = 9, 50
+    nodes_id = set(range(n))
+    pool = Pool(NUM_THREADS)
+    z = list(range(n))
+    sz.random.shuffle(z)
+    train_set = {u: gold_signs[u] for u in z[:int(train_fraction * n)]}
+    test_set = nodes_id - set(train_set)
+    sorted_test_set = sorted(test_set)
+    sorted_train_set = sorted(train_set)
+    sorted_gold = [gold_signs[u] for u in sorted_test_set]
+    batch_order = []
+    num_batch_order = NUM_THREADS
+    res = np.zeros((num_exps, 2))
+    gen = np.random.uniform
+    params = [(gen(1/4, 9/4), gen(1/4, 9/4), gen(-1/4, 1/4)) for _ in range(num_exps)]
+    methods = ['l2cost', 'rta', 'shazoo']
+    z = list(range(len(train_set)))
+    for _ in range(num_batch_order):
+        sz.random.shuffle(z)
+        batch_order.append([sorted_train_set[u] for u in z])
+    sz.GRAPH, sz.EWEIGHTS = g_adj, g_ew
+    p = .1
+    probas = (p/100.0)*np.ones(n)
+    perturbed_gold = {u: (1 if sz.random.random() >= probas[u] else -1)*s
+                      for u, s in sz.iteritems(gold_signs)}
+    sorted_perturbed_gold = [perturbed_gold[u] for u in sorted_test_set]
+    for i, row in enumerate(tqdm(params, desc='Pabc', unit='params')):
+        PARAMS_ABC = tuple(row)
+        lres, _ = aggregate_trees(batch_order, (g_adj, g_ew, None), gold_signs, methods,
+                                  num_trees, perturbed_gold, pool, sorted_gold,
+                                  sorted_perturbed_gold, sorted_test_set, run_wta=False)
+        res[i, :] = lres[1]
+        np.savez_compressed(res_file, res=res, params=params)
+    pool.close()
+    pool.join()
 
 
 def real_exps(num_tree=2, num_batch_order=15, train_fraction=.2, dataset='citeseer', part=0):
@@ -224,7 +271,7 @@ def get_mst(edge_weight):
 
 
 def aggregate_trees(batch_order, graph, gold_signs, methods, num_tree, perturbed_gold, pool,
-                    sorted_gold, sorted_perturbed_gold, sorted_test_set):
+                    sorted_gold, sorted_perturbed_gold, sorted_test_set, run_wta=True):
     keep_preds = defaultdict(list)
     wta_preds = []
     wta_training_set = {u: perturbed_gold[u] for u in batch_order[0]}
@@ -241,14 +288,15 @@ def aggregate_trees(batch_order, graph, gold_signs, methods, num_tree, perturbed
         else:
             adj, ew = get_mst(g_ew)
 
-        nodes_line, line_weight = linearize_tree(adj, ew, bfs_root)
-        pred = wta_predict(nodes_line, line_weight, wta_training_set)
-        wta_preds.append([pred[u] for u in sorted_test_set])
+        if run_wta:
+            nodes_line, line_weight = linearize_tree(adj, ew, bfs_root)
+            pred = wta_predict(nodes_line, line_weight, wta_training_set)
+            wta_preds.append([pred[u] for u in sorted_test_set])
 
         num_order = len(batch_order)
         args = zip(repeat(adj, num_order), batch_order, repeat(ew, num_order),
                    repeat(gold_signs, num_order), repeat(perturbed_gold, num_order),
-                   repeat(sorted_test_set, num_order))
+                   repeat(sorted_test_set, num_order), repeat(PARAMS_ABC, num_order))
         runs = list(pool.imap_unordered(run_once, args))
         for lres in runs:
             for method, data in zip(methods, lres):
@@ -263,17 +311,19 @@ def aggregate_trees(batch_order, graph, gold_signs, methods, num_tree, perturbed
         p_mistakes = sum((1 for g, p in zip(sorted_perturbed_gold, pred) if p != g))
         logging.debug('Aggregated over %d trees, %s made %d mistakes', num_tree, method, p_mistakes)
         res.append((p_mistakes, mistakes))
-    pred = sz.majority_vote(wta_preds)
-    mistakes = sum((1 for g, p in zip(sorted_gold, pred) if p != g))
-    p_mistakes = sum((1 for g, p in zip(sorted_perturbed_gold, pred) if p != g))
+    mistakes, p_mistakes = 0, 0
+    if run_wta:
+        pred = sz.majority_vote(wta_preds)
+        mistakes = sum((1 for g, p in zip(sorted_gold, pred) if p != g))
+        p_mistakes = sum((1 for g, p in zip(sorted_perturbed_gold, pred) if p != g))
     return res, (p_mistakes, mistakes)
 
 
 def run_once(args):
-    tree_adj, batch_order, ew, gold_signs, perturbed_gold, sorted_test_set = args
+    tree_adj, batch_order, ew, gold_signs, perturbed_gold, sorted_test_set, pabc = args
     logging.debug('Starting the online phase for one the batch order')
-    node_vals = sz.threeway_batch_shazoo(tree_adj, ew, {}, perturbed_gold,
-                                         order=batch_order, return_gammas=True)[-1]
+    node_vals = sz.threeway_batch_shazoo(tree_adj, ew, {}, perturbed_gold, order=batch_order,
+                                         return_gammas=True, params=PARAMS_ABC)[-1]
     logging.debug('Starting the batch phase for one the batch order')
     # bpreds = sz.batch_predict(tree_adj, node_vals, ew)
     bpreds = simple_offline_shazoo(tree_adj, ew, (node_vals[0], node_vals[2]))
@@ -400,5 +450,5 @@ if __name__ == '__main__':
     # star_exps(400, 1, .02)
     dataset = 'citeseer' if len(sys.argv) <= 1 else sys.argv[1]
     # real_exps(num_tree=15, num_batch_order=NUM_THREADS, dataset=dataset, part=part+1)
-    lots_of_tree(dataset)
+    linear_rta(dataset, part)
     # benchmark('citeseer', num_run=1)

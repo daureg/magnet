@@ -180,7 +180,7 @@ def linear_rta(dataset='imdb', part=0):
     sorted_perturbed_gold = [perturbed_gold[u] for u in sorted_test_set]
     for i, row in enumerate(tqdm(params, desc='Pabc', unit='params')):
         PARAMS_ABC = tuple(row)
-        lres, _ = aggregate_trees(batch_order, (g_adj, g_ew, None), gold_signs, methods,
+        lres, w = aggregate_trees(batch_order, (g_adj, g_ew, None), gold_signs, methods,
                                   num_trees, perturbed_gold, pool, sorted_gold,
                                   sorted_perturbed_gold, sorted_test_set, run_wta=False)
         res[i, :] = lres[1]
@@ -301,6 +301,13 @@ def aggregate_trees(batch_order, graph, gold_signs, methods, num_tree, perturbed
         for lres in runs:
             for method, data in zip(methods, lres):
                 keep_preds[method].append(data[2])
+        # if not run_wta:
+        #     args = zip(repeat(adj, num_order), batch_order, repeat(ew, num_order),
+        #                repeat(gold_signs, num_order), repeat(perturbed_gold, num_order),
+        #                repeat(sorted_test_set, num_order), repeat(None, num_order))
+        #     runs = list(pool.imap_unordered(run_once, args))
+        #     for lres in runs:
+        #         wta_preds.append(lres[1][2])
         logging.debug('All threads finished for tree %d', i+1)
     res = []
     for j, (method, preds) in enumerate(sorted(keep_preds.items(), key=lambda x: x[0])):
@@ -323,7 +330,7 @@ def run_once(args):
     tree_adj, batch_order, ew, gold_signs, perturbed_gold, sorted_test_set, pabc = args
     logging.debug('Starting the online phase for one the batch order')
     node_vals = sz.threeway_batch_shazoo(tree_adj, ew, {}, perturbed_gold, order=batch_order,
-                                         return_gammas=True, params=PARAMS_ABC)[-1]
+                                         return_gammas=True, params=pabc)[-1]
     logging.debug('Starting the batch phase for one the batch order')
     # bpreds = sz.batch_predict(tree_adj, node_vals, ew)
     bpreds = simple_offline_shazoo(tree_adj, ew, (node_vals[0], node_vals[2]))
@@ -445,10 +452,10 @@ if __name__ == '__main__':
         part = int(socket.gethostname()[-1])-1
     except ValueError:
         part = 0
-    sz.random.seed(123524 + part)
+    sz.random.seed(123536 + part)
     # online_repetition_exps(num_rep=1, num_run=9)
     # star_exps(400, 1, .02)
     dataset = 'citeseer' if len(sys.argv) <= 1 else sys.argv[1]
     # real_exps(num_tree=15, num_batch_order=NUM_THREADS, dataset=dataset, part=part+1)
-    linear_rta(dataset, part)
+    linear_rta(dataset, part+1)
     # benchmark('citeseer', num_run=1)

@@ -622,7 +622,6 @@ def threeway_batch_shazoo(tree_adj, edge_weight, node_signs, gold_sign,
     a, b, c = 1, 1, 0
     if params:
         a, b, c = params
-        print(a, b, c)
     if order is None:
         order = list(set(gold_sign.keys()) - set(node_signs.keys()))
         random.shuffle(order)
@@ -654,17 +653,16 @@ def threeway_batch_shazoo(tree_adj, edge_weight, node_signs, gold_sign,
                 border_tree_adj, _, _, leaves_sign, parents, root = predictions[method][1]
                 update = assign_gamma(border_tree_adj, root, edge_weight, parents, leaves_sign, -gold)
                 for leaf, gamma in iteritems(update):
-                    assert gamma > 0
-                    gammas_rta[leaf] += 1.5*gold*gamma
+                    if params:
+                        gammas_rta[leaf] += gold*(a*gamma**b + c)
+                    else:
+                        gammas_rta[leaf] += 1.5*gold*gamma
                     gamma_signs[leaf] = sgn(gammas_rta[leaf])
             if gold != pred and method == 'l2cost':
                 border_tree_adj, _, _, leaves_sign, parents, root = predictions[method][1]
                 update = assign_gamma(border_tree_adj, root, edge_weight, parents, leaves_sign, -gold)
                 for leaf, gamma in iteritems(update):
-                    if params:
-                        gammas_l2[leaf] += gold*(a*gamma**b + c)
-                    else:
-                        gammas_l2[leaf] += 1.5*gold*gamma
+                    gammas_l2[leaf] += gold*(a*gamma**b + c)
     gold, pred = [], {'shazoo': [], 'rta': [], 'l2cost': []}
     logging.debug('Predicted all online nodes in threeway_batch_shazoo')
     for node in sorted(order):

@@ -152,7 +152,7 @@ def linear_rta(dataset='imdb', part=0):
     g_adj, g_ew, gold_signs, phi = load_real_graph(dataset)
     n = len(g_adj)
     train_fraction = .1
-    num_trees, num_exps = 9, 50
+    num_trees, num_exps = 9, 85
     nodes_id = set(range(n))
     pool = Pool(NUM_THREADS)
     z = list(range(n))
@@ -164,9 +164,10 @@ def linear_rta(dataset='imdb', part=0):
     sorted_gold = [gold_signs[u] for u in sorted_test_set]
     batch_order = []
     num_batch_order = NUM_THREADS
-    res = np.zeros((num_exps, 2))
+    res = np.zeros((num_exps, 4))
     gen = np.random.uniform
-    params = [(gen(1/4, 9/4), gen(1/4, 9/4), gen(-1/4, 1/4)) for _ in range(num_exps)]
+    # params = [(gen(1/4, 9/4), gen(1/4, 9/4), gen(-1/4, 1/4)) for _ in range(num_exps)]
+    params = [(.6, 1.7, -.1) for _ in range(num_exps)]
     methods = ['l2cost', 'rta', 'shazoo']
     z = list(range(len(train_set)))
     for _ in range(num_batch_order):
@@ -183,7 +184,7 @@ def linear_rta(dataset='imdb', part=0):
         lres, w = aggregate_trees(batch_order, (g_adj, g_ew, None), gold_signs, methods,
                                   num_trees, perturbed_gold, pool, sorted_gold,
                                   sorted_perturbed_gold, sorted_test_set, run_wta=False)
-        res[i, :] = lres[1]
+        res[i, :] = lres[1] + w
         np.savez_compressed(res_file, res=res, params=params)
     pool.close()
     pool.join()
@@ -301,13 +302,13 @@ def aggregate_trees(batch_order, graph, gold_signs, methods, num_tree, perturbed
         for lres in runs:
             for method, data in zip(methods, lres):
                 keep_preds[method].append(data[2])
-        # if not run_wta:
-        #     args = zip(repeat(adj, num_order), batch_order, repeat(ew, num_order),
-        #                repeat(gold_signs, num_order), repeat(perturbed_gold, num_order),
-        #                repeat(sorted_test_set, num_order), repeat(None, num_order))
-        #     runs = list(pool.imap_unordered(run_once, args))
-        #     for lres in runs:
-        #         wta_preds.append(lres[1][2])
+        if not run_wta:
+            args = zip(repeat(adj, num_order), batch_order, repeat(ew, num_order),
+                       repeat(gold_signs, num_order), repeat(perturbed_gold, num_order),
+                       repeat(sorted_test_set, num_order), repeat(None, num_order))
+            runs = list(pool.imap_unordered(run_once, args))
+            for lres in runs:
+                wta_preds.append(lres[1][2])
         logging.debug('All threads finished for tree %d', i+1)
     res = []
     for j, (method, preds) in enumerate(sorted(keep_preds.items(), key=lambda x: x[0])):
@@ -319,10 +320,10 @@ def aggregate_trees(batch_order, graph, gold_signs, methods, num_tree, perturbed
         logging.debug('Aggregated over %d trees, %s made %d mistakes', num_tree, method, p_mistakes)
         res.append((p_mistakes, mistakes))
     mistakes, p_mistakes = 0, 0
-    if run_wta:
-        pred = sz.majority_vote(wta_preds)
-        mistakes = sum((1 for g, p in zip(sorted_gold, pred) if p != g))
-        p_mistakes = sum((1 for g, p in zip(sorted_perturbed_gold, pred) if p != g))
+    # if run_wta:
+    pred = sz.majority_vote(wta_preds)
+    mistakes = sum((1 for g, p in zip(sorted_gold, pred) if p != g))
+    p_mistakes = sum((1 for g, p in zip(sorted_perturbed_gold, pred) if p != g))
     return res, (p_mistakes, mistakes)
 
 
@@ -452,7 +453,7 @@ if __name__ == '__main__':
         part = int(socket.gethostname()[-1])-1
     except ValueError:
         part = 0
-    sz.random.seed(123536 + part)
+    sz.random.seed(123576 + part)
     # online_repetition_exps(num_rep=1, num_run=9)
     # star_exps(400, 1, .02)
     dataset = 'citeseer' if len(sys.argv) <= 1 else sys.argv[1]

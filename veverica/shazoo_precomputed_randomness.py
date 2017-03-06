@@ -1,15 +1,37 @@
 import msgpack
 import numpy as np
 import random
-import shazoo_exps as se
+from grid_stretch import add_edge
+import persistent
 train_size = np.array([2.5, 5, 10, 20, 40]) / 100
 pertubations = np.array([0, 2.5, 5, 10, 20]) / 100
+
+
+def load_real_graph(dataset='citeseer', main_class=None):
+    default_main_class = {'citeseer': 1,
+                          'cora': 2,
+                          'pubmed_core': 1,
+                          'usps4500': 4,
+                          'rcv1': 2,
+                          'imdb': 0,
+                          }
+    main_class = main_class if main_class is not None else default_main_class[dataset]
+    ew, y = persistent.load_var('{}_lcc.my'.format(dataset))
+    adj = {}
+    for u, v in ew:
+        add_edge(adj, u, v)
+    gold = {i: 1 if v == main_class else -1 for i, v in enumerate(y)}
+    return adj, ew, gold, compute_phi(ew, gold)
+
+
+def compute_phi(edge_weight, gold):
+    return sum(1 for u, v in edge_weight if gold[u] != gold[v])
 
 
 def process_edges_into_tree(tree_edges, edge_weights):
     tree_adj = dict()
     for u, v in tree_edges:
-        se.add_edge(tree_adj, u, v)
+        add_edge(tree_adj, u, v)
     return (tree_adj, {e: edge_weights[e] for e in tree_edges})
 
 
@@ -17,8 +39,10 @@ class DataProvider(object):
     def __init__(self, dataset, machine_id, all_machines, max_trees=None):
         with open('{}.random'.format(dataset), 'r+b') as packfile:
             data = msgpack.unpack(packfile, use_list=False)
-        g_adj, g_ew, gold_signs, phi = se.load_real_graph(dataset)
+        g_adj, g_ew, gold_signs, phi = load_real_graph(dataset)
+        self.bfs_root = max(g_adj.items(), key=lambda x: len(x[1]))[0]
         nodes = list((range(len(g_adj))))
+        self.gold_signs = np.array([gold_signs[u] for u in nodes])
         self.gold = np.array([gold_signs[u] for u in nodes])
 
         batch_orders_raw = np.array(data[b'batch_order'])
@@ -51,7 +75,7 @@ class DataProvider(object):
     def _get_indices(self, split, count):
         start = self.this_machine if split else 0
         step = len(self.mmapping) if split else 1
-        stop = start + count*step + 1
+        stop = None if count is None else start + count*step
         return slice(start, stop, step)
 
     def training_sets(self, fraction, count=None, split_across_machines=True):
@@ -70,7 +94,8 @@ class DataProvider(object):
             fraction /= 100
         indices = self._get_indices(split_across_machines, count)
         for batch_order in self.batch_orders[int(1000*fraction)][indices]:
-            yield [self.sorted_training_set[u] for u in batch_order]
+            # yield [self.sorted_training_set[u] for u in batch_order]
+            yield batch_order
 
     def perturbed_sets(self, fraction, count=None, split_across_machines=True):
         if fraction > 1:
@@ -78,7 +103,8 @@ class DataProvider(object):
         level = {int(1000*v): i for i, v in enumerate(pertubations)}[int(1000*fraction)]
         for pgold in self.changed_signs[level][self._get_indices(split_across_machines, count)]:
             gold_dict = {i: g for i, g in enumerate(pgold)}
-            yield pgold[self.sorted_training_set], pgold[self.sorted_testing_set], gold_dict
+            yield gold_dict
+            # yield pgold[self.sorted_training_set], pgold[self.sorted_testing_set], gold_dict
 
     def rst_trees(self, count=None, split_across_machines=False):
         indices = self._get_indices(split_across_machines, count)
@@ -92,6 +118,7 @@ class DataProvider(object):
 
 
 def create_random_data(dataset, n_rep=300):
+    import shazoo_exps as se
     data = {}
     g_adj, g_ew, gold_signs, phi = se.load_real_graph(dataset)
     g_adj = {int(u): {int(v) for v in adj} for u, adj in g_adj.items()}

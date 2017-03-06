@@ -5,11 +5,12 @@ from grid_stretch import add_edge
 from tqdm import trange, tqdm
 from wta import linearize_tree, predict_signs as wta_predict
 from nxmst import kruskal_mst_edges
+from shazoo_precomputed_randomness import DataProvider
 import persistent
 import shazoo as sz
 import numpy as np
 import time
-from itertools import repeat
+from itertools import repeat, product
 from multiprocessing import Pool
 import sys
 import logging
@@ -98,6 +99,111 @@ def online_repetition_exps(num_rep=2, num_run=13):
             res[i, -1, j] = mistakes
             print('{} made {} mistakes'.format(method.ljust(6), mistakes))
             np.savez_compressed(res_file, res=res)
+
+
+def single_tree(dataset, source, part, machines):
+    exp_start = (int(time.time()-(2017-1970)*365.25*24*60*60))//60
+    res_file = 'var_{}_shazoo_{}_{}_{}.npz'.format(source, dataset, exp_start, part)
+    perturbations = np.array([0, 2.5, 5, 10, 20]) / 100
+    dp = DataProvider(dataset, part, machines, max_trees=1)
+    gold_signs = dp.gold_signs
+    chunk_size = 3
+    num_order = NUM_THREADS*chunk_size
+    train_fraction = .1
+    n_train_sets, n_trees, n_flips = 1, 1, 1
+    if source == 'train':
+        n_train_sets = 10
+    if source == 'tree':
+        n_trees = 10
+    if source == 'flip':
+        n_flips = 10
+    test_size = gold_signs.size - int(train_fraction*dp.gold.size)
+    rta = np.zeros((len(perturbations), n_train_sets, n_trees, n_flips, num_order, test_size),
+                   dtype=int)
+    rta_mst = np.zeros_like(rta)
+    shz = np.zeros((len(perturbations), n_train_sets, n_trees, n_flips, 1, test_size), dtype=int)
+    shz_mst = np.zeros_like(shz)
+    wta = np.zeros_like(shz)
+    wta_mst = np.zeros_like(shz)
+    golds = np.zeros_like(shz)
+    lprop = np.zeros_like(shz)
+    weights, inv_degree = get_weight_matrix(None, dataset)
+    pool = Pool(NUM_THREADS)
+    total = n_train_sets*n_trees*n_flips
+    for i, pfrac in enumerate(tqdm(perturbations, desc='perturbation', unit='flip')):
+        train_gen = dp.training_sets(train_fraction, count=n_train_sets, split_across_machines=False)
+        rst_gen = dp.rst_trees(count=n_trees, split_across_machines=False)
+        flip_gen = dp.perturbed_sets(pfrac, count=n_flips, split_across_machines=False)
+        for j, (trains, trees, flips) in enumerate(tqdm(product(train_gen, rst_gen, flip_gen),
+                                                        desc='params', unit='params', total=total)):
+            indices = (i, j if source == 'train' else 0,
+                       j if source == 'tree' else 0,
+                       j if source == 'flip' else 0, slice(None), slice(None))
+            cindices = (i, j if source == 'train' else 0,
+                        j if source == 'tree' else 0,
+                        j if source == 'flip' else 0, 0, slice(None))
+            sorted_train_set, sorted_test_set, sorted_gold = trains
+            batch_orders = []
+            for bo in dp.batch_sequences(train_fraction, split_across_machines=True):
+                batch_orders.append([sorted_train_set[u] for u in bo])
+            adj, ew = trees
+            # _, pertubed_test_gold, perturbed_gold = flips
+            perturbed_gold = flips
+            pertubed_test_gold = [perturbed_gold[u] for u in sorted_test_set]
+            wta_training_set = {u: perturbed_gold[u] for u in sorted_train_set}
+            golds[cindices] = pertubed_test_gold
+            # irrelevant over trees but ok it doesn't matter
+            lprop_pred = run_labprop(perturbed_gold, sorted_test_set, sorted_train_set, weights,
+                                     inv_degree)
+            lprop[cindices] = lprop_pred
+            args = zip(repeat(adj, num_order), batch_orders, repeat(ew, num_order),
+                       repeat(gold_signs, num_order), repeat(perturbed_gold, num_order),
+                       repeat(sorted_test_set, num_order), repeat(None, num_order))
+            nodes_line, line_weight = linearize_tree(adj, ew, dp.bfs_root)
+            pred = wta_predict(nodes_line, line_weight, wta_training_set)
+            wta[cindices] = [pred[u] for u in sorted_test_set]
+            runs = pool.imap_unordered(run_once, args, chunk_size)
+            for lres in runs:
+                rta[indices] = lres[1][2]
+                shz[cindices] = lres[2][2]
+            np.savez_compressed(res_file, golds=golds, lprop=lprop, rta=rta, rta_mst=rta_mst,
+                                shz=shz, shz_mst=shz_mst, wta=wta, wta_mst=wta_mst)
+
+    for i, pfrac in enumerate(tqdm(perturbations, desc='perturbation', unit='flip')):
+        train_gen = dp.training_sets(train_fraction, count=n_train_sets, split_across_machines=False)
+        mst_gen = dp.mst_trees(count=n_trees, split_across_machines=False)
+        flip_gen = dp.perturbed_sets(pfrac, count=n_flips, split_across_machines=False)
+        for j, (trains, trees, flips) in enumerate(tqdm(product(train_gen, mst_gen, flip_gen),
+                                                        desc='params', unit='params', total=total)):
+            indices = (i, j if source == 'train' else 0,
+                       j if source == 'tree' else 0,
+                       j if source == 'flip' else 0, slice(None), slice(None))
+            cindices = (i, j if source == 'train' else 0,
+                        j if source == 'tree' else 0,
+                        j if source == 'flip' else 0, 0, slice(None))
+            sorted_train_set, sorted_test_set, sorted_gold = trains
+            batch_orders = []
+            for bo in dp.batch_sequences(train_fraction, split_across_machines=True):
+                batch_orders.append([sorted_train_set[u] for u in bo])
+            adj, ew = trees
+            # _, pertubed_test_gold, perturbed_gold = flips
+            perturbed_gold = flips
+            pertubed_test_gold = [perturbed_gold[u] for u in sorted_test_set]
+            wta_training_set = {u: perturbed_gold[u] for u in sorted_train_set}
+            args = zip(repeat(adj, num_order), batch_orders, repeat(ew, num_order),
+                       repeat(gold_signs, num_order), repeat(perturbed_gold, num_order),
+                       repeat(sorted_test_set, num_order), repeat(None, num_order))
+            nodes_line, line_weight = linearize_tree(adj, ew, dp.bfs_root)
+            pred = wta_predict(nodes_line, line_weight, wta_training_set)
+            wta_mst[cindices] = [pred[u] for u in sorted_test_set]
+            runs = pool.imap_unordered(run_once, args, chunk_size)
+            for lres in runs:
+                rta_mst[indices] = lres[1][2]
+                shz_mst[cindices] = lres[2][2]
+            np.savez_compressed(res_file, golds=golds, lprop=lprop, rta=rta, rta_mst=rta_mst,
+                                shz=shz, shz_mst=shz_mst, wta=wta, wta_mst=wta_mst)
+    pool.close()
+    pool.join()
 
 
 def lots_of_tree(dataset='imdb', part=0):
@@ -459,5 +565,7 @@ if __name__ == '__main__':
     # star_exps(400, 1, .02)
     dataset = 'citeseer' if len(sys.argv) <= 1 else sys.argv[1]
     # real_exps(num_tree=15, num_batch_order=NUM_THREADS, dataset=dataset, part=part+1)
-    linear_rta(dataset, part+1)
+    # linear_rta(dataset, part+1)
+    for source in ['tree', 'train', 'flip']:
+        single_tree(dataset, source, part+1, [1, 3, 4])
     # benchmark('citeseer', num_run=1)

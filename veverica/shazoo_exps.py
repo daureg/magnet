@@ -268,7 +268,7 @@ def get_mst(edge_weight):
     tree_adj = {}
     for u, v in tree_edges:
         add_edge(tree_adj, u, v)
-    return tree_adj, {e: edge_weight[e] for e in tree_edges}
+    return tree_adj, {e: 1/edge_weight[e] for e in tree_edges}
 
 
 def aggregate_trees(batch_order, graph, gold_signs, methods, num_tree, perturbed_gold, pool,
@@ -277,6 +277,7 @@ def aggregate_trees(batch_order, graph, gold_signs, methods, num_tree, perturbed
     wta_preds = []
     wta_training_set = {u: perturbed_gold[u] for u in batch_order[0]}
     g_adj, g_ew, bfs_root = graph
+    inv_ew = {e: 1/w for e, w in sz.iteritems(g_ew)}
     ranging = range(1)
     if num_tree > 1:
         ranging = trange(num_tree, desc='tree', unit='tree', unit_scale=True)
@@ -287,7 +288,7 @@ def aggregate_trees(batch_order, graph, gold_signs, methods, num_tree, perturbed
             adj, ew = sz.TREE_ADJ, sz.TWEIGHTS
             logging.debug('drawn BFS tree number %d', i+1)
         else:
-            adj, ew = get_mst(g_ew)
+            adj, ew = get_mst(inv_ew)
 
         if run_wta:
             nodes_line, line_weight = linearize_tree(adj, ew, bfs_root)

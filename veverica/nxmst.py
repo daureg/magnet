@@ -6,6 +6,7 @@
 #    All rights reserved.  BSD license.
 from future.utils import iteritems
 from operator import itemgetter
+import random
 
 
 class UnionFind(object):
@@ -80,7 +81,7 @@ class UnionFind(object):
 def kruskal_mst_edges(edge_weight):
     subtrees = UnionFind()
     res = []
-    for (u, v), _ in sorted(iteritems(edge_weight), key=itemgetter(1)):
+    for (u, v), _ in sorted(iteritems(edge_weight), key=lambda x: (x[1], random.random())):
         if subtrees[u] != subtrees[v]:
             res.append((u, v))
             subtrees.union(u, v)
@@ -94,7 +95,6 @@ def benchmark(ew):
 if __name__ == "__main__":
     from timeit import default_timer as clock
     import sys
-    import random
     random.seed(123)
     nrep = 11
     timings = []

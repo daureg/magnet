@@ -562,6 +562,6 @@ if __name__ == '__main__':
     dataset = 'citeseer' if len(sys.argv) <= 1 else sys.argv[1]
     # real_exps(num_tree=15, num_batch_order=NUM_THREADS, dataset=dataset, part=part+1)
     # linear_rta(dataset, part+1)
-    for source in ['tree']:  # , 'train', 'flip']:
+    for source in ['tree', 'train', 'flip']:
         single_tree(dataset, source, part+1, [1, 3, 4])
     # benchmark('citeseer', num_run=1)

@@ -136,18 +136,15 @@ def single_tree(dataset, source, part, machines):
         flip_gen = dp.perturbed_sets(pfrac, count=n_flips, split_across_machines=False)
         for j, (trains, trees, flips) in enumerate(tqdm(product(train_gen, rst_gen, flip_gen),
                                                         desc='params', unit='params', total=total)):
-            indices = (i, j if source == 'train' else 0,
+            indices = [i, j if source == 'train' else 0,
                        j if source == 'tree' else 0,
-                       j if source == 'flip' else 0, slice(None), slice(None))
-            cindices = (i, j if source == 'train' else 0,
-                        j if source == 'tree' else 0,
-                        j if source == 'flip' else 0, 0, slice(None))
+                       j if source == 'flip' else 0, 0, slice(None)]
+            cindices = tuple(indices)
             sorted_train_set, sorted_test_set, sorted_gold = trains
             batch_orders = []
-            for bo in dp.batch_sequences(train_fraction, split_across_machines=True):
+            for bo in dp.batch_sequences(train_fraction, count=num_order, split_across_machines=True):
                 batch_orders.append([sorted_train_set[u] for u in bo])
             adj, ew = trees
-            # _, pertubed_test_gold, perturbed_gold = flips
             perturbed_gold = flips
             pertubed_test_gold = [perturbed_gold[u] for u in sorted_test_set]
             wta_training_set = {u: perturbed_gold[u] for u in sorted_train_set}
@@ -163,8 +160,9 @@ def single_tree(dataset, source, part, machines):
             pred = wta_predict(nodes_line, line_weight, wta_training_set)
             wta[cindices] = [pred[u] for u in sorted_test_set]
             runs = pool.imap_unordered(run_once, args, chunk_size)
-            for lres in runs:
-                rta[indices] = lres[1][2]
+            for k, lres in enumerate(runs):
+                indices[2] = k
+                rta[tuple(indices)] = lres[1][2]
                 shz[cindices] = lres[2][2]
             np.savez_compressed(res_file, golds=golds, lprop=lprop, rta=rta, rta_mst=rta_mst,
                                 shz=shz, shz_mst=shz_mst, wta=wta, wta_mst=wta_mst)
@@ -175,18 +173,15 @@ def single_tree(dataset, source, part, machines):
         flip_gen = dp.perturbed_sets(pfrac, count=n_flips, split_across_machines=False)
         for j, (trains, trees, flips) in enumerate(tqdm(product(train_gen, mst_gen, flip_gen),
                                                         desc='params', unit='params', total=total)):
-            indices = (i, j if source == 'train' else 0,
+            indices = [i, j if source == 'train' else 0,
                        j if source == 'tree' else 0,
-                       j if source == 'flip' else 0, slice(None), slice(None))
-            cindices = (i, j if source == 'train' else 0,
-                        j if source == 'tree' else 0,
-                        j if source == 'flip' else 0, 0, slice(None))
+                       j if source == 'flip' else 0, 0, slice(None)]
+            cindices = tuple(indices)
             sorted_train_set, sorted_test_set, sorted_gold = trains
             batch_orders = []
-            for bo in dp.batch_sequences(train_fraction, split_across_machines=True):
+            for bo in dp.batch_sequences(train_fraction, count=num_order, split_across_machines=True):
                 batch_orders.append([sorted_train_set[u] for u in bo])
             adj, ew = trees
-            # _, pertubed_test_gold, perturbed_gold = flips
             perturbed_gold = flips
             pertubed_test_gold = [perturbed_gold[u] for u in sorted_test_set]
             wta_training_set = {u: perturbed_gold[u] for u in sorted_train_set}
@@ -197,8 +192,9 @@ def single_tree(dataset, source, part, machines):
             pred = wta_predict(nodes_line, line_weight, wta_training_set)
             wta_mst[cindices] = [pred[u] for u in sorted_test_set]
             runs = pool.imap_unordered(run_once, args, chunk_size)
-            for lres in runs:
-                rta_mst[indices] = lres[1][2]
+            for k, lres in enumerate(runs):
+                indices[2] = k
+                rta_mst[tuple(indices)] = lres[1][2]
                 shz_mst[cindices] = lres[2][2]
             np.savez_compressed(res_file, golds=golds, lprop=lprop, rta=rta, rta_mst=rta_mst,
                                 shz=shz, shz_mst=shz_mst, wta=wta, wta_mst=wta_mst)

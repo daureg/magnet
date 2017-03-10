@@ -161,7 +161,7 @@ def single_tree(dataset, source, part, machines):
             wta[cindices] = [pred[u] for u in sorted_test_set]
             runs = pool.imap_unordered(run_once, args, chunk_size)
             for k, lres in enumerate(runs):
-                indices[2] = k
+                indices[4] = k
                 rta[tuple(indices)] = lres[1][2]
                 shz[cindices] = lres[2][2]
             np.savez_compressed(res_file, golds=golds, lprop=lprop, rta=rta, rta_mst=rta_mst,
@@ -193,7 +193,7 @@ def single_tree(dataset, source, part, machines):
             wta_mst[cindices] = [pred[u] for u in sorted_test_set]
             runs = pool.imap_unordered(run_once, args, chunk_size)
             for k, lres in enumerate(runs):
-                indices[2] = k
+                indices[4] = k
                 rta_mst[tuple(indices)] = lres[1][2]
                 shz_mst[cindices] = lres[2][2]
             np.savez_compressed(res_file, golds=golds, lprop=lprop, rta=rta, rta_mst=rta_mst,

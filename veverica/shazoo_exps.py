@@ -101,6 +101,54 @@ def online_repetition_exps(num_rep=2, num_run=13):
             np.savez_compressed(res_file, res=res)
 
 
+def gamma_rate(dataset, part, machines):
+    exp_start = (int(time.time()-(2017-1970)*365.25*24*60*60))//60
+    res_file = 'tlinear_shazoo_{}_{}_{}.npz'.format(dataset, exp_start, part)
+    dp = DataProvider(dataset, part, machines, max_trees=2)
+    gold_signs = dp.gold_signs
+    chunk_size = 3
+    num_order = NUM_THREADS*chunk_size
+    train_fraction = .1
+    n_train_sets, n_trees, n_flips = 10, 1, 1
+    n_gammas = 33
+    gamma_mul = np.linspace(0, 6, n_gammas)
+    test_size = gold_signs.size - int(train_fraction*dp.gold.size)
+    rta_mst = np.zeros((n_train_sets, n_gammas, num_order, test_size), dtype=int)
+    shz_mst = np.zeros((n_train_sets, n_gammas, 1, test_size), dtype=int)
+    golds = np.zeros((n_train_sets, test_size))
+    lprop = np.zeros_like(golds)
+    weights, inv_degree = get_weight_matrix(None, dataset)
+    pool = Pool(NUM_THREADS)
+    train_gen = dp.training_sets(train_fraction, count=n_train_sets, split_across_machines=False)
+    mst_gen = dp.mst_trees(count=n_trees, split_across_machines=False)
+    flip_gen = dp.perturbed_sets(20, count=n_flips, split_across_machines=False)
+    for i, (trains, trees, flips) in enumerate(tqdm(product(train_gen, mst_gen, flip_gen),
+                                                    desc='params', unit='params', total=n_train_sets)):
+        sorted_train_set, sorted_test_set, sorted_gold = trains
+        batch_orders = []
+        for bo in dp.batch_sequences(train_fraction, count=num_order, split_across_machines=True):
+            batch_orders.append([sorted_train_set[u] for u in bo])
+        adj, ew = trees
+        perturbed_gold = flips
+        pertubed_test_gold = [perturbed_gold[u] for u in sorted_test_set]
+        golds[i, :] = pertubed_test_gold
+        lprop_pred = run_labprop(perturbed_gold, sorted_test_set, sorted_train_set, weights,
+                                 inv_degree)
+        lprop[i, :] = lprop_pred
+        for j, gm in enumerate(tqdm(gamma_mul, desc='gamma', unit='gamma')):
+            args = zip(repeat(adj, num_order), batch_orders, repeat(ew, num_order),
+                       repeat(gold_signs, num_order), repeat(perturbed_gold, num_order),
+                       repeat(sorted_test_set, num_order), repeat(gm, num_order))
+            runs = pool.imap_unordered(run_once, args, chunk_size)
+            for k, lres in enumerate(runs):
+                rta_mst[i, j, k, :] = lres[1][2]
+                shz_mst[i, j, 0, :] = lres[2][2]
+            np.savez_compressed(res_file, golds=golds, lprop=lprop, rta_mst=rta_mst,
+                                shz_mst=shz_mst)
+    pool.close()
+    pool.join()
+
+
 def single_tree(dataset, source, part, machines):
     exp_start = (int(time.time()-(2017-1970)*365.25*24*60*60))//60
     res_file = 'var_{}_shazoo_{}_{}_{}.npz'.format(source, dataset, exp_start, part)
@@ -434,7 +482,7 @@ def run_once(args):
     tree_adj, batch_order, ew, gold_signs, perturbed_gold, sorted_test_set, pabc = args
     logging.debug('Starting the online phase for one the batch order')
     node_vals = sz.threeway_batch_shazoo(tree_adj, ew, {}, perturbed_gold, order=batch_order,
-                                         return_gammas=True, params=pabc)[-1]
+                                         return_gammas=True, gamma_mul=pabc)[-1]
     logging.debug('Starting the batch phase for one the batch order')
     # bpreds = sz.batch_predict(tree_adj, node_vals, ew)
     bpreds = simple_offline_shazoo(tree_adj, ew, (node_vals[0], node_vals[2]))
@@ -562,6 +610,7 @@ if __name__ == '__main__':
     dataset = 'citeseer' if len(sys.argv) <= 1 else sys.argv[1]
     # real_exps(num_tree=15, num_batch_order=NUM_THREADS, dataset=dataset, part=part+1)
     # linear_rta(dataset, part+1)
-    for source in ['tree', 'train', 'flip']:
-        single_tree(dataset, source, part+1, [1, 3, 4])
+    # for source in ['tree', 'train', 'flip']:
+    #     single_tree(dataset, source, part+1, [1, 3, 4])
+    gamma_rate(dataset, part+1, [1, 2, 3, 4])
     # benchmark('citeseer', num_run=1)

@@ -22,7 +22,7 @@ else:
 
     def get_weight_matrix(*args):
         return None, None
-NUM_THREADS = 13
+NUM_THREADS = 15
 PARAMS_ABC = None
 
 
@@ -106,12 +106,12 @@ def gamma_rate(dataset, part, machines):
     res_file = 'tlinear_shazoo_{}_{}_{}.npz'.format(dataset, exp_start, part)
     dp = DataProvider(dataset, part, machines, max_trees=2)
     gold_signs = dp.gold_signs
-    chunk_size = 3
+    chunk_size = 2
     num_order = NUM_THREADS*chunk_size
     train_fraction = .1
     n_train_sets, n_trees, n_flips = 10, 1, 1
-    n_gammas = 33
-    gamma_mul = np.linspace(0, 6, n_gammas)
+    n_gammas = 3
+    gamma_mul = np.array([.5625, .75, .9375])  # np.linspace(0, 6, n_gammas)
     test_size = gold_signs.size - int(train_fraction*dp.gold.size)
     rta_mst = np.zeros((n_train_sets, n_gammas, num_order, test_size), dtype=int)
     shz_mst = np.zeros((n_train_sets, n_gammas, 1, test_size), dtype=int)
@@ -121,7 +121,7 @@ def gamma_rate(dataset, part, machines):
     pool = Pool(NUM_THREADS)
     train_gen = dp.training_sets(train_fraction, count=n_train_sets, split_across_machines=False)
     mst_gen = dp.mst_trees(count=n_trees, split_across_machines=False)
-    flip_gen = dp.perturbed_sets(20, count=n_flips, split_across_machines=False)
+    flip_gen = dp.perturbed_sets(5, count=n_flips, split_across_machines=False)
     for i, (trains, trees, flips) in enumerate(tqdm(product(train_gen, mst_gen, flip_gen),
                                                     desc='params', unit='params', total=n_train_sets)):
         sorted_train_set, sorted_test_set, sorted_gold = trains

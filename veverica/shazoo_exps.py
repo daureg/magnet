@@ -121,7 +121,7 @@ def gamma_rate(dataset, part, machines):
     pool = Pool(NUM_THREADS)
     train_gen = dp.training_sets(train_fraction, count=n_train_sets, split_across_machines=False)
     mst_gen = dp.mst_trees(count=n_trees, split_across_machines=False)
-    flip_gen = dp.perturbed_sets(5, count=n_flips, split_across_machines=False)
+    flip_gen = dp.perturbed_sets(35, count=n_flips, split_across_machines=False)
     for i, (trains, trees, flips) in enumerate(tqdm(product(train_gen, mst_gen, flip_gen),
                                                     desc='params', unit='params', total=n_train_sets)):
         sorted_train_set, sorted_test_set, sorted_gold = trains

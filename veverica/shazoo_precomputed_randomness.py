@@ -4,7 +4,7 @@ import random
 from grid_stretch import add_edge
 import persistent
 train_size = np.array([2.5, 5, 10, 20, 40]) / 100
-pertubations = np.array([0, 2.5, 5, 10, 20]) / 100
+pertubations = np.array([0, 2.5, 5, 10, 20, 35]) / 100
 
 
 def load_real_graph(dataset='citeseer', main_class=None):
@@ -50,7 +50,10 @@ class DataProvider(object):
         for bo, tf in zip(batch_orders_raw, train_size):
             self.batch_orders[int(1000*tf)] = np.array([list(_) for _ in bo])
 
-        self.changed_signs = np.array(data[b'changed_signs'])
+        with open('{}_extra_000.random'.format(dataset), 'r+b') as packfile:
+            pertub_35 = np.array(msgpack.unpack(packfile, use_list=False))
+        changed_signs = data[b'changed_signs']
+        self.changed_signs = np.vstack((changed_signs, pertub_35[np.newaxis, :, :]))
 
         if max_trees is not None:
             max_trees *= len(all_machines)
@@ -169,18 +172,22 @@ def create_random_data(dataset, n_rep=300):
     ones = np.ones(n, dtype=int)
     changed_signs = []
     for ts in pertubations:
-        level = []
-        num_modif = int(ts*n)
-        for _ in range(n_rep):
-            changed_idx = random.sample(nodes, num_modif)
-            ones[changed_idx] *= -1
-            level.append(tuple((gold * ones).tolist()))
-            ones[changed_idx] *= -1
-        changed_signs.append(tuple(level))
+        changed_signs.append(create_random_perturbations(ts, ones, nodes, gold, n_rep))
     data['changed_signs'] = tuple(changed_signs)
 
     with open('{}.random'.format(dataset), 'w+b') as outfile:
         msgpack.pack(data, outfile)
+
+
+def create_random_perturbations(ts, ones, nodes, gold, n_rep):
+    level = []
+    num_modif = int(ts*len(nodes))
+    for _ in range(n_rep):
+        changed_idx = random.sample(nodes, num_modif)
+        ones[changed_idx] *= -1
+        level.append(tuple((gold * ones).tolist()))
+        ones[changed_idx] *= -1
+    return tuple(level)
 
 
 if __name__ == "__main__":
@@ -189,5 +196,16 @@ if __name__ == "__main__":
     random.seed(123456)
     dataset = 'imdb' if len(argv) <= 1 else argv[1]
     start = clock()
-    create_random_data(dataset)
+    import shazoo_exps as se
+    g_adj, g_ew, gold_signs, phi = se.load_real_graph(dataset)
+    g_adj = {int(u): {int(v) for v in adj} for u, adj in g_adj.items()}
+    n = len(g_adj)
+    nodes = list((range(n)))
+    gold = np.array([gold_signs[u] for u in nodes])
+    ones = np.ones(n, dtype=int)
+    ts = .35
+    data = create_random_perturbations(ts, ones, nodes, gold, n_rep=300)
+    with open('{}_extra_000.random'.format(dataset), 'w+b') as outfile:
+        msgpack.pack(data, outfile)
+    # create_random_data(dataset)
     print('{:.4g}'.format(clock() - start))

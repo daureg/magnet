@@ -110,8 +110,8 @@ def gamma_rate(dataset, part, machines):
     num_order = NUM_THREADS*chunk_size
     train_fraction = .1
     n_train_sets, n_trees, n_flips = 10, 1, 1
-    n_gammas = 3
-    gamma_mul = np.array([.5625, .75, .9375])  # np.linspace(0, 6, n_gammas)
+    n_gammas = 20
+    gamma_mul = np.linspace(0.4, 1.25, n_gammas)
     test_size = gold_signs.size - int(train_fraction*dp.gold.size)
     rta_mst = np.zeros((n_train_sets, n_gammas, num_order, test_size), dtype=int)
     shz_mst = np.zeros((n_train_sets, n_gammas, 1, test_size), dtype=int)

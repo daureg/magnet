@@ -2,7 +2,7 @@
 # vim: set fileencoding=utf-8
 """."""
 import LinkPrediction as lp
-from sklearn.linear_model import LogisticRegression, LogisticRegressionCV
+from sklearn.linear_model import LogisticRegression  # , LogisticRegressionCV
 from sklearn.linear_model import PassiveAggressiveClassifier, SGDClassifier
 from sklearn.tree import DecisionTreeClassifier
 from adhoc_DT import AdhocDecisionTree

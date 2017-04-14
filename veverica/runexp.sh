@@ -1,6 +1,14 @@
-python -O -W ignore shazoo_exps.py imdb
-python -O -W ignore shazoo_exps.py citeseer
-python -O -W ignore shazoo_exps.py cora
-python -O -W ignore shazoo_exps.py pubmed_core
-python -O -W ignore shazoo_exps.py usps4500
-python -O -W ignore shazoo_exps.py rcv1
+python -O -W ignore retest_coeff.py 0.1 70 &
+python -O -W ignore retest_coeff.py 0.1 75 &
+python -O -W ignore retest_coeff.py 0.1 80 &
+python -O -W ignore retest_coeff.py 0.1 85 &
+python -O -W ignore retest_coeff.py 0.1 65 &
+python -O -W ignore retest_coeff.py 0.1 60 &
+python -O -W ignore retest_coeff.py 0.1 55 &
+python -O -W ignore retest_coeff.py 0.3 70 &
+python -O -W ignore retest_coeff.py 0.3 75 &
+python -O -W ignore retest_coeff.py 0.3 80 &
+python -O -W ignore retest_coeff.py 0.3 85 &
+python -O -W ignore retest_coeff.py 0.3 65 &
+python -O -W ignore retest_coeff.py 0.3 60 &
+python -O -W ignore retest_coeff.py 0.3 55 &

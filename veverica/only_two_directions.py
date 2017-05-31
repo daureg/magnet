@@ -81,7 +81,7 @@ def create_blocks(nb_blocks, n, adj):
             if len(new_failed) < min_fail:
                 best_labels, min_fail = dict(labels), len(new_failed)
         labeling.append(dict(best_labels))
-        print(i, nb_iter, min_fail)
+        # print(i, nb_iter, min_fail)
     return blocks, labeling
 
 
@@ -114,7 +114,7 @@ def assemble_blocks(blocks, labeling, adj):
 
 def create_full_graph(nb_blocks=4, n=100):
     def intersect(a, b):
-        return len(set(a) & set(b)) == 1
+        return len(set(a) & set(b)) >= 1
     adj = {}
     for p in pairs:
         nei = {q for q in pairs if q != p and intersect(p, q)}
@@ -327,7 +327,7 @@ if __name__ == "__main__":
     import time
     all_res = np.zeros((nrep, 10))
     timestamp = (int(time.time()-(2017-1970)*365.25*24*60*60))//60
-    suffix = 'GfixedWvariable0over_kminit_noambiguous_3dir_7w'
+    suffix = 'GfixedWvariable0over_kminit_ambiguous_3dir_7w'
     # W = generate_W(k, d, 0)
     nb_blocks, block_size = 4, 125
     for i in range(nb_blocks):

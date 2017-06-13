@@ -168,7 +168,7 @@ http://www.tandfonline.com/doi/abs/10.1080/10106049.2015.1110207
 		\Textcite{Elsner2009} compared various heuristics with a bound of the
 		optimal solution obtained through SDP relaxation and show that best
 		performing ones are within few percents of it, provided they are
-		followed by a local search step. The same problem is tackeld
+		followed by a local search step. The same problem is tackled
 		by \textcite{Chatel14}, albeit with a different approach.
 	\item Another application in NLP is clustering words based on distributional
 		embedding while adding antonym constraints~\autocite{SignedWordRatings}.
@@ -190,6 +190,16 @@ http://www.tandfonline.com/doi/abs/10.1080/10106049.2015.1110207
 % applications,  including  portfolio  analysis in risk management [23],
 % biological systems [7, 23], efficient document  classi cation  [3],  detection
 % of  embedded  matrix structures [21] and community structure [34, 29]
+
+% From J Comb Optim (2010) 20: 335–360 DOI 10.1007/s10878-009-9212-2
+% Separator-based data reduction for signed graph balancing
+% Falk Hüffner · Nadja Betzler · Rolf Niedermeier
+%
+% gene network DasGupta et al. (2007) : DasGupta B, Enciso GA, Sontag ED, Zhang Y (2007) Algorithmic and complexity results for decompositions of biological networks into monotone subsystems. Biosystems 90(1):161–178
+% statistical physics (Barahona 1982), Barahona F (1982) On the computational complexity of Ising spin glass models. J Phys A: Math Gen 15(10):3241–3253
+% portfolio risk analysis (Harary et al. 2002), Harary F, Lim MH, Wunsch DC (2002) Signed graphs for portfolio analysis in risk management. IMA JManag Math 13(3):201–210
+% VLSI design (Chiang et al. 2007). Chiang C, Kahng AB, Sinha S, Xu X, Zelikovsky AZ (2007) Fast and efficient bright-field AAPSM conflict detection and correction. IEEE Trans Comput-Aided Des Integr Circ Syst 26(1):115–126
+% N. Gülpinar, G. Gutin, G. Mitra, and A. Zverovitch. Extracting pure network submatrices in linear programs using signed graphs. Discrete Applied Mathematics, 137:359–372, 2004
 
 
 \textsc{Learning to Divide and Conquer for Online Multi-Target Tracking}
@@ -264,6 +274,7 @@ community)
 Beside batch setting, one can also consider active
 \autocites{Cesa-Bianchi2012b}{Cesa-Bianchi2012a} and online
 \autocite{Gentile2013} framework.
+\autocite{Mitzenmacher2016}
 
 \Textcite{mathieu:inria-00455771} give a greedy algorithm that upon vertex
 arrival creates a singleton cluster and then merge all pairs of clusters for
@@ -325,6 +336,9 @@ $O(\delta^{-1})$ \autocite{Asteris2016}.
 \paragraph{Hypergraphs} \Textcite{Kim2011} show a LP relaxation on hypergraph
 and \textcite{Ricatte13} describe a class of hypergraphs that can be reduced
 to signed graph.
+
+\paragraph{Local objectives}
+\autocites{Charikar2017}{pmlr-v48-puleo16}
 
 \paragraph{Other approaches}
 

@@ -163,6 +163,7 @@ def galaxy_maker(graph, max_iter, output_name=None, short=False, **kwargs):
     full_membership, edges_trad = {}, IdentityDict()
     original_node = {u: set([u]) for u in graph}
     centrality = {u: 0 for u in graph} if short else None
+    # TODO it seems all_inner_edges is exactly the same as stars_edges
     all_inner_edges = []
     for k in range(max_iter):
         # start = clock()
@@ -180,7 +181,7 @@ def galaxy_maker(graph, max_iter, output_name=None, short=False, **kwargs):
         edges -= {e for star_edges in inner_edges for e in star_edges}
         new_graph, outer_edges, X = collapse_stars(current_graph, edges,
                                                    stars, star_membership,
-                                                   edges_trad, centrality)
+                                                   edges_trad, centrality, **kwargs)
         kwargs['X'] = X
         new_trad = {}
         for this_level, prev_level in outer_edges.items():

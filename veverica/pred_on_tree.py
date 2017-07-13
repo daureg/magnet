@@ -1,14 +1,14 @@
 #! /usr/bin/python
 # vim: set fileencoding=utf-8
 """."""
-from collections import defaultdict
+import gzip
 # from graph_tool.topology import random_spanning_tree, label_largest_component
 # from graph_tool.topology import min_spanning_tree
 # from sklearn.metrics import f1_score, matthews_corrcoef, accuracy_score
 # import real_world as rw
 # from graph_tool.search import bfs_search, BFSVisitor
-from collections import deque
-import gzip
+from collections import defaultdict, deque
+
 # import numpy as np
 
 

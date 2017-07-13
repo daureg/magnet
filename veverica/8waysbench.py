@@ -1,11 +1,13 @@
 # coding: utf-8
 import warnings
-warnings.simplefilter('ignore', FutureWarning)
+
 import matplotlib
 import matplotlib.pyplot as plt
+import seaborn as sns
+
+warnings.simplefilter('ignore', FutureWarning)
 RdGr = matplotlib.colors.LinearSegmentedColormap.from_list('RdGr', [matplotlib.colors.hex2color('#dd2c00'),
                                                                     matplotlib.colors.hex2color('#64dd17')], 2)
-import seaborn as sns
 FULL = False
 def plot_boundary(predict_fun, dataset, method):
     plot_step = .002

@@ -1,9 +1,10 @@
-import LillePrediction as llp
-import exp_tworules as etr
 import random
-from sklearn.metrics import accuracy_score, f1_score, matthews_corrcoef
-from sklearn.metrics import confusion_matrix
+
 import numpy as np
+from sklearn.metrics import accuracy_score, confusion_matrix, f1_score, matthews_corrcoef
+
+import exp_tworules as etr
+import LillePrediction as llp
 
 
 def choose_k(X, ya, mcc=False):

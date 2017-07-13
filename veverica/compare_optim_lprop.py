@@ -1,11 +1,13 @@
-import lprop_matrix as lm
+import random
+from timeit import default_timer as clock
+
+import numpy as np
+import scipy.sparse as sp
 from scipy.optimize import minimize
 from sklearn.metrics import matthews_corrcoef
-from timeit import default_timer as clock
-import numpy as np
+
+import lprop_matrix as lm
 import pack_graph as pg
-import random
-import scipy.sparse as sp
 
 if __name__ == "__main__":
     from exp_tworules import find_threshold

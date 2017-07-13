@@ -1,11 +1,13 @@
 # vim: set fileencoding=utf-8
-import sys
 import os
-sys.path.append(os.path.expanduser('~/venvs/34/lib/python3.4/site-packages/'))
-import persistent as p
-import convert_experiment as cexp
+import sys
 from itertools import repeat
 from operator import itemgetter
+
+import convert_experiment as cexp
+import persistent as p
+
+sys.path.append(os.path.expanduser('~/venvs/34/lib/python3.4/site-packages/'))
 NUM_THREADS = 14
 
 

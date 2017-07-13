@@ -1,12 +1,14 @@
-from sklearn.cross_validation import StratifiedKFold
-from sklearn.metrics import accuracy_score, f1_score, matthews_corrcoef
-from sklearn.metrics import confusion_matrix
-from timeit import default_timer as clock
-import numpy as np
-import pack_graph as pg
 import random
+from timeit import default_timer as clock
+
+import numpy as np
 import scipy.io as sio
 import scipy.sparse as sp
+from sklearn.cross_validation import StratifiedKFold
+from sklearn.metrics import accuracy_score, confusion_matrix, f1_score, matthews_corrcoef
+
+import pack_graph as pg
+
 DIAMETER = 250
 
 

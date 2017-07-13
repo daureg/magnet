@@ -4,9 +4,10 @@
 #    Dan Schult <dschult@colgate.edu>
 #    Pieter Swart <swart@lanl.gov>
 #    All rights reserved.  BSD license.
-from future.utils import iteritems
-from operator import itemgetter
 import random
+from operator import itemgetter
+
+from future.utils import iteritems
 
 
 class UnionFind(object):

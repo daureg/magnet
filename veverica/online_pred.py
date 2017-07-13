@@ -1,7 +1,9 @@
-from sklearn.linear_model import SGDClassifier
-from timeit import default_timer as clock
-import numpy as np
 import random
+from timeit import default_timer as clock
+
+import numpy as np
+from sklearn.linear_model import SGDClassifier
+
 
 def tree_prediction(features, cst, troll_first=True):
     if troll_first:

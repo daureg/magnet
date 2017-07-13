@@ -1,14 +1,17 @@
 # vim: set fileencoding=utf-8
 # pylint: disable=C0103
-import persistent as p
+import sys
 from timeit import default_timer as clock
-import pred_on_tree as pot
-import real_world as rw
+
 import graph_tool as gt
 import numpy as np
-import sys
 from graph_tool.topology import label_largest_component, shortest_distance
 from sklearn.metrics import accuracy_score, f1_score, matthews_corrcoef
+
+import persistent as p
+import pred_on_tree as pot
+import real_world as rw
+
 start = clock()
 GRAPH = 'slash'
 if GRAPH == 'slash':

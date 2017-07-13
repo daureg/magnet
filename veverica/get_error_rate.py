@@ -1,9 +1,11 @@
 import random
-from tqdm import trange, tqdm
-from multiprocessing import Pool
-from itertools import repeat
-import numpy as np
 import sys
+from itertools import repeat
+from multiprocessing import Pool
+
+import numpy as np
+from tqdm import tqdm, trange
+
 NUM_THREADS = 14
 CHUNK_SIZE = 5
 

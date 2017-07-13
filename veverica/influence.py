@@ -1,9 +1,11 @@
 # coding: utf-8
 import random
+from collections import defaultdict
+
 from grid_stretch import add_edge
 from pred_on_tree import get_bfs_tree
-from collections import defaultdict
 from real_world import reindex_nodes
+
 
 def compute_stats(labels, E):
     G = {}

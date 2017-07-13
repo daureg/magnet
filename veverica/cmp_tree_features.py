@@ -1,10 +1,11 @@
 #! /usr/bin/python2
 # vim: set fileencoding=utf-8
 """."""
-import real_world as rw
-import pred_on_tree as pot
 from math import sqrt
 from multiprocessing import Pool
+
+import pred_on_tree as pot
+import real_world as rw
 
 
 def confusion_matrix(gold, pred, pos_label=1, neg_label=-1):

@@ -1,7 +1,10 @@
-import persistent
-import networkx as nx
-import pack_graph as pg
 import sys
+
+import networkx as nx
+
+import pack_graph as pg
+import persistent
+
 pref = sys.argv[1]
 G,E = pg.load_directed_signed_graph('directed_{}.pack'.format(pref))
 ng=nx.Graph()

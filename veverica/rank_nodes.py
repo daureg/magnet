@@ -8,13 +8,15 @@ The Troll-Trust Model for Ranking in Signed Networks.
 In Proceedings of the Ninth ACM International Conference on Web Search and Data
 Mining (WSDM '16). pp 447-456. http://dx.doi.org/10.1145/2835776.2835816.
 """
-from collections import defaultdict
 import random
 import warnings
+from collections import defaultdict
+from timeit import default_timer as clock
+
+import numpy as np
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.linear_model import SGDClassifier
-import numpy as np
-from timeit import default_timer as clock
+
 warnings.filterwarnings('ignore', r'invalid value encountered in true_divide',
                         RuntimeWarning)
 

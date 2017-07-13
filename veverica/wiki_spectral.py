@@ -2,13 +2,16 @@
 # vim: set fileencoding=utf-8
 """Compare Asym trained on a random set of edges with Asym trained on various
 kind of trees"""
-import real_world as rw
-import numpy as np
-import spectral_prediction as sp
-from sklearn.metrics import accuracy_score, f1_score, matthews_corrcoef
-import pred_on_tree as pot
-import persistent
 import sys
+
+import numpy as np
+from sklearn.metrics import accuracy_score, f1_score, matthews_corrcoef
+
+import persistent
+import pred_on_tree as pot
+import real_world as rw
+import spectral_prediction as sp
+
 SEEDS = list(range(6000, 6014))
 
 if __name__ == '__main__':

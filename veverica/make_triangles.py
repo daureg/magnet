@@ -1,11 +1,13 @@
 #! /usr/bin/env python
 # vim: set fileencoding=utf-8
 """Create Delaunay triangulation of random points in the plane."""
-from timeit import default_timer as clock
-import graph_tool.generation as gen
-import persistent
-import numpy as np
 import sys
+from timeit import default_timer as clock
+
+import graph_tool.generation as gen
+import numpy as np
+
+import persistent
 
 
 def to_python_graph(graph):

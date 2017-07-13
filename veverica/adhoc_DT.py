@@ -5,6 +5,7 @@ DecisionTreeClassifier for each leaf."""
 import numpy as np
 from sklearn.tree import DecisionTreeClassifier
 
+
 class AdhocDecisionTree(object):
     def __init__(self, negative_weight=1.4, troll_first=True):
         self.order = (0, 1) if troll_first else (1, 0)

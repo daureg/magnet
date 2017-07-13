@@ -1,9 +1,10 @@
 #! /usr/bin/env python
 # vim: set fileencoding=utf-8
 # import msgpack_pypy as msgpack
-import msgpack
-from timeit import default_timer as clock
 from collections import defaultdict
+from timeit import default_timer as clock
+
+import msgpack
 
 
 def add_edge(tree, u, v):

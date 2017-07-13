@@ -1,15 +1,18 @@
 #! /usr/bin/env python
 # vim: set fileencoding=utf-8
 """Compare performance of all our kind of tree with BFS"""
-import real_world as rw
+from copy import deepcopy
+
 import numpy as np
 from sklearn.metrics import accuracy_score, f1_score, matthews_corrcoef
-from copy import deepcopy
-import pred_on_tree as pot
-import persistent
-import redensify
+
 import args_experiments as ae
+import persistent
+import pred_on_tree as pot
+import real_world as rw
+import redensify
 from asym_on_tree import find_tree_filename
+
 SEEDS = list(range(6000, 6090))
 
 

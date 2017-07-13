@@ -1,13 +1,14 @@
 #! /usr/bin/python2
 # vim: set fileencoding=utf-8
 """Implement heuristics to solve Partial Low Stretch problem."""
-import sys
-from collections import deque, defaultdict
-from grid_stretch import perturbed_bfs
-from pred_on_tree import get_dfs_tree
-from new_galaxy import galaxy_maker
 import random
+import sys
+from collections import defaultdict, deque
+
+from grid_stretch import perturbed_bfs
 from heap import heap
+from new_galaxy import galaxy_maker
+from pred_on_tree import get_dfs_tree
 
 
 def profile(func): return func

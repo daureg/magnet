@@ -1,15 +1,16 @@
 # pylint: disable=W0621
-from collections import defaultdict
 import random
+from collections import defaultdict
 from copy import deepcopy
+from timeit import default_timer as clock
+
+from sklearn.metrics import accuracy_score, confusion_matrix, f1_score, matthews_corrcoef
+
+import convert_experiment as cexp
 from grid_stretch import add_edge
 from new_galaxy import extract_stars
 from node_classif import short_bfs
 from pred_on_tree import dfs_tagging
-import convert_experiment as cexp
-from timeit import default_timer as clock
-from sklearn.metrics import accuracy_score, f1_score, matthews_corrcoef
-from sklearn.metrics import confusion_matrix
 
 
 def initial_spanning_tree(G, root=None):

@@ -1,9 +1,10 @@
-import numpy as np
-import scipy.sparse as sp
-from scipy.sparse.linalg import bicgstab
-from future.utils import iteritems
-import scipy.io as sio
 import os
+
+import numpy as np
+import scipy.io as sio
+import scipy.sparse as sp
+from future.utils import iteritems
+from scipy.sparse.linalg import bicgstab
 
 
 def get_weight_matrix(E, dataset='citeseer'):

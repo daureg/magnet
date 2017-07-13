@@ -1,9 +1,11 @@
 """Implement variants of the original GalaxyMaker algorithm"""
-from collections import deque, defaultdict, Counter
-from itertools import combinations
+from collections import Counter, defaultdict, deque
 from copy import deepcopy
-import galaxy as gx
+from itertools import combinations
 from timeit import default_timer as clock
+
+import galaxy as gx
+
 UNKNOWN, QUERIED, PREDICTED = 0, 1, 2
 
 

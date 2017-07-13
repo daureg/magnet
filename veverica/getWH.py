@@ -5,9 +5,11 @@ Chiang, K., Hsieh, C., Natarajan, N., Dhillon, I. S., & Tewari, A. (2014).
 Prediction and Clustering in Signed Networks: A Local to Global Perspective.
 Journal of Machine Learning Research, 15, 1177–1213
 http://jmlr.org/papers/v15/chiang14a.html."""
-import numpy as np
 from math import exp
 from timeit import default_timer as clock
+
+import numpy as np
+
 
 def getWH(A, n, edg, rank_of_A=7, eta0=0.9, lmbda=1e-2):
     # edges = np.array(edg+[(v, u) for u, v in edg])

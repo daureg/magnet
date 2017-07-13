@@ -1,19 +1,23 @@
 # vim: set fileencoding=utf-8
 """Perform various experiments using the shazoo code."""
+import logging
+import sys
+import time
 from collections import defaultdict, deque
-from grid_stretch import add_edge
-from tqdm import trange, tqdm
-from wta import linearize_tree, predict_signs as wta_predict
-from nxmst import kruskal_mst_edges
-from shazoo_precomputed_randomness import DataProvider
+from itertools import product, repeat
+from multiprocessing import Pool
+
+import numpy as np
+from tqdm import tqdm, trange
+
 import persistent
 import shazoo as sz
-import numpy as np
-import time
-from itertools import repeat, product
-from multiprocessing import Pool
-import sys
-import logging
+from grid_stretch import add_edge
+from nxmst import kruskal_mst_edges
+from shazoo_precomputed_randomness import DataProvider
+from wta import predict_signs as wta_predict
+from wta import linearize_tree
+
 if sz.USE_SCIPY or sys.version_info.major == 3:
     from shazoo_scipy import run_labprop, get_weight_matrix
 else:

@@ -2,13 +2,15 @@
 # vim: set fileencoding=utf-8
 """Read signed network from SNAP file and try to predict sign on small
 subgraph."""
-import sys
 import os
-sys.path.append(os.path.expanduser('~/venvs/34/lib/python3.4/site-packages/'))
 import random as r
-RND_NBS = [r.random() for _ in range(10000)]
+import sys
+
 import convert_experiment as cexp
 import redensify
+
+sys.path.append(os.path.expanduser('~/venvs/34/lib/python3.4/site-packages/'))
+RND_NBS = [r.random() for _ in range(10000)]
 G = {}
 EDGE_SIGN = {}
 DEGREES = None

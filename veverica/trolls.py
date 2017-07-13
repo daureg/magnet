@@ -1,12 +1,13 @@
 #! /usr/bin/env python
 # vim: set fileencoding=utf-8
 """sign prediction in signed network based on node classification."""
-from args_experiments import get_parser
-from cmp_tree_features import confusion_matrix
-from collections import defaultdict, Counter
-from grid_stretch import add_edge
 import random
 import time
+from collections import Counter, defaultdict
+
+from args_experiments import get_parser
+from cmp_tree_features import confusion_matrix
+from grid_stretch import add_edge
 
 
 def balance_signs(G, E, seed=1489):

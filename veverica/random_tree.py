@@ -5,8 +5,8 @@ described in
 Wilson, D. B. (1996). Generating Random Spanning Trees More Quickly Than the
 Cover Time. STOCS'96 (pp. 296–303). doi:10.1145/237814.237880
 """
-import random
 import bisect
+import random
 
 
 # http://eli.thegreenplace.net/2010/01/22/weighted-random-generation-in-python

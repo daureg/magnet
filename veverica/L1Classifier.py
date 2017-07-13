@@ -1,8 +1,10 @@
 # vim: set fileencoding=utf-8
-from sklearn.base import BaseEstimator, ClassifierMixin
 from math import sqrt
-from exp_tworules import find_threshold
+
 import numpy as np
+from sklearn.base import BaseEstimator, ClassifierMixin
+
+from exp_tworules import find_threshold
 
 
 class L1Classifier(BaseEstimator, ClassifierMixin):

@@ -1,11 +1,14 @@
 #! /usr/bin/python2
 # vim: set fileencoding=utf-8
-import graph_tool.generation as gtgeneration
-import graph_tool.draw as gtdraw
-import numpy as np
-import seaborn as sns
 import random as r
 from collections import defaultdict
+
+import graph_tool.draw as gtdraw
+import graph_tool.generation as gtgeneration
+import numpy as np
+import seaborn as sns
+
+
 """Implementation of Quick Pivot algorithm for correlation clustering.
 Ailon, N., Charikar, M., & Newman, A. (2008). Aggregating inconsistent
 information. Journal of the ACM, 55(5), 1–27. doi:10.1145/1411509.1411513"""

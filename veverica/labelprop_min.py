@@ -1,12 +1,13 @@
 """Minimize an energy function over the whole graph."""
-from scipy.optimize import minimize
-from sklearn.metrics import accuracy_score, f1_score, matthews_corrcoef
-from sklearn.metrics import confusion_matrix
-from timeit import default_timer as clock
 from collections import defaultdict
-import LillePrediction as llp
+from timeit import default_timer as clock
+
 import numpy as np
 import scipy.sparse as sp
+from scipy.optimize import minimize
+from sklearn.metrics import accuracy_score, confusion_matrix, f1_score, matthews_corrcoef
+
+import LillePrediction as llp
 
 
 def setup_problem(graph, training_edges, idx2edge):

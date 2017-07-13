@@ -1,8 +1,9 @@
 #! /usr/bin/env python
 # vim: set fileencoding=utf-8
 """Run experiments in parallel."""
-import experiments as xp
 from itertools import product
+
+import experiments as xp
 
 if __name__ == '__main__':
     # pylint: disable=C0103

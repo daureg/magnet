@@ -1,11 +1,13 @@
 # vim: set fileencoding=utf-8
 from __future__ import division
-from wta import (LineNode, dfs_order, propagate_revelead_signs,
-                 remove_duplicates, convert_to_line, linearize_tree,
-                 predict_signs)
-from grid_stretch import add_edge
+
 import random
+
 import pytest
+
+from grid_stretch import add_edge
+from wta import (LineNode, convert_to_line, dfs_order, linearize_tree,
+                 predict_signs, propagate_revelead_signs, remove_duplicates)
 
 
 def test_propagate_revelead_signs():

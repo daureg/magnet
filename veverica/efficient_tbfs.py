@@ -2,10 +2,11 @@
 # vim: set fileencoding=utf-8
 """A more efficient implementation of tBFS."""
 from collections import defaultdict, deque
-from grid_stretch import add_edge
 from itertools import combinations
 from multiprocessing import Pool
+
 import naive_tbfs as nt
+from grid_stretch import add_edge
 
 
 def opposite_triangle_edges(u, Gr, Ed, common_neighbors):

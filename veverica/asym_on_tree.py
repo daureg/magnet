@@ -1,14 +1,17 @@
 #! /usr/bin/env python
 # vim: set fileencoding=utf-8
 """Compare performance of all our kind of tree as predicted by Asym"""
-import real_world as rw
-import numpy as np
-import spectral_prediction as sp
 from copy import deepcopy
-import pred_on_tree as pot
-import redensify
-import args_experiments as ae
 from glob import glob
+
+import numpy as np
+
+import args_experiments as ae
+import pred_on_tree as pot
+import real_world as rw
+import redensify
+import spectral_prediction as sp
+
 SEEDS = list(range(6000, 6090))
 
 

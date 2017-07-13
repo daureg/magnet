@@ -1,7 +1,10 @@
-from glob import glob
+import sys
 from collections import defaultdict
+from glob import glob
+
 import numpy as np
 import pandas as pd
+
 """Read exp results and format them as latex table and text files"""
 
 
@@ -14,7 +17,6 @@ def load_res(prefix):
     return res[0] if len(res) == 1 else np.concatenate(res, 2)
 
 metric = 2
-import sys
 prefix = sys.argv[1]
 wres = load_res(prefix+'*')
 v_mean = wres[:,:,:,metric].mean(-1).T

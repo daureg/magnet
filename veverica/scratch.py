@@ -1,15 +1,16 @@
+import os
+import random
 from collections import Counter
-from convert_pbm_images import build_graph, read_img
 from copy import deepcopy
 from math import sqrt
-from new_galaxy import galaxy_maker
 from socket import gethostname as hostname
+
 import convert_experiment as cexp
 import grid_stretch as gs
 import persistent
 import pred_on_tree as pot
-import random
-import os
+from convert_pbm_images import build_graph, read_img
+from new_galaxy import galaxy_maker
 
 
 def confusion_number(gold, pred):

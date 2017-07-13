@@ -2,9 +2,12 @@
 """Try to build a spanner giving accurate answers knowing all the signs
 already."""
 from collections import deque
-from sklearn.metrics import matthews_corrcoef
-import real_world as rw
 from copy import deepcopy
+
+from sklearn.metrics import matthews_corrcoef
+
+import real_world as rw
+
 rw.read_original_graph('soc-sign-Slashdot090221.txt')
 ADJACENCY, EDGE_SIGNS = deepcopy(rw.G), deepcopy(rw.EDGE_SIGN)
 

@@ -1,10 +1,12 @@
 #! /usr/bin/env python
 # vim: set fileencoding=utf-8
 """Run experiments in parallel."""
-import sys
 import os
-sys.path.append(os.path.expanduser('~/venvs/34/lib/python3.4/site-packages/'))
+import sys
+
 import convert_experiment as cexp
+
+sys.path.append(os.path.expanduser('~/venvs/34/lib/python3.4/site-packages/'))
 
 if __name__ == '__main__':
     # pylint: disable=C0103

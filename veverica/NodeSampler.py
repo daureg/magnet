@@ -1,9 +1,9 @@
 #! /usr/bin/env python
 # vim: set fileencoding=utf-8
-from copy import deepcopy
-import random
-from math import ceil
 import itertools
+import random
+from copy import deepcopy
+from math import ceil
 
 
 class Tree(object):

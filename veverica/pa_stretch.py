@@ -2,12 +2,14 @@
 # vim: set fileencoding=utf-8
 """Compute BFS and GTX tree on increasingly large PA graph to see whether they
 .differ with respect to test edge stetch"""
-import pred_on_tree as pot
-import convert_experiment as cexp
-import new_galaxy as ng
+from timeit import default_timer as clock
+
 import numpy as np
 from graph_tool.topology import label_largest_component, shortest_distance
-from timeit import default_timer as clock
+
+import convert_experiment as cexp
+import new_galaxy as ng
+import pred_on_tree as pot
 
 
 def load_wiki():

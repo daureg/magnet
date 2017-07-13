@@ -1,9 +1,10 @@
 #! /usr/bin/env python
 # vim: set fileencoding=utf-8
 """"""
-from collections import defaultdict
-from heap import heap
 import random
+from collections import defaultdict
+
+from heap import heap
 
 
 class ThresholdSampler(object):

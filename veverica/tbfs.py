@@ -2,7 +2,9 @@
 # vim: set fileencoding=utf-8
 """Compute a BFS where each path is a t-path."""
 from collections import deque
+
 from grid_stretch import add_edge
+
 
 # http://code.activestate.com/recipes/578231-probably-the-fastest-memoization-decorator-in-the-/#c8
 def memoize(f):

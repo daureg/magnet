@@ -1,18 +1,20 @@
 # vim: set fileencoding=utf-8
 # pylint: disable=no-member
+import random
 from collections import Counter, defaultdict
-from grid_stretch import add_edge
-from heap import heap
 from itertools import combinations, product
-from sklearn.cluster import SpectralClustering
-from sklearn.metrics import mean_squared_error, f1_score
-from sklearn.preprocessing import MultiLabelBinarizer
 from timeit import default_timer as clock
 from warnings import warn
+
+import numpy as np
+from sklearn.cluster import SpectralClustering
+from sklearn.metrics import f1_score, mean_squared_error
+from sklearn.preprocessing import MultiLabelBinarizer
+
 import baseline as bl
 import cvxpy as cvx
-import numpy as np
-import random
+from grid_stretch import add_edge
+from heap import heap
 
 
 def create_graph(users, xs):

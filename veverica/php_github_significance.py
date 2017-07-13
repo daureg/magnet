@@ -1,9 +1,11 @@
 # coding: utf-8
-from collections import Counter
-import persistent as p
 import random
-import influence
+from collections import Counter
 from itertools import combinations
+
+import influence
+import persistent as p
+
 NREP = 200
 DM_over_PHP = False
 prom = None

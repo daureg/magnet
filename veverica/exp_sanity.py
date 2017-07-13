@@ -1,10 +1,11 @@
 #! /usr/bin/env python
-import numpy as np
-import LillePrediction as llp
-from L1Classifier import L1Classifier
 from math import ceil, log
-from exp_tworules import pred_with_threshold, find_threshold
 
+import numpy as np
+
+import LillePrediction as llp
+from exp_tworules import find_threshold, pred_with_threshold
+from L1Classifier import L1Classifier
 
 if __name__ == '__main__':
     # pylint: disable=C0103

@@ -8,24 +8,28 @@ In Advances in Neural Information Processing Systems 24 (pp. 1584–1592).
 http://papers.nips.cc/paper/4476-see-the-tree-through-the-lines-the-shazoo-algorithm .
 """
 from __future__ import division
-from collections import deque, defaultdict
-import convert_experiment as cexp
-import random
+
 import logging
+import random
+from collections import defaultdict, deque
+from multiprocessing import Pool
+from timeit import default_timer as clock
+
 import numpy as np
+from future.utils import iteritems
+
+import convert_experiment as cexp
 import persistent
+from grid_stretch import perturbed_bfs as get_bfs_tree
+from grid_stretch import add_edge
+from new_galaxy import galaxy_maker as get_stg_tree
+from random_tree import get_tree as get_rst_tree
+
 USE_SCIPY = True
 try:
     import scipy.sparse as sp
 except ImportError:
     USE_SCIPY = False
-from future.utils import iteritems
-from timeit import default_timer as clock
-from random_tree import get_tree as get_rst_tree
-from grid_stretch import perturbed_bfs as get_bfs_tree
-from grid_stretch import add_edge
-from new_galaxy import galaxy_maker as get_stg_tree
-from multiprocessing import Pool
 MAX_WEIGHT = int(2e9)
 UNKNOWN, REVEALED, FORK, HINGE = 0, 1, 2, 3
 FLEP_CALLS_TIMING = []

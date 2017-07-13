@@ -1,14 +1,16 @@
 #! /usr/bin/python2
 # vim: set fileencoding=utf-8
 """Take a general signed graph and complete it randomly (to some extent)."""
-import random as r
 import bisect
-from itertools import combinations, accumulate
+import random as r
+from enum import Enum, unique
+from itertools import accumulate, combinations
+
 import numpy as np
 from graph_tool import centrality
-from TriangleCache import TriangleStatus
-from enum import Enum, unique
+
 import persistent as p
+from TriangleCache import TriangleStatus
 
 
 @unique

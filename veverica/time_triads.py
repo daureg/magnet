@@ -1,6 +1,7 @@
+import numpy as np
+
 import LillePrediction as llp
 import lprop_matrix as lm
-import numpy as np
 
 if __name__ == '__main__':
     # pylint: disable=C0103

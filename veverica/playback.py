@@ -1,8 +1,8 @@
 #! /usr/bin/env python
 # vim: set fileencoding=utf-8
 """Draw graph at a given step of completion."""
-import numpy as np
 import graph_tool.draw as gtdraw
+import numpy as np
 
 
 def draw_state(n_iter, graph, history, pos):

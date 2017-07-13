@@ -8,9 +8,11 @@ J. Mach. Learn. Res. 14, 1251–1284 (2013).
 http://www.jmlr.org/papers/v14/cesa-bianchi13a.html .
 """
 from __future__ import division
+
 from collections import defaultdict
-from attr.validators import instance_of
+
 import attr
+from attr.validators import instance_of
 
 
 def is_binary(instance, attribute, x):

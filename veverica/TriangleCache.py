@@ -1,9 +1,11 @@
 #! /usr/bin/env python
 # vim: set fileencoding=utf-8
 """Precompute various property of all possible edges triplet"""
-import persistent as p
 from enum import Enum, unique
 from itertools import product
+
+import persistent as p
+
 # pylint: disable=C0103
 
 

@@ -1,15 +1,17 @@
 #! /usr/bin/env python
 # vim: set fileencoding=utf-8
 """Initial implementation of galaxy maker"""
-# import numpy as np
-from heap import heap
 import gzip
-from collections import namedtuple, defaultdict
+from collections import defaultdict, namedtuple
 from itertools import product
+from timeit import default_timer as clock
+
 import convert_experiment as cexp
 # import cc_pivot as cc
 import redensify
-from timeit import default_timer as clock
+# import numpy as np
+from heap import heap
+
 # import graph_tool as gt
 Star = namedtuple('Star', 'center points'.split())
 vertex_style = {'size': 16, 'font_size': 10}

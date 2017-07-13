@@ -1,15 +1,17 @@
+import random
+
 import numpy as np
-import LillePrediction as llp
 from sklearn.linear_model import LogisticRegression, LogisticRegressionCV
-from sklearn.metrics import accuracy_score, f1_score, matthews_corrcoef
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import accuracy_score, confusion_matrix, f1_score, matthews_corrcoef
+
+import LillePrediction as llp
+
 graph = llp.LillePrediction(use_triads=False)
 graph.load_data(llp.lp.DATASETS.Epinion)
 graph.select_train_set(sampling=lambda d: int(.02*d))
 graph.compute_features()
 idx2edge = {i: e for e, i in graph.edge_order.items()}
 olr = LogisticRegression(C=.02, warm_start=True, solver='lbfgs', n_jobs=16)
-import random
 
 def perf(gold, pred):
     C = confusion_matrix(gold, pred)

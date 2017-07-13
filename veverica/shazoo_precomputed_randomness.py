@@ -1,8 +1,11 @@
+import random
+
 import msgpack
 import numpy as np
-import random
-from grid_stretch import add_edge
+
 import persistent
+from grid_stretch import add_edge
+
 train_size = np.array([2.5, 5, 10, 20, 40]) / 100
 pertubations = np.array([0, 2.5, 5, 10, 20, 35]) / 100
 

@@ -1,9 +1,11 @@
-from collections import ChainMap
-from heap import heap
-import graph_tool.generation as ggen
-import pack_graph as pg
 import random
+from collections import ChainMap
+
+import graph_tool.generation as ggen
 import numpy as np
+
+import pack_graph as pg
+from heap import heap
 
 
 def create_topology(n=1000):

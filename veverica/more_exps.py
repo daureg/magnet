@@ -1,7 +1,9 @@
 # vim: set fileencoding=utf-8
-import shazoo_exps as se
-from future.utils import iteritems
 from timeit import default_timer as clock
+
+from future.utils import iteritems
+
+import shazoo_exps as se
 
 
 def single(num_rep=10, dataset='citeseer'):

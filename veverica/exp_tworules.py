@@ -1,8 +1,10 @@
 #! /usr/bin/env python
+from collections import defaultdict
+
 import numpy as np
 from sklearn.base import BaseEstimator, ClassifierMixin
+
 import lprop_matrix as lm
-from collections import defaultdict
 
 
 class WeightedRule2(BaseEstimator, ClassifierMixin):

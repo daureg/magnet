@@ -1,10 +1,11 @@
 # vim: set fileencoding=utf-8
 """Exact optimization solution to infer whether two users will give the same
 ratings to an item on synthetic and MoviesLens dataset."""
+import random
 # pylint: disable=E1103,F0401
 from collections import defaultdict
+
 import numpy as np
-import random
 
 
 def load_movies():

@@ -1,14 +1,16 @@
 # vim: set fileencoding=utf-8
 """."""
+import random
 from collections import defaultdict
 from itertools import combinations, product
 from operator import itemgetter
-from scipy.spatial.distance import pdist, squareform
-import cvxpy as cvx
-import numpy as np
-import random
-import seaborn as sns
+
 import matplotlib.pyplot as plt
+import numpy as np
+import seaborn as sns
+from scipy.spatial.distance import pdist, squareform
+
+import cvxpy as cvx
 import prettyplotlib as ppl
 
 USERS, ITEMS, RATINGS = None, None, None

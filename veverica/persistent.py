@@ -19,4 +19,3 @@ def load_var(filename):
 def resave(filename, proto=3):
     data = load_var(filename)
     save_var(filename, data, proto)
-

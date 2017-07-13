@@ -8,6 +8,7 @@ updating the priority as suggested in the doc for heapq.
 
 from collections import MutableMapping
 
+
 class heap(MutableMapping):
 	"""binary min-heap based on heapq
 	"""
@@ -177,4 +178,3 @@ class heap(MutableMapping):
 		"""
 		if item in self:
 			del self[item]
-

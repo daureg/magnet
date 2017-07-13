@@ -1,12 +1,14 @@
 #! /usr/bin/env python
 # vim: set fileencoding=utf-8
+import random
+from collections import defaultdict, namedtuple
+from timeit import default_timer as clock
+
 from galaxy import export_spanner
 from heap import heap
-from collections import namedtuple, defaultdict
-from timeit import default_timer as clock
-import random
-from ThresholdSampler import ThresholdSampler
 from NodeSampler import WeightedDegrees
+from ThresholdSampler import ThresholdSampler
+
 Star = namedtuple('Star', 'center points'.split())
 
 

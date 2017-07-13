@@ -1,14 +1,16 @@
 #! /usr/bin/env python
 # vim: set fileencoding=utf-8
-from LillePrediction import *
-from exp_tworules import pred_with_threshold, find_threshold
-from L1Classifier import L1Classifier
-from rank_nodes import NodesRanker
-from bayes_feature import compute_bayes_features
-from scipy.optimize import minimize
 import scipy.sparse as ssp
-import treestar
+from scipy.optimize import minimize
+
 import lprop_matrix as lm
+import treestar
+from bayes_feature import compute_bayes_features
+from exp_tworules import find_threshold, pred_with_threshold
+from L1Classifier import L1Classifier
+from LillePrediction import *
+from rank_nodes import NodesRanker
+
 RBFS, RTST = None, None
 
 if __name__ == '__main__':

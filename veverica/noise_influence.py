@@ -1,13 +1,16 @@
 #! /usr/bin/python
 # vim: set fileencoding=utf-8
-from sklearn.metrics import f1_score, matthews_corrcoef, accuracy_score
-import numpy as np
-import redensify
-import convert_experiment as cexp
-from graph_tool.topology import shortest_distance
-import graph_tool
 import os
+
+import graph_tool
+import numpy as np
+from graph_tool.topology import shortest_distance
+from sklearn.metrics import accuracy_score, f1_score, matthews_corrcoef
+
+import convert_experiment as cexp
 import pred_on_tree as pot
+import redensify
+
 # import cc_pivot as cc
 PA = True
 BALANCED = True

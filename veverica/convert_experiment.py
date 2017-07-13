@@ -2,14 +2,16 @@
 # vim: set fileencoding=utf-8
 """Convert graph_tool graph to dict of sets and back within the redensify
 module."""
-import redensify
 import random as r
-from collections import Counter, deque
-from timeit import default_timer
-from itertools import repeat, combinations, product, starmap
-from operator import itemgetter
-import persistent as p
 import time
+from collections import Counter, deque
+from itertools import combinations, product, repeat, starmap
+from operator import itemgetter
+from timeit import default_timer
+
+import persistent as p
+import redensify
+
 NUM_THREADS = 0
 
 

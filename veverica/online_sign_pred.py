@@ -3,13 +3,15 @@ Jing Wang, Jie Shen, Ping Li, and Huan Xu. 2017.
 Online Matrix Completion for Signed Link Prediction. WSDM '17, pp 475-484.
 https://doi.org/10.1145/3018661.3018681
 """
-import matplotlib as mpl
-mpl.use('Agg')
 import random
 from collections import defaultdict
 from math import exp, sqrt
 
+import matplotlib as mpl
 import numpy as np
+
+mpl.use('Agg')
+
 
 
 def online_maxnorm_completion(observed, edges_matrix_indices, lmbda=1.2, d=50, alpha=0.5,

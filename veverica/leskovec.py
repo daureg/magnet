@@ -1,18 +1,21 @@
 import warnings
-warnings.filterwarnings("ignore", category=DeprecationWarning)
-from sklearn.utils import DataConversionWarning
-warnings.filterwarnings("ignore", category=DataConversionWarning)
 from collections import defaultdict
-from grid_stretch import add_edge, perturbed_bfs
 from itertools import product
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.linear_model import LogisticRegressionCV, LogisticRegression
-from sklearn.metrics import accuracy_score, f1_score, matthews_corrcoef, make_scorer
-from sklearn.metrics import confusion_matrix, roc_auc_score
-from sklearn.tree import DecisionTreeClassifier
+
 import numpy as np
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression, LogisticRegressionCV
+from sklearn.metrics import (accuracy_score, confusion_matrix, f1_score,
+                             make_scorer, matthews_corrcoef, roc_auc_score)
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.utils import DataConversionWarning
+
 import real_world as rw
 import trolls
+from grid_stretch import add_edge, perturbed_bfs
+
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+warnings.filterwarnings("ignore", category=DataConversionWarning)
 
 lambdas = {'WIK': [0.31535, 0.77045, 0.09727],
            'SLA': [0.32250, 0.74161, 0.11218],

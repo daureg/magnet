@@ -1,9 +1,11 @@
 #! /usr/bin/python
 # vim: set fileencoding=utf-8
 from collections import defaultdict
-import grid_stretch as gs
 from itertools import product
+
+import grid_stretch as gs
 import persistent
+
 """Various methods to improve a existing spanning tree."""
 
 

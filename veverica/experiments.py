@@ -1,19 +1,22 @@
 #! /usr/bin/python2
 # vim: set fileencoding=utf-8
 """."""
-from timeit import default_timer
-import time
-import numpy as np
-import densify
-import cc_pivot as cc
-import random as r
-import graph_tool as gt
-from operator import itemgetter
-from itertools import product, combinations, repeat
-from TriangleCache import TriangleStatus
-import persistent as p
 import os
+import random as r
+import time
+from itertools import combinations, product, repeat
+from operator import itemgetter
+from timeit import default_timer
+
+import graph_tool as gt
+import numpy as np
+
+import cc_pivot as cc
+import densify
+import persistent as p
 from convert_experiment import negative_pattern
+from TriangleCache import TriangleStatus
+
 NUM_THREADS = os.environ.get('NUM_THREADS', 14)
 
 

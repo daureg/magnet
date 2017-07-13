@@ -2,6 +2,7 @@ import random
 from collections import defaultdict, deque
 from enum import Enum
 from itertools import combinations, product
+from timeit import default_timer as clock
 
 import autograd.numpy as anp
 import networkx as nx
@@ -11,7 +12,6 @@ from autograd import grad
 from scipy.spatial.distance import cdist
 from sklearn.cluster import KMeans
 from sklearn.metrics import adjusted_mutual_info_score as AMI
-from timeit import default_timer as clock
 
 seed = 61
 random.seed(seed)

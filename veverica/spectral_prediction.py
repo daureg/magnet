@@ -2,11 +2,13 @@
 """Implement Asym_exp as in Kunegis, J., Lommatzsch, A., & Bauckhage, C.
 (2009). The Slashdot Zoo: Mining a Social Network with Negative Edges. WWW
 09. doi:10.1145/1526709.1526809."""
-import numpy as np
-import real_world as rw
 import random
+
+import numpy as np
 import scipy.sparse as sps
 import sklearn.metrics
+
+import real_world as rw
 
 
 def get_training_matrix(pr_in_train_set, mapping, slcc, tree_edges=None,

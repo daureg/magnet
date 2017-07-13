@@ -1,7 +1,8 @@
 #! /usr/bin/env python
 # vim: set fileencoding=utf-8
-from collections import deque
 import random as r
+from collections import deque
+
 import new_galaxy as ng
 
 

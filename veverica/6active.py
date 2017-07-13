@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 # vim: set fileencoding=utf-8
-from LillePrediction import *
 from L1Classifier import L1Classifier
+from LillePrediction import *
 
 if __name__ == '__main__':
     # pylint: disable=C0103

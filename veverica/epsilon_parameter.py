@@ -1,11 +1,13 @@
 """Look at the effect of the epsilon on MCC performance."""
-import lprop_matrix as lm
-from sklearn.metrics import matthews_corrcoef
-from timeit import default_timer as clock
-import numpy as np
-import pack_graph as pg
 import random
+from timeit import default_timer as clock
+
+import numpy as np
 import scipy.sparse as sp
+from sklearn.metrics import matthews_corrcoef
+
+import lprop_matrix as lm
+import pack_graph as pg
 
 if __name__ == "__main__":
     from exp_tworules import find_threshold

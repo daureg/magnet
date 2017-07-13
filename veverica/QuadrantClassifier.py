@@ -1,10 +1,12 @@
 #! /usr/bin/python2
 # vim: set fileencoding=utf-8
 """."""
+import numpy as np
 from sklearn.base import BaseEstimator, ClassifierMixin, clone
 from sklearn.linear_model import SGDClassifier
+
 from adhoc_DT import AdhocDecisionTree
-import numpy as np
+
 
 class QuadrantClassifier(BaseEstimator, ClassifierMixin):
     def __init__(self, negative_weight=1.4, lambdas=[.5, .5, .5], troll_first=True, 
@@ -73,4 +75,3 @@ if __name__ == '__main__':
     # pylint: disable=C0103
     import doctest
     doctest.testmod()
-

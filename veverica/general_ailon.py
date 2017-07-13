@@ -1,14 +1,16 @@
 # vim: set fileencoding=utf-8
 """Implement a merging post processing on top of Ailon algorithm"""
-import sys
 import os
-sys.path.append(os.path.expanduser('~/venvs/34/lib/python3.4/site-packages/'))
-from itertools import repeat, combinations, product
+import random as r
+import sys
+from collections import deque
+from itertools import combinations, product, repeat
 from operator import itemgetter
+
 import convert_experiment as cexp
 import redensify
-import random as r
-from collections import deque
+
+sys.path.append(os.path.expanduser('~/venvs/34/lib/python3.4/site-packages/'))
 NUM_THREADS = 14
 
 

@@ -1,6 +1,8 @@
-import numpy as np
-from next_state_distrib import next_state_distrib
 from timeit import default_timer as clock
+
+import numpy as np
+
+from next_state_distrib import next_state_distrib
 
 
 def compute_bayes_features(Xa, ya, train_set, test_set, graph):

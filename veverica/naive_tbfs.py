@@ -1,8 +1,9 @@
-from collections import defaultdict
-from grid_stretch import add_edge
-from itertools import combinations
-from tbfs import memoize
 import random
+from collections import defaultdict
+from itertools import combinations
+
+from grid_stretch import add_edge
+from tbfs import memoize
 
 N = 50
 

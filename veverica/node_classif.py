@@ -1,10 +1,12 @@
 import collections
-import grid_stretch as gs
+import random
 from copy import deepcopy
 from itertools import product
-from msst_heuristic import tree_path
 from math import log
-import random
+
+import grid_stretch as gs
+from msst_heuristic import tree_path
+
 """Baselines for active binary node classification"""
 QUERIED = {}
 LABELS = None

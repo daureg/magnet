@@ -1,8 +1,9 @@
 #! /usr/bin/env python
 # vim: set fileencoding=utf-8
-import scratch
 from glob import glob
 from timeit import default_timer as clock
+
+import scratch
 
 
 def image_size(pbm_filename):

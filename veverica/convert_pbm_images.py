@@ -1,8 +1,9 @@
 #! /usr/bin/env python
 # vim: set fileencoding=utf-8
 from timeit import default_timer as clock
-import persistent
+
 import grid_stretch as gs
+import persistent
 
 
 def read_img(filename):
@@ -29,6 +30,7 @@ def read_img(filename):
 
 def build_graph(img, w, h):
     G, E = {}, {}
+    node_signs = {}
     for i, row in enumerate(img):
         for j, pxl in enumerate(row):
             neighbors = []
@@ -41,12 +43,13 @@ def build_graph(img, w, h):
             if j < w - 1:
                 neighbors.append((i, j+1))
             u = i*w + j
+            node_signs[u] = 2*pxl-1
             for iv, jv in neighbors:
                 v = iv*w + jv
                 gs.add_edge(G, u, v)
                 edge = (u, v) if u < v else (v, u)
                 E[edge] = pxl == img[iv][jv]
-    return G, E
+    return node_signs, G, E
 
 if __name__ == '__main__':
     # pylint: disable=C0103

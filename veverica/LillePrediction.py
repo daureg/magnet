@@ -1,21 +1,23 @@
 #! /usr/bin/env python
 # vim: set fileencoding=utf-8
 """."""
-import LinkPrediction as lp
+import random
+from collections import Counter, defaultdict
+from copy import deepcopy
+
+import numpy as np
 from sklearn.linear_model import LogisticRegression  # , LogisticRegressionCV
 from sklearn.linear_model import PassiveAggressiveClassifier, SGDClassifier
 from sklearn.tree import DecisionTreeClassifier
-from adhoc_DT import AdhocDecisionTree
+
+import getWH
 import leskovec as l
-from copy import deepcopy
-from collections import defaultdict, Counter
-import random
-import numpy as np
+import LinkPrediction as lp
 import persistent as p
 import spectral_prediction as sp
-import getWH
-from treestar import initial_spanning_tree
+from adhoc_DT import AdhocDecisionTree
 from pack_graph import load_directed_signed_graph, msgpack
+from treestar import initial_spanning_tree
 
 lambdas_troll = {'EPI': [ 0.3138361 ,  0.78747173,  0.09077966],
                  'SLA': [ 0.32362659,  0.73825876,  0.10942871],
@@ -85,8 +87,14 @@ class LillePrediction(lp.LinkPrediction):
 
     def select_train_set(self, **params):
         self.out_samples, self.in_samples = defaultdict(int), defaultdict(int)
+        self.Esign = {}
+        if 'fixed' in params:
+            for e in params['fixed']:
+                self.Esign[e] = self.E[e]
+            self.out_samples.update(Counter((e[0] for e in self.Esign)))
+            self.in_samples.update(Counter((e[1] for e in self.Esign)))
+            return self.Esign
         if 'oldest' in params:
-            self.Esign = {}
             num_edges = int(params['oldest']*len(self.E))
             for e, _ in self.time_order[:num_edges]:
                 self.Esign[e] = self.E[e]

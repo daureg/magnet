@@ -1,7 +1,10 @@
+import logging
 import os
-from datetime import datetime
+import random
 from glob import glob
+from itertools import product
 from math import sqrt
+from multiprocessing import Pool
 from timeit import default_timer as clock
 
 import msgpack
@@ -87,31 +90,37 @@ def doubling_size(topo):
 def build_trees(topo, real, num_rep, part):
     prefix = 'nantes/{}_{}*.pack'.format(topo, 'yes' if real else 'no')
     graphs = sorted(glob(prefix), key=lambda f: os.stat(f).st_size)
-    for filename in graphs:
-        _, _, _, G, E = load_graph(filename)
-        root = max(G.items(), key=lambda x: len(x[1]))[0]
+    tasks = []
+    for filename in graphs[:10]:
         prefix = os.path.splitext(filename)[0]
-        for i in range(num_rep):
-            build_one_tree(G, E, root, part * num_rep + i, prefix)
+        for i, treekind in product(range(num_rep), ['bfs', 'gtx', 'rst']):
+            tasks.append((filename, treekind, part * num_rep + i))
+    random.shuffle(tasks)
+    num_threads = 14
+    pool = Pool(num_threads)
+    pool.starmap_async(single_tree, tasks, chunksize=len(tasks) // num_threads)
+    pool.close()
+    pool.join()
 
 
-def build_one_tree(G, E, root, tid, prefix):
-    ts = datetime.now().isoformat(' ')[:19]
-    print('{} - building BFT {} on {}'.format(ts, tid, prefix))
-    bfs = perturbed_bfs(G, root)
-    ts = datetime.now().isoformat(' ')[:19]
-    print('{} - building GTX {} on {}'.format(ts, tid, prefix))
-    gtx, _ = galaxy_maker(G, 150, short=True, output_name=None)
-    ts = datetime.now().isoformat(' ')[:19]
-    print('{} - building RST {} on {}'.format(ts, tid, prefix))
-    rst = list(get_rst(G, {e: 1 for e in E})[1])
-    for t, name in zip([bfs, gtx, rst], ['bfs', 'gtx', 'rst']):
-        ts = datetime.now().isoformat(' ')[:19]
-        print('{} - computing stretch of {} on {}'.format(ts, name, prefix))
-        stretch = average_strech(set(E), t)
-        tree_filename = '{}_{}_{}.pack'.format(prefix, name, tid)
-        with open(tree_filename, 'w+b') as outfile:
-            msgpack.pack((stretch, tuple((x for u, v in t for x in (u, v)))), outfile)
+def single_tree(filename, treekind, tid):
+    prefix = os.path.splitext(filename)[0]
+    tree_filename = '{}_{}_{}.pack'.format(prefix, treekind, tid)
+    if os.path.exists(tree_filename):
+        return
+    logging.info('building {} {} on {}'.format(treekind, tid, prefix))
+    _, _, _, G, E = load_graph(filename)
+    if treekind == 'bfs':
+        root = max(G.items(), key=lambda x: len(x[1]))[0]
+        t = perturbed_bfs(G, root)
+    elif treekind == 'gtx':
+        t, _ = galaxy_maker(G, 150, short=True, output_name=None)
+    elif treekind == 'rst':
+        t = list(get_rst(G, {e: 1 for e in E})[1])
+    logging.info('computing stretch of {} on {}'.format(treekind, prefix))
+    stretch = average_strech(set(E), t)
+    with open(tree_filename, 'w+b') as outfile:
+        msgpack.pack((stretch, tuple((x for u, v in t for x in (u, v)))), outfile)
 
 
 if __name__ == "__main__":
@@ -125,4 +134,7 @@ if __name__ == "__main__":
     parser.add_argument("-n", "--nrep", help="Number of repetitions", type=int, default=4)
     args = parser.parse_args()
     # doubling_size(args.topology)
+    dbg_fmt = '%(asctime)s - %(relativeCreated)d:%(filename)s.%(funcName)s:%(lineno)d: %(message)s'
+    logging.basicConfig(filename='trees_{}.log'.format(args.topology),
+                        level=logging.DEBUG, format=dbg_fmt)
     build_trees(args.topology, args.real, args.nrep, part)

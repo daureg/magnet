@@ -89,7 +89,11 @@ def doubling_size(topo):
 
 def build_trees(topo, real, num_rep, part):
     prefix = 'nantes/{}_{}*.pack'.format(topo, 'yes' if real else 'no')
-    graphs = sorted(glob(prefix), key=lambda f: os.stat(f).st_size)
+
+    def is_packed_tree(name):
+        return 'gtx' in name or 'bfs' in name or 'rst' in name
+    graphs = sorted((f for f in glob(prefix) if not is_packed_tree(f)),
+                    key=lambda f: os.stat(f).st_size)
     tasks = []
     for filename in graphs[:10]:
         prefix = os.path.splitext(filename)[0]

@@ -1,4 +1,6 @@
-from collections import Counter
+import os
+from datetime import datetime
+from glob import glob
 from math import sqrt
 from timeit import default_timer as clock
 
@@ -7,8 +9,10 @@ import msgpack
 import convert_experiment as cexp
 import pack_graph as pg
 from create_dssn_pack import irregularities
-from grid_stretch import make_grid
-from scratch import merge_into_2_clusters
+from grid_stretch import make_grid, perturbed_bfs
+from new_galaxy import galaxy_maker
+from random_tree import get_tree as get_rst
+from scratch import average_strech, merge_into_2_clusters
 
 
 def load_graph(filename):
@@ -72,11 +76,53 @@ def get_graph(topology, real, name, size=None):
                       tuple((x for (u, v), s in E.items() for x in (u, v, int(s))))), outfile)
     print('save a {} nodes, {} edges in {:.3f} seconds'.format(len(G), len(E), clock() - start))
 
-if __name__ == "__main__":
-    import sys
-    topo = sys.argv[1]
-    assert topo in {'PA', 'grid', 'triangle'}
+
+def doubling_size(topo):
     size = 1024
     while size < 25e6:
         get_graph(topo, False, '', size)
         size *= 2
+
+
+def build_trees(topo, real, num_rep, part):
+    prefix = 'nantes/{}_{}*.pack'.format(topo, 'yes' if real else 'no')
+    graphs = sorted(glob(prefix), key=lambda f: os.stat(f).st_size)
+    for filename in graphs:
+        _, _, _, G, E = load_graph(filename)
+        root = max(G.items(), key=lambda x: len(x[1]))[0]
+        prefix = os.path.splitext(filename)[0]
+        for i in range(num_rep):
+            build_one_tree(G, E, root, part * num_rep + i, prefix)
+
+
+def build_one_tree(G, E, root, tid, prefix):
+    ts = datetime.now().isoformat(' ')[:19]
+    print('{} - building BFT {} on {}'.format(ts, tid, prefix))
+    bfs = perturbed_bfs(G, root)
+    ts = datetime.now().isoformat(' ')[:19]
+    print('{} - building GTX {} on {}'.format(ts, tid, prefix))
+    gtx, _ = galaxy_maker(G, 150, short=True, output_name=None)
+    ts = datetime.now().isoformat(' ')[:19]
+    print('{} - building RST {} on {}'.format(ts, tid, prefix))
+    rst = list(get_rst(G, {e: 1 for e in E})[1])
+    for t, name in zip([bfs, gtx, rst], ['bfs', 'gtx', 'rst']):
+        ts = datetime.now().isoformat(' ')[:19]
+        print('{} - computing stretch of {} on {}'.format(ts, name, prefix))
+        stretch = average_strech(set(E), t)
+        tree_filename = '{}_{}_{}.pack'.format(prefix, name, tid)
+        with open(tree_filename, 'w+b') as outfile:
+            msgpack.pack((stretch, tuple((x for u, v in t for x in (u, v)))), outfile)
+
+
+if __name__ == "__main__":
+    import socket
+    import argparse
+    part = int(socket.gethostname()[-1]) - 1
+    parser = argparse.ArgumentParser()
+    parser.add_argument("topology", help="Which data to use", default='grid',
+                        choices={'PA', 'grid', 'triangle'})
+    parser.add_argument("-r", "--real", action='store_true', help="Use real data")
+    parser.add_argument("-n", "--nrep", help="Number of repetitions", type=int, default=4)
+    args = parser.parse_args()
+    # doubling_size(args.topology)
+    build_trees(args.topology, args.real, args.nrep, part)

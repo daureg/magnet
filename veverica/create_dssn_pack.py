@@ -1,11 +1,6 @@
 from collections import Counter
 
-import graph_tool as gt
 import msgpack
-import numpy as np
-import scipy.sparse as sparse
-from graph_tool.topology import label_largest_component
-from scipy.optimize import minimize
 
 import pack_graph as pg
 
@@ -54,6 +49,9 @@ def reindex_nodes(old_G, old_E, mapping, directed=False):
 
 
 def generate_node_sign(G, E):
+    import numpy as np
+    import scipy.sparse as sparse
+    from scipy.optimize import minimize
     def fun(x):
         t = -As@x
         return x.T@t, 2 * t
@@ -88,6 +86,9 @@ def irregularities(G, V, E):
 
 
 if __name__ == "__main__":
+    import graph_tool as gt
+    from graph_tool.topology import label_largest_component
+    import numpy as np
     for name in ('aut', 'wik', 'sla', 'epi', 'kiw'):
         dG, dE = pg.load_directed_signed_graph('directed_{}.pack'.format(name))
         print(name)

@@ -87,6 +87,16 @@ def doubling_size(topo):
         size *= 2
 
 
+def distribute_tasks(tasks, num_threads):
+    tasks.sort(key=lambda x: (x[0], x[1][1]))
+    threads_tasks = [list() for i in range(num_threads)]
+    for i, (_, task) in enumerate(tasks):
+        threads_tasks[num_threads - i % num_threads - 1].append(tuple(task))
+    for thread_tasks in threads_tasks:
+        random.shuffle(thread_tasks)
+    return [task for thread_tasks in threads_tasks for task in thread_tasks]
+
+
 def build_trees(topo, real, num_rep, part):
     prefix = 'nantes/{}_{}*.pack'.format(topo, 'yes' if real else 'no')
 
@@ -95,14 +105,18 @@ def build_trees(topo, real, num_rep, part):
     graphs = sorted((f for f in glob(prefix) if not is_packed_tree(f)),
                     key=lambda f: os.stat(f).st_size)
     tasks = []
-    for filename in graphs[:10]:
+    for filename in graphs[:-1]:
         prefix = os.path.splitext(filename)[0]
+        size_n = int(prefix.split('__')[1])
         for i, treekind in product(range(num_rep), ['bfs', 'gtx', 'rst']):
-            tasks.append((filename, treekind, part * num_rep + i))
-    random.shuffle(tasks)
-    num_threads = 14
+            tid = part * num_rep + i
+            tree_filename = '{}_{}_{}.pack'.format(prefix, treekind, tid)
+            if not os.path.exists(tree_filename):
+                tasks.append((size_n, (filename, treekind, tid)))
+    num_threads = 6
+    tasks = distribute_tasks(tasks, num_threads)
     pool = Pool(num_threads)
-    pool.starmap_async(single_tree, tasks, chunksize=len(tasks) // num_threads)
+    pool.starmap_async(single_tree, tasks, chunksize=min(1, len(tasks) // num_threads))
     pool.close()
     pool.join()
 

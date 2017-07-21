@@ -116,7 +116,7 @@ def build_trees(topo, real, num_rep, part):
     num_threads = 6
     tasks = distribute_tasks(tasks, num_threads)
     pool = Pool(num_threads)
-    pool.starmap_async(single_tree, tasks, chunksize=min(1, len(tasks) // num_threads))
+    pool.starmap_async(single_tree, tasks, chunksize=max(1, len(tasks) // num_threads))
     pool.close()
     pool.join()
 

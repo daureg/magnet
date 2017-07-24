@@ -1,14 +1,3 @@
-python -O -W ignore retest_coeff.py 0.1 70 &
-python -O -W ignore retest_coeff.py 0.1 75 &
-python -O -W ignore retest_coeff.py 0.1 80 &
-python -O -W ignore retest_coeff.py 0.1 85 &
-python -O -W ignore retest_coeff.py 0.1 65 &
-python -O -W ignore retest_coeff.py 0.1 60 &
-python -O -W ignore retest_coeff.py 0.1 55 &
-python -O -W ignore retest_coeff.py 0.3 70 &
-python -O -W ignore retest_coeff.py 0.3 75 &
-python -O -W ignore retest_coeff.py 0.3 80 &
-python -O -W ignore retest_coeff.py 0.3 85 &
-python -O -W ignore retest_coeff.py 0.3 65 &
-python -O -W ignore retest_coeff.py 0.3 60 &
-python -O -W ignore retest_coeff.py 0.3 55 &
+python -O -W ignore gengraph.py -n3 PA
+python -O -W ignore gengraph.py -n3 grid
+python -O -W ignore gengraph.py -n3 triangle

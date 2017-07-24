@@ -88,7 +88,7 @@ def doubling_size(topo):
 
 
 def distribute_tasks(tasks, num_threads):
-    tasks.sort(key=lambda x: (x[0], x[1][1]))
+    tasks.sort(key=lambda x: (x[0], x[1][2]))
     threads_tasks = [list() for i in range(num_threads)]
     for i, (_, task) in enumerate(tasks):
         threads_tasks[num_threads - i % num_threads - 1].append(tuple(task))
@@ -105,7 +105,7 @@ def build_trees(topo, real, num_rep, part):
     graphs = sorted((f for f in glob(prefix) if not is_packed_tree(f)),
                     key=lambda f: os.stat(f).st_size)
     tasks = []
-    for filename in graphs[:-1]:
+    for filename in graphs:
         prefix = os.path.splitext(filename)[0]
         size_n = int(prefix.split('__')[1])
         for i, treekind in product(range(num_rep), ['bfs', 'gtx', 'rst']):
@@ -113,7 +113,7 @@ def build_trees(topo, real, num_rep, part):
             tree_filename = '{}_{}_{}.pack'.format(prefix, treekind, tid)
             if not os.path.exists(tree_filename):
                 tasks.append((size_n, (filename, treekind, tid)))
-    num_threads = 6
+    num_threads = 3
     tasks = distribute_tasks(tasks, num_threads)
     pool = Pool(num_threads)
     pool.starmap_async(single_tree, tasks, chunksize=max(1, len(tasks) // num_threads))

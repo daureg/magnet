@@ -113,7 +113,7 @@ def build_trees(topo, real, num_rep, part):
             tree_filename = '{}_{}_{}.pack'.format(prefix, treekind, tid)
             if not os.path.exists(tree_filename):
                 tasks.append((size_n, (filename, treekind, tid)))
-    num_threads = 3
+    num_threads = 6
     tasks = distribute_tasks(tasks, num_threads)
     pool = Pool(num_threads)
     pool.starmap_async(single_tree, tasks, chunksize=max(1, len(tasks) // num_threads))

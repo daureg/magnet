@@ -102,17 +102,16 @@ def build_trees(topo, real, num_rep, part):
 
     def is_packed_tree(name):
         return 'gtx' in name or 'bfs' in name or 'rst' in name
-    graphs = sorted((f for f in glob(prefix) if not is_packed_tree(f)),
-                    key=lambda f: os.stat(f).st_size)
+    graphs = sorted(((f, os.stat(f).st_size) for f in glob(prefix) if not is_packed_tree(f)),
+                    key=lambda x: x[1])
     tasks = []
-    for filename in graphs:
+    for filename, size_b in graphs:
         prefix = os.path.splitext(filename)[0]
-        size_n = int(prefix.split('__')[1])
         for i, treekind in product(range(num_rep), ['bfs', 'gtx', 'rst']):
             tid = part * num_rep + i
             tree_filename = '{}_{}_{}.pack'.format(prefix, treekind, tid)
             if not os.path.exists(tree_filename):
-                tasks.append((size_n, (filename, treekind, tid)))
+                tasks.append((size_b, (filename, treekind, tid)))
     num_threads = 8
     tasks = distribute_tasks(tasks, num_threads)
     pool = Pool(num_threads)

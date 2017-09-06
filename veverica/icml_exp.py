@@ -25,7 +25,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument("data", help="Which data to use", default='wik',
-                        choices={'wik', 'wik_ts', 'sla', 'epi', 'epi_ts', 'kiw', 'aut'})
+                        choices={'wik', 'wik_ts', 'sla', 'epi', 'epi_ts', 'kiw', 'aut', 'adv'})
     parser.add_argument("-b", "--balanced", action='store_true',
                         help="Should there be 50/50 +/- edges")
     parser.add_argument("-a", "--active", action='store_true',
@@ -54,7 +54,7 @@ if __name__ == '__main__':
     dicho_mcc = L1Classifier(maximize_mcc=True)
     nrk = NodesRanker(autotune_budget=0)
 
-    diameters = {'aut': 22, 'wik': 16, 'wik_ts': 16, 'sla': 32, 'epi': 38,
+    diameters = {'aut': 22, 'wik': 16, 'wik_ts': 16, 'sla': 32, 'epi': 38, 'adv': 9,
                  'epi_ts': 38, 'kiw': 30}
     lm.DIAMETER = diameters[pref]
     data = lm.sio.loadmat('{}_gprime.mat'.format(pref))

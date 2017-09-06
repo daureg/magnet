@@ -14,7 +14,7 @@ DIAMETER = 250
 
 def save_gprime(pref):
     G, E = pg.load_directed_signed_graph('directed_{}.pack'.format(pref))
-    n, m =len(G),len(E)
+    n, m = max(map(max, E))+1, len(E)
     sorted_edges = np.zeros((m, 3), dtype=np.int)
     for i, (e, s) in enumerate(sorted(E.items())):
         u, v = e
@@ -39,7 +39,7 @@ def save_gprime(pref):
 
 def save_gsecond(pref, eps=2):
     G, E = pg.load_directed_signed_graph('directed_{}.pack'.format(pref))
-    n, m = len(G), len(E)
+    n, m = max(map(max, E))+1, len(E)
     sorted_edges = np.zeros((m, 3), dtype=np.int)
     for i, (e, s) in enumerate(sorted(E.items())):
         u, v = e

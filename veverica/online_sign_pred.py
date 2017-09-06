@@ -62,7 +62,7 @@ def prepare_data(graph):
     train_edges = set(edges_matrix_indices)
     test_edges = {e: s for e, s in graph.E.items() if e not in train_edges}
     stest = sorted(test_edges)
-    gold = [2*int(test_edges[e])-1 for e in stest]
+    gold = np.array([int(test_edges[e]) for e in stest])
     stest = np.array(stest)
     strain = []
     existing = set()

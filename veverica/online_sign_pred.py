@@ -9,16 +9,15 @@ from math import exp, sqrt
 
 import matplotlib as mpl
 import numpy as np
+from exp_tworules import find_threshold
 
 mpl.use('Agg')
 
 
-
-def online_maxnorm_completion(observed, edges_matrix_indices, lmbda=1.2, d=50, alpha=0.5,
-                              max_epochs=50, track_rmse=False):
-    rmses = []
+def online_maxnorm_completion(observed, edges_matrix_indices, n, lmbda=1.2, d=50, alpha=0.5,
+                              max_epochs=35, track_rmse=False, gold=None):
+    rmses, mccs = [], []
     B = defaultdict(lambda: defaultdict(int))
-    n = max((u for u, v in edges_matrix_indices)) + 1
     U, V = np.random.randn(n, d), np.random.randn(n, d)
     tau, a, b = 0, 0, 0
     for nb_epoch in range(max_epochs):
@@ -48,7 +47,36 @@ def online_maxnorm_completion(observed, edges_matrix_indices, lmbda=1.2, d=50, a
             norm_v = np.sqrt((V[j, :]**2).sum())
             if norm_v > lmbda:
                 V[j, :] /= norm_v
-    return U, V, rmses
+        if gold is not None:
+            tmp = U.dot(V.T)
+            feats_train = tmp[strain[:, 0], strain[:, 1]]
+            kstar = -find_threshold(-feats_train, strain[:, 2], mcc=True)
+            pred = (tmp[stest[:, 0], stest[:, 1]] > kstar).astype(int)
+            mccs.append(matthews_corrcoef(gold, pred))
+    return U, V, rmses, mccs
+
+
+def prepare_data(graph):
+    Asym = graph.get_partial_adjacency()
+    edges_matrix_indices = sorted({(u, v) for u, adj in Asym.items() for v in adj})
+    train_edges = set(edges_matrix_indices)
+    test_edges = {e: s for e, s in graph.E.items() if e not in train_edges}
+    stest = sorted(test_edges)
+    gold = [2*int(test_edges[e])-1 for e in stest]
+    stest = np.array(stest)
+    strain = []
+    existing = set()
+    for u, v in sorted(edges_matrix_indices, key=lambda x: x if x in graph.E else (x[1], x[0])):
+        if (u, v) in existing or (v, u) in existing:
+            continue
+        if (u, v) in graph.E:
+            strain.append((u, v, int(graph.E[(u, v)])))
+            existing.add((u, v))
+        else:
+            strain.append((v, u, int(graph.E[(v, u)])))
+            existing.add((v, u))
+    strain = np.array(strain)
+    return (Asym, edges_matrix_indices, strain, stest, gold)
 
 
 if __name__ == "__main__":
@@ -58,32 +86,29 @@ if __name__ == "__main__":
     import matplotlib.pyplot as plt
     from timeit import default_timer as clock
     sns.set('talk', 'whitegrid', 'Set1', font_scale=1.5,
-            rc={'figure.figsize': (24, 13), 'lines.linewidth': 5})
-
+            rc={'figure.figsize': (24, 13), 'lines.linewidth': 3})
+    dataset, tsize = 'wik', .05
     graph = lp.LillePrediction(use_triads=False)
-    graph.load_data('wik')
-    graph.select_train_set(batch=.1)
-    Asym = graph.get_partial_adjacency()
-    edges_matrix_indices = sorted({(u, v) for u, adj in Asym.items() for v in adj})
-    train_edges = set(edges_matrix_indices)
-    test_edges = {e: s for e, s in graph.E.items() if e not in train_edges}
-    stest = sorted(test_edges)
-    gold = [2*int(test_edges[e])-1 for e in stest]
-    stest = np.array(stest)
+    graph.load_data(dataset)
+    graph.select_train_set(batch=tsize)
+    Asym, edges_matrix_indices, strain, stest, gold = prepare_data(graph)
 
     armses = {}
-    for alpha in np.logspace(-2, np.log10(5), 6):
+    for alpha in np.logspace(-1, np.log10(1), 6):
         start = clock()
-        U, V, rmses = online_maxnorm_completion(Asym, edges_matrix_indices, alpha=alpha,
-                                                max_epochs=30, track_rmse=True)
+        U, V, rmses, mccs = online_maxnorm_completion(Asym, edges_matrix_indices,
+                                                      max(graph.Gfull)+1, alpha=alpha,
+                                                      max_epochs=40, track_rmse=True, gold=gold)
         tmp = U.dot(V.T)
         print('{:.3f}:\t{:.3f}'.format(alpha, clock()-start))
-        pred = np.sign(tmp[stest[:, 0], stest[:, 1]]).astype(int)
+        feats_train = tmp[strain[:, 0], strain[:, 1]]
+        kstar = -find_threshold(-feats_train, strain[:, 2], mcc=True)
+        pred = (tmp[stest[:, 0], stest[:, 1]] > kstar).astype(int)
         armses[alpha] = (np.array(rmses), matthews_corrcoef(gold, pred))
 
     for al, (res, mcc) in sorted(armses.items()):
         plt.plot(res/res[0], label='$\\alpha={:.3g}$, {:.2f}'.format(al, 100*mcc))
     plt.legend()
     sns.despine()
-    plt.savefig('maxnorm.pdf', frameon=True, transparent=False, bbox_inches='tight',
-                pad_inches=0)
+    plt.savefig('maxnorm_{}_{}.pdf'.format(dataset, int(100*tsize)), frameon=True,
+                transparent=False, bbox_inches='tight', pad_inches=0)

@@ -8,6 +8,7 @@ import treestar
 from bayes_feature import compute_bayes_features
 from exp_tworules import find_threshold, pred_with_threshold
 from L1Classifier import L1Classifier
+from online_sign_pred import prepare_data, online_maxnorm_completion
 from LillePrediction import *
 from rank_nodes import NodesRanker
 
@@ -115,9 +116,9 @@ if __name__ == '__main__':
           {'sampling': lambda d: int(ceil(4*log(d)))},
           {'sampling': lambda d: int(ceil(5*log(d)))}]
 
-    batch = [{'batch': v} for v in [.05, .10]]
+    batch = [{'batch': v} for v in [.2]]
 
-    fres = [[] for _ in range(35)]
+    fres = [[] for _ in range(37)]
     for r, params in enumerate(cs if args.active else batch):
         only_troll_fixed, l1_fixed, l1_learned = [], [], []
         only_troll_fixed_raw, l1_fixed_raw, l1_learned_raw = [], [], []
@@ -134,6 +135,7 @@ if __name__ == '__main__':
         l1_learned_mcc_raw, both_learned_mcc_raw, lpmin_erm_mcc_raw = [], [], []
         lpmin_second, lpmin_second_raw = [], []
         quad_optim, quad_optim_raw = [], []
+        maxnorm, maxnorm_raw = [], []
         for _ in range(num_rep):
             graph.select_train_set(**params)
             Xl, yl, train_set, test_set = graph.compute_features()
@@ -165,6 +167,20 @@ if __name__ == '__main__':
                 grad_y[train_set] = 0
                 return c, np.hstack((grad_p, grad_q, grad_y))
 
+            Asym, edges_matrix_indices, strain, stest, mngold = prepare_data(graph)
+            sstart = lp.clock()
+            U, V, _, _ = online_maxnorm_completion(Asym, edges_matrix_indices, max(graph.Gfull)+1)
+            tmp = U.dot(V.T)
+            feats_train = tmp[strain[:, 0], strain[:, 1]]
+            k_star = -find_threshold(-feats_train, strain[:, 2], mcc=True)
+            time_elapsed = lp.clock() - sstart
+            feats_test = tmp[stest[:, 0], stest[:, 1]]
+            pred_function = graph.train(lambda features: features > k_star)
+            graph.time_used = time_elapsed
+            res = graph.test_and_evaluate(pred_function, feats_test, mngold, pp)
+            maxnorm.append(res)
+            graph.time_used = time_elapsed
+            maxnorm_raw.append(graph.test_and_evaluate(pred_function, feats_test, mngold))
 
             x0 = np.random.uniform(0, 1, m+2*n)
             x0[2*n:][train_set] = ya[train_set]
@@ -414,6 +430,8 @@ if __name__ == '__main__':
         fres[32].append(lpmin_second_raw)
         fres[33].append(quad_optim)
         fres[34].append(quad_optim_raw)
+        fres[35].append(maxnorm)
+        fres[36].append(maxnorm_raw)
     if args.active:
         pref += '_active'
     res_file = '{}_{}_{}'.format(pref, start, part+1)

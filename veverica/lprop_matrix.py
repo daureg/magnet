@@ -14,7 +14,13 @@ DIAMETER = 250
 
 def save_gprime(pref):
     G, E = pg.load_directed_signed_graph('directed_{}.pack'.format(pref))
-    n, m = max(map(max, E))+1, len(E)
+    P, sorted_edges = compute_gprime_mat(G, E)
+    sio.savemat('{}_gprime.mat'.format(pref), dict(P=P, sorted_edges=sorted_edges),
+                do_compression=True)
+
+
+def compute_gprime_mat(G, E):
+    n, m =len(G),len(E)
     sorted_edges = np.zeros((m, 3), dtype=np.int)
     for i, (e, s) in enumerate(sorted(E.items())):
         u, v = e
@@ -33,13 +39,18 @@ def save_gprime(pref):
     d[d==0] = 1
     Dinv = sp.diags(1/d, format='csc')
     P = Dinv@W
-    sio.savemat('{}_gprime.mat'.format(pref), dict(P=P, sorted_edges=sorted_edges),
-                do_compression=True)
+    return P, sorted_edges
 
 
 def save_gsecond(pref, eps=2):
     G, E = pg.load_directed_signed_graph('directed_{}.pack'.format(pref))
-    n, m = max(map(max, E))+1, len(E)
+    W, d, sorted_edges = compute_gsecond_mat(G, E, eps)
+    sio.savemat('{}_gsecond.mat'.format(pref), dict(W=W, d=d, sorted_edges=sorted_edges),
+                do_compression=True)
+
+
+def compute_gsecond_mat(G, E, eps=2):
+    n, m = len(G), len(E)
     sorted_edges = np.zeros((m, 3), dtype=np.int)
     for i, (e, s) in enumerate(sorted(E.items())):
         u, v = e
@@ -57,8 +68,7 @@ def save_gsecond(pref, eps=2):
     d = np.array(np.abs(W).sum(1)).ravel()
     d[d==0] = 1
     d = 1/d
-    sio.savemat('{}_gsecond.mat'.format(pref), dict(W=W, d=d, sorted_edges=sorted_edges),
-                do_compression=True)
+    return W, d, sorted_edges
 
 
 def _train(P, sorted_edges, train_idx, train_y, dims):

@@ -142,8 +142,8 @@ class LillePrediction(lp.LinkPrediction):
         self.feature_time = 0
 
     def compute_in_out_degree(self, edges):
-        for (u, v), sign in edges.items():
-            if sign is True:
+        for (u, v), positive in edges.items():
+            if positive:
                 self.din_plus[v] += 1
                 self.dout_plus[u] += 1
             else:

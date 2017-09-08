@@ -2,6 +2,7 @@ import numpy as np
 
 import LillePrediction as llp
 import lprop_matrix as lm
+from exp_params import diameters, batch
 
 if __name__ == '__main__':
     # pylint: disable=C0103
@@ -13,10 +14,8 @@ if __name__ == '__main__':
     num_threads = 14
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("data", help="Which data to use",
-                        choices={'wik', 'sla', 'epi', 'kiw', 'aut'}, default='wik')
-    parser.add_argument("-n", "--nrep", help="number of repetition", type=int,
-                        default=4)
+    parser.add_argument("data", help="Which data to use", choices=set(diameters), default='wik')
+    parser.add_argument("-n", "--nrep", help="number of repetition", type=int, default=4)
     args = parser.parse_args()
     pref = args.data
     num_rep = args.nrep
@@ -31,7 +30,6 @@ if __name__ == '__main__':
     start = (int(time.time()-(2015-1970)*365.25*24*60*60))//60
     triads_feats = list(range(7)) + list(range(17, 33))
 
-    diameters = {'aut': 22, 'wik': 16, 'sla': 32, 'epi': 38, 'kiw': 30}
     lm.DIAMETER = diameters[pref]
     # data = lm.sio.loadmat('{}_gprime.mat'.format(pref))
     # P, sorted_edges = data['P'], data['sorted_edges']
@@ -41,7 +39,6 @@ if __name__ == '__main__':
     m = sorted_edges.shape[0]
     n = (W.shape[0] - m)//2
 
-    batch = [{'batch': v} for v in [.05, .1]]
     fres = [[] for _ in range(1)]
     for r, params in enumerate(batch):
         lesko, lpmin_erm, asym = [], [], []

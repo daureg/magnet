@@ -11,6 +11,7 @@ from L1Classifier import L1Classifier
 from online_sign_pred import prepare_data, online_maxnorm_completion
 from LillePrediction import *
 from rank_nodes import NodesRanker
+from exp_params import diameters, batch
 
 RBFS, RTST = None, None
 
@@ -25,8 +26,7 @@ if __name__ == '__main__':
     do_asym = False
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("data", help="Which data to use", default='wik',
-                        choices={'wik', 'wik_ts', 'sla', 'epi', 'epi_ts', 'kiw', 'aut', 'adv'})
+    parser.add_argument("data", help="Which data to use", default='wik', choices=set(diameters))
     parser.add_argument("-b", "--balanced", action='store_true',
                         help="Should there be 50/50 +/- edges")
     parser.add_argument("-a", "--active", action='store_true',
@@ -55,8 +55,6 @@ if __name__ == '__main__':
     dicho_mcc = L1Classifier(maximize_mcc=True)
     nrk = NodesRanker(autotune_budget=0)
 
-    diameters = {'aut': 22, 'wik': 16, 'wik_ts': 16, 'sla': 32, 'epi': 38, 'adv': 9,
-                 'epi_ts': 38, 'kiw': 30}
     lm.DIAMETER = diameters[pref]
     data = lm.sio.loadmat('{}_gprime.mat'.format(pref))
     P, sorted_edges = data['P'], data['sorted_edges']
@@ -115,8 +113,6 @@ if __name__ == '__main__':
           {'sampling': lambda d: int(ceil(3*log(d)))},
           {'sampling': lambda d: int(ceil(4*log(d)))},
           {'sampling': lambda d: int(ceil(5*log(d)))}]
-
-    batch = [{'batch': v} for v in [.2]]
 
     fres = [[] for _ in range(37)]
     for r, params in enumerate(cs if args.active else batch):

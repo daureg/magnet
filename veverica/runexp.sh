@@ -1,4 +1,16 @@
-pypy -O -W ignore gengraph.py -r -n3 PA
-# pypy -O -W ignore gengraph.py -r -n3 grid
-# pypy -O -W ignore gengraph.py -n3 grid
-# pypy -O -W ignore gengraph.py -n3 triangle
+python -O -W ignore icml_exp.py -n3 wik
+python -O -W ignore icml_exp.py -n3 aut
+python -O -W ignore icml_exp.py -n3 adv
+python -O -W ignore icml_exp.py -n3 sla
+python -O -W ignore icml_exp.py -n3 epi
+python -O -W ignore icml_exp.py -n3 kiw
+python -O -W ignore time_triads.py -n3 wik
+python -O -W ignore time_triads.py -n3 aut
+python -O -W ignore time_triads.py -n3 adv
+python -O -W ignore time_triads.py -n3 sla
+python -O -W ignore time_triads.py -n3 epi
+python -O -W ignore time_triads.py -n3 kiw
+python -O -W ignore time_triads.py -n3 wik_ts
+python -O -W ignore time_triads.py -n3 epi_ts
+python -O -W ignore icml_exp.py -n3 wik_ts
+python -O -W ignore icml_exp.py -n3 epi_ts

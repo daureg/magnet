@@ -6,6 +6,7 @@ from collections import Counter, defaultdict
 from copy import deepcopy
 
 import numpy as np
+from scipy.spatial.distance import cosine
 from sklearn.linear_model import LogisticRegression  # , LogisticRegressionCV
 from sklearn.linear_model import PassiveAggressiveClassifier, SGDClassifier
 from sklearn.tree import DecisionTreeClassifier
@@ -185,13 +186,50 @@ class LillePrediction(lp.LinkPrediction):
         self.feature_time += clock() - start
         start = clock()
         triads = 16*[0, ]
+        sims_and_t = 5*[0,]
         if self.with_triads:
             for w in self.common_nei[(u, v)]:
                 for t in l.triads_indices(u, v, w, self.Esign):
                     triads[t] += 1
+            # sims_and_t = list(self.compute_similarity_features(u, v, triads))
         self.triad_time += clock() - start
         triads.extend([self.out_samples[u], self.in_samples[v]])
-        return degrees+triads
+        return degrees+triads+sims_and_t
+
+    def compute_similarity_features(self, u, v, triads):
+        """Compute extra feature for each edge.
+
+        As described in W. Yuan, et al., Negative sign prediction for signed social networks,
+        Future Generation Computer Systems (2017), http://dx.doi.org/10.1016/j.future.2017.08.037
+        """
+        Woutp = [w for w in self.Gin[v] if self.Esign.get((w, v))]
+        Woutm = [w for w in self.Gin[v] if self.Esign.get((w, v)) == False]
+        Winp = [w for w in self.Gout[u] if self.Esign.get((u, w))]
+        Winm = [w for w in self.Gout[u] if self.Esign.get((u, w)) == False]
+        Iout = lambda w: {i for i in self.Gout[u].intersection(self.Gout[w])
+                          if (u, i) in self.Esign and (w, i) in self.Esign}
+        Iin = lambda w: {i for i in self.Gin[v].intersection(self.Gin[w])
+                         if (i, v) in self.Esign and (i, w) in self.Esign}
+
+        Soutp = similarity(self.Esign, Woutp, Iout, u)
+        Soutm = similarity(self.Esign, Woutm, Iout, u)
+        Sinp =  similarity(self.Esign, Winp, Iin, v, out=False)
+        Sinm =  similarity(self.Esign, Winm, Iin, v, out=False)
+        negative_triads = (triads[1] + triads[2] + triads[5] + triads[6] +
+                           triads[9] + triads[10] + triads[13] + triads[14])
+        return Soutp, Soutm, Sinp, Sinm, negative_triads/max(1, sum(triads))
+
+def similarity(Esign, wsource, isource, node, out=True):
+    tmp = []
+    for w in wsource:
+        rn, rw = [], []
+        for i in isource(w):
+            rn.append(2*Esign[(node, i) if out else (i, node)]-1)
+            rw.append(2*Esign[(w, i) if out else (i, w)]-1)
+        if rn and rw:
+            tmp.append(1-cosine(rn, rw))
+    return .5 if not tmp else np.mean(tmp)
+
 
 def tree_prediction(features, cst, troll_first=True):
     if troll_first:

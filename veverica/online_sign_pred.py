@@ -79,6 +79,13 @@ def prepare_data(graph):
     return (Asym, edges_matrix_indices, strain, stest, gold)
 
 
+def run_icml_exp(U, V, strain, stest):
+    tmp = U.dot(V.T)
+    feats_train = tmp[strain[:, 0], strain[:, 1]]
+    k_star = -find_threshold(-feats_train, strain[:, 2], mcc=True)
+    feats_test = tmp[stest[:, 0], stest[:, 1]]
+    return feats_test, k_star
+
 if __name__ == "__main__":
     import seaborn as sns
     import LillePrediction as lp

@@ -8,7 +8,7 @@ import treestar
 from bayes_feature import compute_bayes_features
 from exp_tworules import find_threshold, pred_with_threshold
 from L1Classifier import L1Classifier
-from online_sign_pred import prepare_data, online_maxnorm_completion
+from online_sign_pred import prepare_data, online_maxnorm_completion, run_icml_exp
 from LillePrediction import *
 from rank_nodes import NodesRanker
 from exp_params import diameters, batch
@@ -165,12 +165,9 @@ if __name__ == '__main__':
 
             Asym, edges_matrix_indices, strain, stest, mngold = prepare_data(graph)
             sstart = lp.clock()
-            U, V, _, _ = online_maxnorm_completion(Asym, edges_matrix_indices, max(graph.Gfull)+1)
-            tmp = U.dot(V.T)
-            feats_train = tmp[strain[:, 0], strain[:, 1]]
-            k_star = -find_threshold(-feats_train, strain[:, 2], mcc=True)
+            U, V, _, _ = online_maxnorm_completion(Asym, edges_matrix_indices, graph.order)
+            feats_test, k_star = run_icml_exp(U, V, strain, stest)
             time_elapsed = lp.clock() - sstart
-            feats_test = tmp[stest[:, 0], stest[:, 1]]
             pred_function = graph.train(lambda features: features > k_star)
             graph.time_used = time_elapsed
             res = graph.test_and_evaluate(pred_function, feats_test, mngold, pp)

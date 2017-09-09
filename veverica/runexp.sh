@@ -1,16 +1,16 @@
-python -O -W ignore icml_exp.py -n3 wik
-python -O -W ignore icml_exp.py -n3 aut
-python -O -W ignore icml_exp.py -n3 adv
-python -O -W ignore icml_exp.py -n3 sla
-python -O -W ignore icml_exp.py -n3 epi
-python -O -W ignore icml_exp.py -n3 kiw
-python -O -W ignore time_triads.py -n3 wik
-python -O -W ignore time_triads.py -n3 aut
-python -O -W ignore time_triads.py -n3 adv
-python -O -W ignore time_triads.py -n3 sla
-python -O -W ignore time_triads.py -n3 epi
-python -O -W ignore time_triads.py -n3 kiw
-python -O -W ignore time_triads.py -n3 wik_ts
-python -O -W ignore time_triads.py -n3 epi_ts
-python -O -W ignore icml_exp.py -n3 wik_ts
-python -O -W ignore icml_exp.py -n3 epi_ts
+# time python -O -W ignore icml_exp.py -n3 wik
+# time python -O -W ignore icml_exp.py -n3 aut
+# time python -O -W ignore icml_exp.py -n3 adv
+# time python -O -W ignore icml_exp.py -n3 sla
+time python -O -W ignore icml_exp.py -n3 epi
+time python -O -W ignore icml_exp.py -n3 kiw
+# time python -O -W ignore time_triads.py -n3 wik
+# time python -O -W ignore time_triads.py -n3 aut
+# time python -O -W ignore time_triads.py -n3 adv
+# time python -O -W ignore time_triads.py -n3 sla
+# time python -O -W ignore time_triads.py -n3 epi
+# time python -O -W ignore time_triads.py -n3 kiw
+# time python -O -W ignore time_triads.py -n3 wik_ts
+# time python -O -W ignore time_triads.py -n3 epi_ts
+# time python -O -W ignore icml_exp.py -n3 wik_ts
+time python -O -W ignore icml_exp.py -n3 epi_ts

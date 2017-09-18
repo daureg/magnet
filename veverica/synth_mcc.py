@@ -107,13 +107,15 @@ if __name__ == '__main__':
                 feats = f[:m]
                 k_star = -find_threshold(-feats[train_set], ya[train_set], True)
                 pred = feats[test_set] > k_star
-                tres = np.vstack((P[us], Q[us], f[m:m+n][us], f[m+n:][vs], Xa[us, 33], Xa[vs, 34],
+                tres = np.vstack((P[us], Q[vs], f[m:m+n][us], f[m+n:][vs],
+                                  Xa[test_set, 33], Xa[test_set, 34],
                                   gold, pred)).T
                 lres = tres if lres is None else np.vstack((lres, tres))
 
                 dicho.fit(Xa[train_set, 15:17], ya[train_set])
                 pred = dicho.predict(Xa[test_set, 15:17])
-                tres = np.vstack((P[us], Q[vs], Xa[us, 15], Xa[vs, 16], Xa[us, 33], Xa[vs, 34],
+                tres = np.vstack((P[us], Q[vs], Xa[test_set, 15], Xa[test_set, 16],
+                                  Xa[test_set, 33], Xa[test_set, 34],
                                   gold, pred)).T
                 bres = tres if bres is None else np.vstack((bres, tres))
                 gres[row, :] = (len(test_set), np.bincount(revealed)[1]/revealed.size,

@@ -62,26 +62,25 @@ class LillePrediction(lp.LinkPrediction):
                 with open(order_name, 'r+b') as packfile:
                     self.time_order = msgpack.unpack(packfile, use_list=False)
             Gfull, E = load_directed_signed_graph(pack_name)
-        root = max(Gfull.items(), key=lambda x: len(x[1]))[0]
-        Gbfs, _, _ = initial_spanning_tree(Gfull, root)
-        self.lcc = set(Gbfs.keys())
+        # root = max(Gfull.items(), key=lambda x: len(x[1]))[0]
+        # Gbfs, _, _ = initial_spanning_tree(Gfull, root)
+        # self.lcc = set(Gbfs.keys())
         self.order = len(Gfull)
         self.dout, self.din = defaultdict(int), defaultdict(int)
-        for u, v in E:
-            self.dout[u] += 1
-            self.din[v] += 1
         self.common_nei = {e: Gfull[e[0]].intersection(Gfull[e[1]]) for e in E}
         self.Gout, self.Gin = {}, {}
-        self.edge_order, in_lcc = {}, []
+        # self.edge_order, in_lcc = {}, []
         for i, (u, v) in enumerate(sorted(E)):
-            self.edge_order[(u, v)] = i
-            in_lcc.append(u in self.lcc and v in self.lcc)
+            # self.edge_order[(u, v)] = i
+            # in_lcc.append(u in self.lcc and v in self.lcc)
+            self.dout[u] += 1
+            self.din[v] += 1
             l.add_neighbor(u, v, self.Gout)
             l.add_neighbor(v, u, self.Gin)
-        self.reciprocal = {ei: self.edge_order[(e[1], e[0])]
-                           for e, ei in self.edge_order.items()
-                           if (e[1], e[0]) in E}
-        self.in_lcc = np.array(in_lcc, dtype=bool)
+        # self.reciprocal = {ei: self.edge_order[(e[1], e[0])]
+        #                    for e, ei in self.edge_order.items()
+        #                    if (e[1], e[0]) in E}
+        # self.in_lcc = np.array(in_lcc, dtype=bool)
         self.Gfull = Gfull
         self.G = self.Gout
         self.E = E

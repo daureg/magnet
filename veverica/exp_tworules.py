@@ -52,6 +52,7 @@ def find_threshold(feats, ya, mcc=False):
 
     if mcc:
         measure = (tp*tn - fp*fn)/np.sqrt((tp+fp)*(tp+fn)*(tn+fp)*(tn+fn))
+        measure[np.isnan(measure)] = -1
     else:
         measure = (tp+tn)/ya.size
     return feats[rorder][np.argmax(measure)]

@@ -26,6 +26,14 @@ blocks = list()
 VVar = Enum('VVar', 'W a'.split())
 
 
+def disjoint_union_all(graphs):
+    H = graphs[0].copy()
+    for g in graphs[1:]:
+        n = len(H)
+        H.add_edges_from(((u+n, v+n) for u,v in g.edges()))
+    return H
+
+
 def connect_graph(g):
     components = [list(c) for c in sorted(nx.connected_components(g), key=len, reverse=True)]
     h1 = components[0]
@@ -100,7 +108,7 @@ def assemble_blocks(blocks, labeling, adj):
             u_label = labeling[i][u]
             possible_inter_edges[(i, j)].extend(((n * i + u, n * j + v)
                                                  for v in available_nodes_by_type[j][u_label]))
-    G = nx.disjoint_union_all(blocks)
+    G = disjoint_union_all(blocks)
     labels = {i * n + u: label for i, labels in enumerate(labeling)
               for u, label in labels.items()}
     # print([labels[i] for i in range(10)])
@@ -123,13 +131,13 @@ def create_full_graph(nb_blocks=4, n=100):
     blocks, labeling = create_blocks(nb_blocks, n, adj)
     G, labels = assemble_blocks(blocks, labeling, adj)
 
-    mapping = {v: i for i, v in enumerate(sorted(G))}
-    inv_mapping = {v: k for k, v in mapping.items()}
-    H = G.copy()
-    nx.relabel_nodes(H, mapping, copy=False)
-    num_failed = len(find_failed(nx.to_dict_of_lists(H), labels, adj))
+    # mapping = {v: i for i, v in enumerate(sorted(G))}
+    # inv_mapping = {v: k for k, v in mapping.items()}
+    # H = G.copy()
+    # nx.relabel_nodes(H, mapping, copy=False)
+    num_failed = len(find_failed(nx.to_dict_of_lists(G), labels, adj))
     # print(H.number_of_nodes(), H.number_of_edges(), num_failed)
-    return H, labels, mapping, inv_mapping, num_failed
+    return G, labels, mapping, inv_mapping, num_failed
 
 
 def assign_edges(H, labels, inv_mapping):
@@ -155,8 +163,13 @@ def generate_W(k, d, nb_overlap=0):
         random.shuffle(all_pos)
         available_positions.extend(list(all_pos))
     nz_positions = [[] for _ in range(k)]
-    for i, pos in zip(range(d + nb_overlap), available_positions):
-        nz_positions[i % k].append(pos)
+    assigned = 0
+    for i, pos in enumerate(available_positions):
+        if pos not in nz_positions[i % k]:
+            assigned += 1
+            nz_positions[i % k].append(pos)
+            if assigned == d + nb_overlap:
+                break
     W = []
     for zpos in nz_positions:
         zpos.sort()
@@ -329,7 +342,9 @@ if __name__ == "__main__":
     timestamp = (int(time.time()-(2017-1970)*365.25*24*60*60))//60
     suffix = 'GfixedWvariable0over_kminit_ambiguous_3dir_7w'
     # W = generate_W(k, d, 0)
-    nb_blocks, block_size = 4, 125
+    num_nodes, block_size = 350, 110
+    nb_blocks = np.floor_divide(num_nodes, block_size)
+    block_size = num_nodes // nb_blocks
     for i in range(nb_blocks):
         blocks.append(nx.fast_gnp_random_graph(block_size, 4 / block_size))
         connect_graph(blocks[-1])

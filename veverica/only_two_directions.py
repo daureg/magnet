@@ -131,8 +131,8 @@ def create_full_graph(nb_blocks=4, n=100):
     blocks, labeling = create_blocks(nb_blocks, n, adj)
     G, labels = assemble_blocks(blocks, labeling, adj)
 
-    # mapping = {v: i for i, v in enumerate(sorted(G))}
-    # inv_mapping = {v: k for k, v in mapping.items()}
+    mapping = {v: i for i, v in enumerate(sorted(G))}
+    inv_mapping = {v: k for k, v in mapping.items()}
     # H = G.copy()
     # nx.relabel_nodes(H, mapping, copy=False)
     num_failed = len(find_failed(nx.to_dict_of_lists(G), labels, adj))

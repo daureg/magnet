@@ -2,7 +2,6 @@ import random
 from collections import defaultdict, deque
 from enum import Enum
 from itertools import combinations, product
-from timeit import default_timer as clock
 
 import autograd.numpy as anp
 import networkx as nx
@@ -17,13 +16,11 @@ from sklearn.cluster import KMeans
 from sklearn.metrics import adjusted_mutual_info_score as AMI
 from torch import autograd, nn, optim
 
-seed = 65
+seed = 66
 random.seed(seed)
 prng = np.random.RandomState(seed)
 k = 7
 nb_dirs = 3
-pairs = list(combinations(range(k), nb_dirs))
-km = KMeans(k, n_init=14, random_state=prng, n_jobs=-2)
 d = 35
 nrep = 200
 blocks = list()
@@ -523,82 +520,6 @@ def matrix_mixed(M, P0, Q0, a0, to_optimize, node_factor, num_loop=3, inner_size
     return xp, xq, xa, np.array(costs_node), np.array(costs_edge)
 
 
-def old_main():
-    import time
-    all_res = np.zeros((nrep, 10))
-    timestamp = (int(time.time()-(2017-1970)*365.25*24*60*60))//60
-    suffix = 'GfixedWvariable0over_kminit_ambiguous_3dir_7w'
-    # W = generate_W(k, d, 0)
-    num_nodes, block_size = 600, 125
-    nb_blocks = np.floor_divide(num_nodes, block_size)
-    block_size = num_nodes // nb_blocks
-    for i in range(nb_blocks):
-        blocks.append(nx.fast_gnp_random_graph(block_size, 4 / block_size))
-        connect_graph(blocks[-1])
-    H, labels, mapping, inv_mapping, num_failed = create_full_graph(nb_blocks, block_size)
-    for rep in tqdm.trange(nrep, unit='run'):
-    # for rep in range(nrep):
-        start = clock()
-        W = generate_W(k, d, 0)
-        nnz = int((np.abs(W) > .1).sum() / k)
-        # H, labels, mapping, inv_mapping, num_failed = create_full_graph(4, 125)
-        if num_failed > 0:
-            continue
-        E, edges, wc = assign_edges(H, labels, inv_mapping)
-        n = len(H)
-        U = initial_profiles(H, labels, mapping, W)
-        m = U[edges[:, 0]] * U[edges[:, 1]]
-        all_res[rep, (0, 1)] = (AMI(wc, np.argmax(m@W.T, 1)),
-                                AMI(wc, km.fit_predict(m/np.sqrt((m**2).sum(1))[:, np.newaxis])))
-        # print('[{:.3f}]\tGenerated graph and initial profiles'.format(clock()-start)); start=clock()
-
-        U0 = np.copy(U)
-        edges_score_grad = grad(edges_score)
-        mu, alpha, T = 0, 8e2, 15
-        _, c, am_nomin, xU = edges_score_max(U0, alpha, T)
-        m = xU[edges[:, 0]] * xU[edges[:, 1]]
-        all_res[rep, (2, 3)] = (AMI(wc, np.argmax(m@W.T, 1)),
-                                AMI(wc, km.fit_predict(m/np.sqrt((m**2).sum(1))[:, np.newaxis])))
-        # print('[{:.3f}]\tFirst optimization of profiles ({:.3f})'.format(clock()-start, all_res[rep, 2])); start=clock()
-        # continue
-
-        # x0 = prng.randn(*W.shape)
-        # x0 /= np.maximum(1.0, np.sqrt((x0**2).sum(1)))[:, np.newaxis]
-        vec_edges = m
-        # cost, rcost, xw = vec_max_edge_score(m, x0, np.ones(m.shape[0]), 5e1, 50)
-        cost, rcost, xw = vec_max_edge_score(m, np.copy(km.cluster_centers_), np.ones(m.shape[0]), 5e1, 20)
-        all_res[rep, 4] = AMI(wc, np.argmax(m@xw.T, 1))
-        all_res[rep, 8] = np.mean(cdist(W, xw).min(0))
-        # np.savez_compressed('recover_waldo_{}_{}_{}'.format(timestamp, seed, suffix), all_res=all_res)
-        # continue
-        # print('[{:.3f}]\tTried to recover W from there'.format(clock()-start)); start=clock()
-
-        nU, _ = minimize_u_distance_to_incoming(H, E, xU, W)
-        m = nU[edges[:, 0]] * nU[edges[:, 1]]
-        all_res[rep, (5, 6)] = (AMI(wc, np.argmax(m@W.T, 1)),
-                                AMI(wc, km.fit_predict(m/np.sqrt((m**2).sum(1))[:, np.newaxis])))
-        # print('[{:.3f}]\tSecond optimization of profiles'.format(clock()-start)); start=clock()
-
-        U = nU
-        a = np.ones(m.shape[0])
-        B = nx.incidence_matrix(H)
-        Bd = B.toarray().astype(np.int8)
-        D = 1 / np.array(B.sum(1)).ravel()
-        invdB = sparse.csr_matrix(d * Bd)
-        C = np.zeros((n, d))
-        eta = 700
-        ideg = D[:, np.newaxis]
-        grad_vec_node_loss_wrt_w = grad(vec_node_loss_wrt_w)
-        xw, xa, cn, ce = vector_mixed(m, np.copy(km.cluster_centers_), np.ones(m.shape[0]), [VVar.W, ],
-                                      node_factor=1, num_loop=1, inner_size=40, ef=.8)
-        all_res[rep, 7] = AMI(wc, np.argmax(m@xw.T, 1))
-        # print('[{:.3f}]\tTried to recover W from there'.format(clock()-start)); start=clock()
-
-        # print(' '.join(['{:.4f}'.format(v) for v in all_res[rep, :]]))
-        all_res[rep, 9] = np.mean(cdist(W, xw).min(0))
-        np.savez_compressed('recover_waldo_{}_{}_{}'.format(timestamp, seed, suffix), all_res=all_res)
-
-
 def msg(s, color='yellow'):
     pass
     # fancy_print(s, color=color, time=True)
@@ -607,10 +528,22 @@ def msg(s, color='yellow'):
 if __name__ == "__main__":
     import time
     from fprint import fancy_print
+    import argparse
     timestamp = (int(time.time()-(2017-1970)*365.25*24*60*60))//60
-    n_overlap = 6
-    # nrep = 2
-    suffix = 'GfixedWvariable6over_ambiguous_3dir_7w'
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-d", "--dim", help="dimension of profiles", type=int, default=35)
+    parser.add_argument("-o", "--over", help="overlap in profiles", type=int, default=0)
+    parser.add_argument("-l", "--local", help="number of dir per node", type=int, default=3)
+    parser.add_argument("-k", "--ndir", help="total number of directions", type=int, default=7)
+    args = parser.parse_args()
+    k, d, n_overlap, nb_dirs = args.ndir, args.dim, args.over, args.local
+    assert nb_dirs <= k
+    assert (d % k) == 0
+    assert n_overlap <= d
+    pairs = list(combinations(range(k), nb_dirs))
+    km = KMeans(k, n_init=14, random_state=prng, n_jobs=-2)
+    conf = '{}over_{}dir_{}w_{}dim'.format(n_overlap, nb_dirs, k, d)
+    suffix = 'GfixedWvariable_' + conf
 
     msg('creating & coloring the graph…', 'blue')
     num_nodes, block_size = 500, 125
@@ -715,4 +648,5 @@ if __name__ == "__main__":
         us_vs_pq_ami = AMI(np.argmax(m@xw.T, 1), km.fit_predict(Q_mat))
         msg('agree with previous solution as: {:.3f}'.format(us_vs_pq_ami))
         res[it, 13] = us_vs_pq_ami
-        np.savez_compressed('recover_waldo_{}_{}_{}'.format(timestamp, seed, suffix), res=res)
+        np.savez_compressed('recover_waldo_{}_{}_{}'.format(timestamp, seed, suffix), res=res,
+                            conf=np.array((n_overlap, nb_dirs, k, d)))

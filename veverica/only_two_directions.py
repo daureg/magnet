@@ -17,7 +17,7 @@ from sklearn.cluster import KMeans
 from sklearn.metrics import adjusted_mutual_info_score as AMI
 from torch import autograd, nn, optim
 
-seed = 61
+seed = 65
 random.seed(seed)
 prng = np.random.RandomState(seed)
 k = 7
@@ -25,7 +25,7 @@ nb_dirs = 3
 pairs = list(combinations(range(k), nb_dirs))
 km = KMeans(k, n_init=14, random_state=prng, n_jobs=-2)
 d = 35
-nrep = 600
+nrep = 200
 blocks = list()
 VVar = Enum('VVar', 'W a'.split())
 Var = Enum('Var', 'P Q a'.split())
@@ -351,7 +351,7 @@ def pytorch_optim(W, edges, wc, n, alpha=1, beta=1, max_iter=50, x0=None, lr=1):
     tX = autograd.Variable(torch.from_numpy(X), requires_grad=True)
     tW = autograd.Variable(torch.from_numpy(W), requires_grad=False)
     target = autograd.Variable(torch.from_numpy(wc), requires_grad=False)
-    head = autograd.Variable(torch.from_numpy(edges[:, 0]), requires_grad=False),
+    head = autograd.Variable(torch.from_numpy(edges[:, 0]), requires_grad=False)
     tail = autograd.Variable(torch.from_numpy(edges[:, 1]), requires_grad=False)
     loss_fn = nn.CrossEntropyLoss()
     optimizer = optim.Adam([tX], weight_decay=0, lr=lr)
@@ -382,7 +382,7 @@ def pytorch_optim(W, edges, wc, n, alpha=1, beta=1, max_iter=50, x0=None, lr=1):
         l_res[i + 1, 3] = np.einsum('ij,ji->i', m, W[wc, :].T).mean()
         pred = np.argmax(scores, 1)
         l_res[i + 1, 1] = AMI(wc, pred)
-    print(np.sqrt((X**2).sum(1)).mean())
+    # print(np.sqrt((X**2).sum(1)).mean())
     return nX, l_res[:i + 2, :]
 
 
@@ -445,8 +445,8 @@ def finetune(x0, nb_iter=10):
 
 def frank_wolfe(S, W=None, mu=0.13, max_nuc=85):
     W = np.random.randn(d, len(S))
-    print(np.linalg.matrix_rank(W), np.linalg.norm(W, 'nuc'),
-          np.percentile(np.sqrt((W**2).sum(0)), [25, 50, 75]))
+    # print(np.linalg.matrix_rank(W), np.linalg.norm(W, 'nuc'),
+    #       np.percentile(np.sqrt((W**2).sum(0)), [25, 50, 75]))
     fval = []
     for t in range(k):
         # the other term is mu*np.einsum('ij,ji->i', W.T, W).sum())
@@ -523,7 +523,7 @@ def matrix_mixed(M, P0, Q0, a0, to_optimize, node_factor, num_loop=3, inner_size
     return xp, xq, xa, np.array(costs_node), np.array(costs_edge)
 
 
-if __name__ == "__main__":
+def old_main():
     import time
     all_res = np.zeros((nrep, 10))
     timestamp = (int(time.time()-(2017-1970)*365.25*24*60*60))//60
@@ -597,3 +597,122 @@ if __name__ == "__main__":
         # print(' '.join(['{:.4f}'.format(v) for v in all_res[rep, :]]))
         all_res[rep, 9] = np.mean(cdist(W, xw).min(0))
         np.savez_compressed('recover_waldo_{}_{}_{}'.format(timestamp, seed, suffix), all_res=all_res)
+
+
+def msg(s, color='yellow'):
+    pass
+    # fancy_print(s, color=color, time=True)
+
+
+if __name__ == "__main__":
+    import time
+    from fprint import fancy_print
+    timestamp = (int(time.time()-(2017-1970)*365.25*24*60*60))//60
+    n_overlap = 6
+    # nrep = 2
+    suffix = 'GfixedWvariable6over_ambiguous_3dir_7w'
+
+    msg('creating & coloring the graph…', 'blue')
+    num_nodes, block_size = 500, 125
+    nb_blocks = np.floor_divide(num_nodes, block_size)
+    block_size = num_nodes // nb_blocks
+    for i in range(nb_blocks):
+        blocks.append(nx.fast_gnp_random_graph(block_size, 4 / block_size))
+        connect_graph(blocks[-1])
+    H, labels, mapping, inv_mapping, num_failed = create_full_graph(nb_blocks, block_size)
+
+    msg('generating labels…', 'blue')
+    E, edges, wc = assign_edges(H, labels, inv_mapping)
+    n = len(H)
+    res = np.zeros((nrep, 14))
+    for it in tqdm.trange(nrep, unit='W'):
+        W = generate_W(k, d, n_overlap)
+        U = initial_profiles(H, labels, mapping, W)
+        m = U[edges[:, 0]] * U[edges[:, 1]]
+        orig_ami_us, orig_ami_km = (AMI(wc, np.argmax(m@W.T, 1)),
+                                    AMI(wc, km.fit_predict(m / np.sqrt((m**2).sum(1))[:, np.newaxis])))
+        msg('us: {:.3f}\n{} {:.3f}'.format(orig_ami_us, 'km:'.rjust(14), orig_ami_km))
+        orig_W = np.copy(W)
+
+        msg('creating profile with cross-entropy…', 'blue')
+        U1, l_res = pytorch_optim(W, edges, wc, len(H), alpha=2, max_iter=7, lr=.5)
+        mu, alpha, T = 1.5, 15e2, 15
+        msg('then augmenting their score and finetuning…', 'blue')
+        edges_score_grad = grad(edges_score)
+        _, c, am_nomin, xU = edges_score_max(U1, alpha, T)
+        xU, eres = finetune(xU)
+        m = xU[edges[:, 0]] * xU[edges[:, 1]]
+        gold_edge_score = np.einsum('ij,ji->i', m, W[wc, :].T).mean()
+        msg('average edge score: {:.4g}'.format(gold_edge_score))
+        edge_accuracy = 100 * (1 - eres.min() / len(E))
+        msg('correctly classified edges: {:.2f}%'.format(edge_accuracy))
+        orig_ami_us, orig_ami_km = (AMI(wc, np.argmax(m@W.T, 1)),
+                                    AMI(wc, km.fit_predict(m / np.sqrt((m**2).sum(1))[:, np.newaxis])))
+        msg('us: {:.3f}\n{} {:.3f}'.format(orig_ami_us, 'km:'.rjust(14), orig_ami_km))
+        res[it, (0, 1)] = orig_ami_us, edge_accuracy
+
+        msg('optimizing only soft edges score…', 'blue')
+        vec_edges = m
+        km_pred = km.fit_predict(m / np.sqrt((m**2).sum(1))[:, np.newaxis])
+        cost, rcost, xw = vec_max_edge_score(m, np.copy(km.cluster_centers_), np.ones(m.shape[0]), 5e1, 20)
+        orig_ami_us, orig_ami_km = (AMI(wc, np.argmax(m@xw.T, 1)), AMI(wc, km_pred))
+        us_dst = np.mean(cdist(W, xw).min(0))
+        msg('us: {:.3f} (mean dst: {:.3f})\n{} {:.3f}'.format(orig_ami_us, us_dst,
+                                                              'km:'.rjust(14), orig_ami_km))
+        res[it, (2, 3, 4)] = orig_ami_us, us_dst, orig_ami_km
+
+        msg('optimizing soft edges score AND nodes cost…', 'blue')
+        a = np.ones(m.shape[0])
+        B = nx.incidence_matrix(H)
+        Bd = B.toarray().astype(np.int8)
+        D = 1 / np.array(B.sum(1)).ravel()
+        eta = 700
+        ideg = D[:, np.newaxis]
+        grad_vec_node_loss_wrt_w = grad(vec_node_loss_wrt_w)
+        xw, xa, cn, ce = vector_mixed(m, np.copy(km.cluster_centers_), np.ones(m.shape[0]), [VVar.W, ],
+                                      node_factor=.2, num_loop=1, inner_size=50, ef=.8)
+        orig_ami_us, us_dst = (AMI(wc, np.argmax(m@xw.T, 1)), np.mean(cdist(W, xw).min(0)))
+        msg('us: {:.3f} (mean dst: {:.3f})'.format(orig_ami_us, us_dst))
+        text = 'mean edge score changed from {:.3f} to {:.3f}, and mean node cost from {:.3f} to {:.3f}'
+        msg(text.format(ce[0], ce[-1], cn[0], cn[-1]))
+        res[it, (5, 6)] = orig_ami_us, us_dst
+
+        msg('improving kmean through heuristics…', 'blue')
+        nnz = int((np.abs(W) > .1).sum() / k)
+        km_w, stats = lloyd_heuristic(km.cluster_centers_)
+        us_km_ami, us_km_dst, us_vs_km_ami = (stats[-1, 0], np.mean(cdist(W, km_w).min(0)),
+                                              AMI(np.argmax(m@xw.T, 1), np.argmax(m@km_w.T, 1)))
+        msg('AMI: {:.3f} (mean dst: {:.3f})'.format(us_km_ami, us_km_dst))
+        msg('Is the solution close to our previous one?  {:.3f}'.format(us_vs_km_ami))
+        res[it, (7, 8, 9)] = us_km_ami, us_km_dst, us_vs_km_ami
+
+        msg('Frank-Wolfe with L2 regularization…', 'blue')
+        fW, fval = frank_wolfe(np.copy(m), W=None, mu=0.13, max_nuc=85)
+        rank, nucnorm, col_norms, edge_score = (np.linalg.matrix_rank(fW),  np.linalg.norm(fW, 'nuc'),
+                                                np.sqrt((fW**2).sum(0)), -fval[-1] / len(E))
+        prc = ', '.join(['{:.3f}'.format(_) for _ in np.percentile(col_norms, [25, 50, 75, 90])])
+        fw_ami = AMI(wc, km.fit_predict(fW.T))
+        fw_dst = np.mean(cdist(W, km.cluster_centers_).min(0))
+        text = 'rank: {}, nuclear norm: {:.3f}, max column norm: {:.3f} ({})'
+        msg(text.format(rank, nucnorm, col_norms.max(), prc))
+        msg('AMI: {:.3f} (mean dst: {:.3f})'.format(fw_ami, fw_dst))
+        res[it, (10, 11, 12)] = fw_ami, fw_dst, edge_score
+
+        msg('Explicit P & Q optimization, starting from previous solution…', 'blue')
+        invdB = sparse.csr_matrix(d * Bd)
+        C = np.zeros((n, d))
+        to_optimize = [Var.P, Var.Q]
+        a0 = np.ones(m.shape[0])
+        prevP = np.copy(xw.T)
+        prevQ = np.zeros((len(wc), k))
+        for i, v in enumerate(np.argmax(m@xw.T, 1)):
+            prevQ[i, v] = 1
+        P_mat, Q_mat, A_mat, cn, ce = matrix_mixed(m, np.copy(prevP), np.copy(prevQ), a0, to_optimize,
+                                                   node_factor=.1, num_loop=4, inner_size=80, ef=1,
+                                                   sum_Q_to_one=False)
+        text = 'mean edge score changed from {:.3f} to {:.3f}, and mean node cost from {:.3f} to {:.3f}'
+        msg(text.format(ce[0], ce[-1], cn[0], cn[-1]))
+        us_vs_pq_ami = AMI(np.argmax(m@xw.T, 1), km.fit_predict(Q_mat))
+        msg('agree with previous solution as: {:.3f}'.format(us_vs_pq_ami))
+        res[it, 13] = us_vs_pq_ami
+        np.savez_compressed('recover_waldo_{}_{}_{}'.format(timestamp, seed, suffix), res=res)

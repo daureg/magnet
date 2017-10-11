@@ -7,11 +7,15 @@ from timeit import default_timer as clock
 import autograd.numpy as anp
 import networkx as nx
 import numpy as np
+import scipy.sparse as sparse
+import torch
 import tqdm
 from autograd import grad
+from scipy.sparse.linalg import svds
 from scipy.spatial.distance import cdist
 from sklearn.cluster import KMeans
 from sklearn.metrics import adjusted_mutual_info_score as AMI
+from torch import autograd, nn, optim
 
 seed = 61
 random.seed(seed)
@@ -24,6 +28,7 @@ d = 35
 nrep = 600
 blocks = list()
 VVar = Enum('VVar', 'W a'.split())
+Var = Enum('Var', 'P Q a'.split())
 vecc = None
 
 
@@ -340,6 +345,184 @@ def vector_mixed(D, W0, a0, to_optimize, node_factor, num_loop=3, inner_size=25,
     return xw, xa, np.array(costs_node), np.array(costs_edge)
 
 
+def pytorch_optim(W, edges, wc, n, alpha=1, beta=1, max_iter=50, x0=None, lr=1):
+    d = W.shape[1]
+    X = prng.randn(n, d) if x0 is None else np.copy(x0)
+    tX = autograd.Variable(torch.from_numpy(X), requires_grad=True)
+    tW = autograd.Variable(torch.from_numpy(W), requires_grad=False)
+    target = autograd.Variable(torch.from_numpy(wc), requires_grad=False)
+    head = autograd.Variable(torch.from_numpy(edges[:, 0]), requires_grad=False),
+    tail = autograd.Variable(torch.from_numpy(edges[:, 1]), requires_grad=False)
+    loss_fn = nn.CrossEntropyLoss()
+    optimizer = optim.Adam([tX], weight_decay=0, lr=lr)
+    l_res = np.zeros((max_iter + 1, 4))
+    nX = X / np.sqrt((X**2).sum(1))[:, np.newaxis]
+    m = nX[edges[:, 0]] * nX[edges[:, 1]]
+    scores = m@W.T
+    l_res[0, 3] = np.einsum('ij,ji->i', m, W[wc, :].T).mean()
+    pred = np.argmax(scores, 1)
+    l_res[0, 1] = AMI(wc, pred)
+    S = tX[head] * tX[tail]
+    output = torch.mm(S, torch.t(tW))
+    loss = loss_fn(output, target)
+    l_res[0, 0] = (loss_fn(output, target).data[0])
+    for i in range(max_iter):
+        optimizer.zero_grad()
+        S = tX[head] * tX[tail]
+        output = torch.mm(S, torch.t(tW))
+        # avg_norm = torch.mean(torch.norm(tX, p=2, dim=1))
+        # avg_edge = torch.mean(torch.diag(torch.mm(S, torch.t(tW[wc, :]))))
+        loss = loss_fn(output, target)  # - alpha*avg_edge# + beta*avg_norm
+        l_res[i + 1, 0] = (loss_fn(output, target).data[0])
+        loss.backward()
+        optimizer.step()
+        nX = X / np.sqrt((X**2).sum(1))[:, np.newaxis]
+        m = nX[edges[:, 0]] * nX[edges[:, 1]]
+        scores = m@W.T
+        l_res[i + 1, 3] = np.einsum('ij,ji->i', m, W[wc, :].T).mean()
+        pred = np.argmax(scores, 1)
+        l_res[i + 1, 1] = AMI(wc, pred)
+    print(np.sqrt((X**2).sum(1)).mean())
+    return nX, l_res[:i + 2, :]
+
+
+def pareto_front(costs):
+    """
+    :param costs: An (n_points, n_costs) array
+    :return: A (n_points, ) boolean array, indicating whether each point is Pareto efficient
+    from https://stackoverflow.com/a/40239615
+    """
+    is_efficient = np.ones(costs.shape[0], dtype=bool)
+    for i, c in enumerate(costs):
+        if is_efficient[i]:
+            # Remove dominated points
+            is_efficient[is_efficient] = np.any(costs[is_efficient] >= c, axis=1)
+    return is_efficient
+
+
+def find_good_tradeoff(edge_scores, ami_scores):
+    scores = np.array((edge_scores, ami_scores)).T
+    pf = pareto_front(scores)
+    top_right_corner = np.array((max(edge_scores), max(ami_scores)))[np.newaxis, :]
+    dst = cdist(scores[pf], top_right_corner, 'mahalanobis')
+    return np.where(pf)[0][np.argmin(dst)]
+
+
+def finetune(x0, nb_iter=10):
+    xU = np.copy(x0)
+    m = xU[edges[:, 0]] * xU[edges[:, 1]]
+    pred = np.argmax(m@W.T, 1)
+    error = np.where(pred != wc)[0]
+    initial_error = len(error)
+    res = []
+    step_size = .04
+    bestX, min_error = None, 2 * initial_error
+    for s in range(nb_iter):
+        m = xU[edges[:, 0]] * xU[edges[:, 1]]
+        pred = np.argmax(m@W.T, 1)
+        error = np.where(pred != wc)[0]
+        res.append(len(error))
+        errors = list(error)
+        if len(errors) < min_error:
+            bestX, min_error = np.copy(xU), len(errors)
+        random.shuffle(errors)
+        for eid in errors:
+            u, v = edges[eid, :]
+            xu, xv = xU[u, :], xU[v, :]
+            right_w = wc[eid]
+            wrong_w = pred[eid]
+            c = step_size * (right_w - wrong_w) / (.9 * s + 1)
+            xu += xv * c
+            xv += xu * c
+            xU[u, :] = xu / np.sqrt((xu**2).sum())
+            xU[v, :] = xv / np.sqrt((xv**2).sum())
+    m = xU[edges[:, 0]] * xU[edges[:, 1]]
+    pred = np.argmax(m@W.T, 1)
+    error = np.where(pred != wc)[0]
+    res.append(len(error))
+    return bestX, np.array(res)
+
+
+def frank_wolfe(S, W=None, mu=0.13, max_nuc=85):
+    W = np.random.randn(d, len(S))
+    print(np.linalg.matrix_rank(W), np.linalg.norm(W, 'nuc'),
+          np.percentile(np.sqrt((W**2).sum(0)), [25, 50, 75]))
+    fval = []
+    for t in range(k):
+        # the other term is mu*np.einsum('ij,ji->i', W.T, W).sum())
+        fval.append(-np.einsum('ij,ji->i', S, W).sum())
+        g = 2 * mu * W - S.T
+        u, s, vt = svds(-g, 1)
+        atom = max_nuc * np.outer(u, vt)
+        gamma = 2 / (2 + t)
+        W += gamma * (atom - W)  # ie w = (1-γ)w + γ⋅atom
+
+    fval.append(-np.einsum('ij,ji->i', S, W).sum())
+    return W, fval
+
+
+def lloyd_heuristic(init_w, max_iter=10):
+    km_w = np.copy(init_w)
+    km_w /= np.maximum(1.0, np.sqrt((km_w**2).sum(1)))[:, np.newaxis]
+    km_labels = km.labels_
+    # km_labels = np.argmax(m@km_w.T, 1) # how are those two differents? yes widely so
+    stats = np.zeros((max_iter, 1))
+    for it in range(max_iter):
+        stats[it, :] = AMI(wc, km_labels)
+        km_labels = np.argmax(m@km_w.T, 1)
+        new_W = []
+        for i in range(k):
+            nw = m[km_labels == i, :].sum(0)
+            nw[np.argsort(np.abs(nw))[:-nnz]] = 0
+            nw /= np.linalg.norm(nw)
+            new_W.append(nw)
+        km_w = np.array(new_W)
+    return km_w, stats
+
+
+def matrix_mixed(M, P0, Q0, a0, to_optimize, node_factor, num_loop=3, inner_size=25, ef=1,
+                 sum_Q_to_one=False):
+    # TODO: xU (was u before) is the user profile, should it be an argument of that function?
+    costs, costs_edge, costs_node = [], [], []
+    xp, xq, xa = np.copy(P0), np.copy(Q0), np.copy(a0)
+    if sum_Q_to_one:
+        def normalization_factor(Q): return Q.sum(1)[..., np.newaxis]
+    else:
+        def normalization_factor(Q): return np.sqrt((Q ** 2).sum(1))[..., np.newaxis]
+    xq /= normalization_factor(xq)
+    nn, ne = B.shape
+    for loop, var, i in product(range(num_loop), to_optimize, range(inner_size)):
+        if loop == num_loop - 1 and var == Var.Q:
+            break
+        if loop == num_loop - 1 and var == Var.P:
+            node_factor *= 1
+        aA = xa[:, np.newaxis]
+        aQ = aA * xq
+        f = xU - C - ideg * (B@aQ@xp.T)
+        c_node = (f**2).sum() / nn
+        costs_node.append(c_node)
+        W = xq@xp.T
+        R = np.einsum('ij,ji->i', M, W.T * aA.T)
+        c_edge = R.sum() / ne
+        costs_edge.append(c_edge)
+        costs.append(c_edge - node_factor * c_node)
+        alpha = {Var.P: 3e-1,
+                 Var.Q: 1e-1,
+                 Var.a: 8e1}[var]
+        if var == Var.P:
+            xp -= alpha * (node_factor * (-2 * f.T@(ideg * (B@aQ))) / nn - ef*(aA.T * M.T @ xq) / ne)
+            norms = np.sqrt((xp**2).sum(0))
+            xp /= norms[np.newaxis, :]
+        if var == Var.Q:
+            xq -= alpha * (node_factor * (-2 * aA * (invdB.T@f@xp)) / nn - ef*(aA * (M @ xp)) / ne)
+            xq[xq < 0] = 0
+            xq /= normalization_factor(xq)
+        if var == Var.a:
+            xa -= alpha * (node_factor * (-2 * xq * (invdB.T@f@xp)).sum(1) / nn - ef*(M.T * W.T).sum(0) / ne)
+            xa[xa < 0] = 0
+    return xp, xq, xa, np.array(costs_node), np.array(costs_edge)
+
+
 if __name__ == "__main__":
     import time
     all_res = np.zeros((nrep, 10))
@@ -357,6 +540,7 @@ if __name__ == "__main__":
     # for rep in range(nrep):
         start = clock()
         W = generate_W(k, d, 0)
+        nnz = int((np.abs(W) > .1).sum() / k)
         # H, labels, mapping, inv_mapping, num_failed = create_full_graph(4, 125)
         if num_failed > 0:
             continue
@@ -400,6 +584,8 @@ if __name__ == "__main__":
         B = nx.incidence_matrix(H)
         Bd = B.toarray().astype(np.int8)
         D = 1 / np.array(B.sum(1)).ravel()
+        invdB = sparse.csr_matrix(d * Bd)
+        C = np.zeros((n, d))
         eta = 700
         ideg = D[:, np.newaxis]
         grad_vec_node_loss_wrt_w = grad(vec_node_loss_wrt_w)

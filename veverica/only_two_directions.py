@@ -24,13 +24,14 @@ d = 35
 nrep = 600
 blocks = list()
 VVar = Enum('VVar', 'W a'.split())
+vecc = None
 
 
 def disjoint_union_all(graphs):
     H = graphs[0].copy()
     for g in graphs[1:]:
         n = len(H)
-        H.add_edges_from(((u+n, v+n) for u,v in g.edges()))
+        H.add_edges_from(((u+n, v+n) for u, v in g.edges()))
     return H
 
 
@@ -200,29 +201,27 @@ def initial_profiles(H, labels, mapping, W):
 def edges_score(u):
     U = anp.reshape(u, (n, d))
     m = U[edges[:, 0]] * U[edges[:, 1]]
-    diag = anp.einsum('ij,ji->i', m, W[wc, :].T)
-    all_prod = (m@W.T).sum(1)
-    scores = (1 + mu / k) * diag - (mu / k) * all_prod
-    return scores.mean()
+    return anp.einsum('ij,ji->i', m, ((1 + mu / k) * W[wc, :].T - vecc[:, np.newaxis])).mean()
 
 
 def edges_score_max(x0, learning_rate=1, max_iter=50):
+    global vecc
     costs = []
     amis = []
     x = np.copy(x0)
-    best_ami, best_x = -1, None
+    vecc = (mu / k) * W.sum(0)
+    all_X = []
     for i in range(max_iter):
         f, g = edges_score(x), edges_score_grad(x)
         costs.append(f)
         m = x[edges[:, 0]] * x[edges[:, 1]]
         ami = AMI(wc, np.argmax(m@W.T, 1))
         amis.append(ami)
-        if ami > best_ami:
-            best_ami, best_x = ami, np.copy(x)
         x += learning_rate * g
         norms = np.sqrt((x**2).sum(1))
         x /= norms[:, np.newaxis]
-    return x, costs, amis, best_x
+        all_X.append(np.copy(x))
+    return x, costs, amis, all_X[find_good_tradeoff(costs, amis)]
 
 
 def minimize_u_distance_to_incoming(H, E, U0, W):
@@ -230,6 +229,7 @@ def minimize_u_distance_to_incoming(H, E, U0, W):
     nU = np.copy(U0)
     nodes = list(rH)
     random.shuffle(nodes)
+    stats = np.zeros((len(rH), 8))
     for u in nodes:
         nei = rH[u]
         local_E, local_wc = [], []
@@ -240,6 +240,7 @@ def minimize_u_distance_to_incoming(H, E, U0, W):
             local_wc.append(E[(nu, nv)])
             w += W[local_wc[-1], :]
         nw = w / np.linalg.norm(w)
+
         def m(x): return np.array([x * nU[e[0] if e[0] != u else e[1], :] for e in local_E])
         x = np.copy(U0[u, :])
         prev_x = np.copy(x)
@@ -263,8 +264,11 @@ def minimize_u_distance_to_incoming(H, E, U0, W):
             nb_iter += 1
         if new_score < score:
             x = np.copy(prev_x)
+        stats[u, :] = (np.linalg.norm(U0[u, :] - nw), np.linalg.norm(x - nw), nb_iter,
+                       np.max(m(U0[u, :])@W.T, 1).sum(), np.max(m(x)@W.T, 1).sum(),
+                       np.linalg.norm(U0[u, :] - w), np.linalg.norm(x - w), np.linalg.norm(nw - w))
         nU[u, :] = np.copy(x)
-    return nU
+    return nU, stats
 
 
 def compute_hard_cost_l1(all_w, vec_edges):
@@ -320,7 +324,7 @@ def vector_mixed(D, W0, a0, to_optimize, node_factor, num_loop=3, inner_size=25,
     for loop, var, i in product(range(num_loop), to_optimize, range(inner_size)):
         c_node = vec_node_loss_wrt_w(xw.ravel())
         costs_node.append(c_node)
-        c_edge, g_edge_w, g_edge_a = soft_cost_and_grad_matform(D, xw, xa, 600)
+        c_edge, g_edge_w, g_edge_a = soft_cost_and_grad_matform(D, xw, xa, 700)
         costs_edge.append(c_edge)
         costs.append(c_edge + node_factor * c_node)
         alpha = {VVar.W: 1e-1,
@@ -342,7 +346,7 @@ if __name__ == "__main__":
     timestamp = (int(time.time()-(2017-1970)*365.25*24*60*60))//60
     suffix = 'GfixedWvariable0over_kminit_ambiguous_3dir_7w'
     # W = generate_W(k, d, 0)
-    num_nodes, block_size = 350, 110
+    num_nodes, block_size = 600, 125
     nb_blocks = np.floor_divide(num_nodes, block_size)
     block_size = num_nodes // nb_blocks
     for i in range(nb_blocks):
@@ -360,7 +364,8 @@ if __name__ == "__main__":
         n = len(H)
         U = initial_profiles(H, labels, mapping, W)
         m = U[edges[:, 0]] * U[edges[:, 1]]
-        all_res[rep, (0, 1)] = AMI(wc, np.argmax(m@W.T, 1)), AMI(wc, km.fit_predict(m))
+        all_res[rep, (0, 1)] = (AMI(wc, np.argmax(m@W.T, 1)),
+                                AMI(wc, km.fit_predict(m/np.sqrt((m**2).sum(1))[:, np.newaxis])))
         # print('[{:.3f}]\tGenerated graph and initial profiles'.format(clock()-start)); start=clock()
 
         U0 = np.copy(U)
@@ -368,7 +373,8 @@ if __name__ == "__main__":
         mu, alpha, T = 0, 8e2, 15
         _, c, am_nomin, xU = edges_score_max(U0, alpha, T)
         m = xU[edges[:, 0]] * xU[edges[:, 1]]
-        all_res[rep, (2, 3)] = AMI(wc, np.argmax(m@W.T, 1)), AMI(wc, km.fit_predict(m))
+        all_res[rep, (2, 3)] = (AMI(wc, np.argmax(m@W.T, 1)),
+                                AMI(wc, km.fit_predict(m/np.sqrt((m**2).sum(1))[:, np.newaxis])))
         # print('[{:.3f}]\tFirst optimization of profiles ({:.3f})'.format(clock()-start, all_res[rep, 2])); start=clock()
         # continue
 
@@ -383,9 +389,10 @@ if __name__ == "__main__":
         # continue
         # print('[{:.3f}]\tTried to recover W from there'.format(clock()-start)); start=clock()
 
-        nU = minimize_u_distance_to_incoming(H, E, xU, W)
+        nU, _ = minimize_u_distance_to_incoming(H, E, xU, W)
         m = nU[edges[:, 0]] * nU[edges[:, 1]]
-        all_res[rep, (5, 6)] = AMI(wc, np.argmax(m@W.T, 1)), AMI(wc, km.fit_predict(m))
+        all_res[rep, (5, 6)] = (AMI(wc, np.argmax(m@W.T, 1)),
+                                AMI(wc, km.fit_predict(m/np.sqrt((m**2).sum(1))[:, np.newaxis])))
         # print('[{:.3f}]\tSecond optimization of profiles'.format(clock()-start)); start=clock()
 
         U = nU

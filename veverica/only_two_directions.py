@@ -557,7 +557,7 @@ if __name__ == "__main__":
     msg('generating labels…', 'blue')
     E, edges, wc = assign_edges(H, labels, inv_mapping)
     n = len(H)
-    res = np.zeros((nrep, 14))
+    res = np.zeros((nrep, 17))
     for it in tqdm.trange(nrep, unit='W'):
         W = generate_W(k, d, n_overlap)
         U = initial_profiles(H, labels, mapping, W)
@@ -590,9 +590,11 @@ if __name__ == "__main__":
         cost, rcost, xw = vec_max_edge_score(m, np.copy(km.cluster_centers_), np.ones(m.shape[0]), 5e1, 20)
         orig_ami_us, orig_ami_km = (AMI(wc, np.argmax(m@xw.T, 1)), AMI(wc, km_pred))
         us_dst = np.mean(cdist(W, xw).min(0))
+        w_km = km.cluster_centers_
+        km_dst = np.mean(cdist(W, w_km / np.sqrt((w_km**2).sum(1))[:, np.newaxis]).min(0))
         msg('us: {:.3f} (mean dst: {:.3f})\n{} {:.3f}'.format(orig_ami_us, us_dst,
                                                               'km:'.rjust(14), orig_ami_km))
-        res[it, (2, 3, 4)] = orig_ami_us, us_dst, orig_ami_km
+        res[it, (2, 3, 4, 16)] = orig_ami_us, us_dst, orig_ami_km, km_dst
 
         msg('optimizing soft edges score AND nodes cost…', 'blue')
         a = np.ones(m.shape[0])
@@ -625,7 +627,8 @@ if __name__ == "__main__":
                                                 np.sqrt((fW**2).sum(0)), -fval[-1] / len(E))
         prc = ', '.join(['{:.3f}'.format(_) for _ in np.percentile(col_norms, [25, 50, 75, 90])])
         fw_ami = AMI(wc, km.fit_predict(fW.T))
-        fw_dst = np.mean(cdist(W, km.cluster_centers_).min(0))
+        w_km = km.cluster_centers_
+        fw_dst = np.mean(cdist(W, w_km / np.sqrt((w_km**2).sum(1))[:, np.newaxis]).min(0))
         text = 'rank: {}, nuclear norm: {:.3f}, max column norm: {:.3f} ({})'
         msg(text.format(rank, nucnorm, col_norms.max(), prc))
         msg('AMI: {:.3f} (mean dst: {:.3f})'.format(fw_ami, fw_dst))
@@ -645,8 +648,11 @@ if __name__ == "__main__":
                                                    sum_Q_to_one=False)
         text = 'mean edge score changed from {:.3f} to {:.3f}, and mean node cost from {:.3f} to {:.3f}'
         msg(text.format(ce[0], ce[-1], cn[0], cn[-1]))
-        us_vs_pq_ami = AMI(np.argmax(m@xw.T, 1), km.fit_predict(Q_mat))
+        pq_pred = km.fit_predict(Q_mat)
+        w_km = km.cluster_centers_
+        us_vs_pq_ami, pq_ami = (AMI(np.argmax(m@xw.T, 1), pq_pred), AMI(wc, pq_pred))
+        pq_dst = np.mean(cdist(W, P_mat.T).min(0))
         msg('agree with previous solution as: {:.3f}'.format(us_vs_pq_ami))
-        res[it, 13] = us_vs_pq_ami
+        res[it, (13, 14, 15)] = us_vs_pq_ami, pq_ami, pq_dst
         np.savez_compressed('recover_waldo_{}_{}_{}'.format(timestamp, seed, suffix), res=res,
                             conf=np.array((n_overlap, nb_dirs, k, d)))

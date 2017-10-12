@@ -1,4 +1,4 @@
-python -O -W ignore only_two_directions.py
+# python -O -W ignore only_two_directions.py
 python -O -W ignore only_two_directions.py -o 6
 python -O -W ignore only_two_directions.py -o 12
 python -O -W ignore only_two_directions.py -l 4

@@ -543,7 +543,7 @@ if __name__ == "__main__":
     pairs = list(combinations(range(k), nb_dirs))
     km = KMeans(k, n_init=14, random_state=prng, n_jobs=-2)
     conf = '{}over_{}dir_{}w_{}dim'.format(n_overlap, nb_dirs, k, d)
-    suffix = 'GfixedWvariable_' + conf
+    suffix = 'WfixedGvariable_' + conf
 
     msg('creating & coloring the graph…', 'blue')
     num_nodes, block_size = 500, 125
@@ -552,14 +552,17 @@ if __name__ == "__main__":
     for i in range(nb_blocks):
         blocks.append(nx.fast_gnp_random_graph(block_size, 4 / block_size))
         connect_graph(blocks[-1])
-    H, labels, mapping, inv_mapping, num_failed = create_full_graph(nb_blocks, block_size)
+    # H, labels, mapping, inv_mapping, num_failed = create_full_graph(nb_blocks, block_size)
 
     msg('generating labels…', 'blue')
-    E, edges, wc = assign_edges(H, labels, inv_mapping)
-    n = len(H)
+    # E, edges, wc = assign_edges(H, labels, inv_mapping)
+    # n = len(H)
     res = np.zeros((nrep, 17))
+    W = generate_W(k, d, n_overlap)
     for it in tqdm.trange(nrep, unit='W'):
-        W = generate_W(k, d, n_overlap)
+        H, labels, mapping, inv_mapping, num_failed = create_full_graph(nb_blocks, block_size)
+        n = len(H)
+        E, edges, wc = assign_edges(H, labels, inv_mapping)
         U = initial_profiles(H, labels, mapping, W)
         m = U[edges[:, 0]] * U[edges[:, 1]]
         orig_ami_us, orig_ami_km = (AMI(wc, np.argmax(m@W.T, 1)),

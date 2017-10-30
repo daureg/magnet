@@ -1,7 +1,6 @@
-# python -O -W ignore only_two_directions.py
-python -O -W ignore only_two_directions.py -o 6
-python -O -W ignore only_two_directions.py -o 12
-python -O -W ignore only_two_directions.py -l 4
-python -O -W ignore only_two_directions.py -d 77
-python -O -W ignore only_two_directions.py -k 5
-python -O -W ignore only_two_directions.py -k 9 -d 36
+time python -O -W ignore icml_exp.py -n3 aut
+time python -O -W ignore icml_exp.py -n3 adv
+time python -O -W ignore icml_exp.py -n3 wik
+time python -O -W ignore icml_exp.py -n3 sla
+time python -O -W ignore icml_exp.py -n3 epi
+time python -O -W ignore icml_exp.py -n3 kiw

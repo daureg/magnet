@@ -69,17 +69,17 @@ class LillePrediction(lp.LinkPrediction):
         self.dout, self.din = defaultdict(int), defaultdict(int)
         self.common_nei = {e: Gfull[e[0]].intersection(Gfull[e[1]]) for e in E}
         self.Gout, self.Gin = {}, {}
-        # self.edge_order, in_lcc = {}, []
+        self.edge_order, in_lcc = {}, []
         for i, (u, v) in enumerate(sorted(E)):
-            # self.edge_order[(u, v)] = i
+            self.edge_order[(u, v)] = i
             # in_lcc.append(u in self.lcc and v in self.lcc)
             self.dout[u] += 1
             self.din[v] += 1
             l.add_neighbor(u, v, self.Gout)
             l.add_neighbor(v, u, self.Gin)
-        # self.reciprocal = {ei: self.edge_order[(e[1], e[0])]
-        #                    for e, ei in self.edge_order.items()
-        #                    if (e[1], e[0]) in E}
+        self.reciprocal = {ei: self.edge_order[(e[1], e[0])]
+                           for e, ei in self.edge_order.items()
+                           if (e[1], e[0]) in E}
         # self.in_lcc = np.array(in_lcc, dtype=bool)
         self.Gfull = Gfull
         self.G = self.Gout

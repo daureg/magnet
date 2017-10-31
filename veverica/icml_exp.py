@@ -39,7 +39,7 @@ if __name__ == '__main__':
     balanced = args.balanced
 
     graph = LillePrediction(use_triads=True)
-    graph.load_data('all_'+pref, args.balanced)
+    graph.load_data(pref, args.balanced)
     class_weight = {0: 1.4, 1: 1}
     olr = SGDClassifier(loss="log", learning_rate="optimal", penalty="l2", average=True,
                         n_iter=4, n_jobs=num_threads, class_weight=class_weight)
@@ -56,9 +56,9 @@ if __name__ == '__main__':
     nrk = NodesRanker(autotune_budget=0)
 
     lm.DIAMETER = diameters[pref]
-    data = lm.sio.loadmat('{}_gprime.mat'.format('all_'+pref))
+    data = lm.sio.loadmat('{}_gprime.mat'.format(pref))
     P, sorted_edges = data['P'], data['sorted_edges']
-    data = lm.sio.loadmat('{}_gsecond.mat'.format('all_'+pref), squeeze_me=True)
+    data = lm.sio.loadmat('{}_gsecond.mat'.format(pref), squeeze_me=True)
     W, d = data['W'], data['d']
     ya = sorted_edges[:, 2]
     m = sorted_edges.shape[0]
@@ -164,36 +164,36 @@ if __name__ == '__main__':
                 grad_y[train_set] = 0
                 return c, np.hstack((grad_p, grad_q, grad_y))
 
-            # Asym, edges_matrix_indices, strain, stest, mngold = prepare_data(graph)
-            # sstart = lp.clock()
-            # U, V, _, _ = online_maxnorm_completion(Asym, edges_matrix_indices, graph.order)
-            # feats_test, k_star = run_icml_exp(U, V, strain, stest)
-            # time_elapsed = lp.clock() - sstart
-            # pred_function = graph.train(lambda features: features > k_star)
-            # graph.time_used = time_elapsed
-            # res = graph.test_and_evaluate(pred_function, feats_test, mngold, pp)
-            # maxnorm.append(res)
-            # graph.time_used = time_elapsed
-            # maxnorm_raw.append(graph.test_and_evaluate(pred_function, feats_test, mngold))
-            maxnorm.append(placeholder)
-            maxnorm_raw.append(placeholder)
-            #
-            # x0 = np.random.uniform(0, 1, m+2*n)
-            # x0[2*n:][train_set] = ya[train_set]
-            # feats, time_elapsed = solve_for_pq(x0)
-            # sstart = lp.clock()
-            # sorted_y = np.sort(feats[test_set])
-            # pos_frac = 1-ya[train_set].sum()/len(train_set)
-            # k_star = sorted_y[int(pos_frac*sorted_y.size)]
-            # time_elapsed += lp.clock() - sstart
-            # pred_function = graph.train(lambda features: features > k_star)
-            # graph.time_used = time_elapsed
-            # res = graph.test_and_evaluate(pred_function, feats[test_set], gold, pp)
-            # quad_optim.append(res)
-            # graph.time_used = time_elapsed
-            # quad_optim_raw.append(graph.test_and_evaluate(pred_function, feats[test_set], gold))
-            quad_optim.append(placeholder)
-            quad_optim_raw.append(placeholder)
+            Asym, edges_matrix_indices, strain, stest, mngold = prepare_data(graph)
+            sstart = lp.clock()
+            U, V, _, _ = online_maxnorm_completion(Asym, edges_matrix_indices, graph.order)
+            feats_test, k_star = run_icml_exp(U, V, strain, stest)
+            time_elapsed = lp.clock() - sstart
+            pred_function = graph.train(lambda features: features > k_star)
+            graph.time_used = time_elapsed
+            res = graph.test_and_evaluate(pred_function, feats_test, mngold, pp)
+            maxnorm.append(res)
+            graph.time_used = time_elapsed
+            maxnorm_raw.append(graph.test_and_evaluate(pred_function, feats_test, mngold))
+            # maxnorm.append(placeholder)
+            # maxnorm_raw.append(placeholder)
+
+            x0 = np.random.uniform(0, 1, m+2*n)
+            x0[2*n:][train_set] = ya[train_set]
+            feats, time_elapsed = solve_for_pq(x0)
+            sstart = lp.clock()
+            sorted_y = np.sort(feats[test_set])
+            pos_frac = 1-ya[train_set].sum()/len(train_set)
+            k_star = sorted_y[int(pos_frac*sorted_y.size)]
+            time_elapsed += lp.clock() - sstart
+            pred_function = graph.train(lambda features: features > k_star)
+            graph.time_used = time_elapsed
+            res = graph.test_and_evaluate(pred_function, feats[test_set], gold, pp)
+            quad_optim.append(res)
+            graph.time_used = time_elapsed
+            quad_optim_raw.append(graph.test_and_evaluate(pred_function, feats[test_set], gold))
+            # quad_optim.append(placeholder)
+            # quad_optim_raw.append(placeholder)
 
             pred_function = graph.train(lambda features: features[:, 0] < 0.5)
             res = graph.test_and_evaluate(pred_function, Xa[test_set, 15:17], gold, pp)
@@ -319,44 +319,44 @@ if __name__ == '__main__':
 
             bfsl.append([.8, .9, .5, .3, 2, frac])
             treek.append([.8, .9, .5, .3, 2, frac])
-            #
-            # Etrain = graph.Esign
-            # Etest = {e: s for e, s in graph.E.items() if e not in Etrain}
-            # nrk.fit(Etrain, graph.order)
-            # Xtrain, ytrain = nrk.transform(Etrain)
-            # Xtest, ytest = nrk.transform(Etest)
-            # sstart = lp.clock()
-            # rnlr.fit(Xtrain, ytrain)
-            # feats_train = rnlr.predict_proba(Xtrain)[:, 1]
-            # k = -find_threshold(-feats_train, ytrain, True)
-            # feats_test = rnlr.predict_proba(Xtest)[:, 1]
-            # pred = feats_test > k
-            # end = lp.clock() - sstart + nrk.time_taken
-            # gold = ytest
-            # C = lp.confusion_matrix(gold, pred)
-            # fp, tn = C[0, 1], C[0, 0]
-            # acc, fpr, f1, mcc = [lp.accuracy_score(gold, pred), fp/(fp+tn),
-            #                      lp.f1_score(gold, pred, average='weighted', pos_label=None),
-            #                      lp.matthews_corrcoef(gold, pred)]
-            # rank_nodes.append([acc, f1, mcc, fpr, end, frac])
-            rank_nodes.append(placeholder)
-            #
-            # Xbayes, time_taken = compute_bayes_features(Xa, ya, train_set, test_set, graph)
-            # sstart = lp.clock()
-            # bflr.fit(Xbayes[train_set, :], ya[train_set])
-            # feats_train = bflr.predict_proba(Xbayes[train_set, :])[:, 1]
-            # k = -find_threshold(-feats_train, ya[train_set], True)
-            # feats_test = bflr.predict_proba(Xbayes[test_set, :])[:, 1]
-            # pred = feats_test > k
-            # end = lp.clock() - sstart + time_taken
-            # gold = ya[test_set]
-            # C = lp.confusion_matrix(gold, pred)
-            # fp, tn = C[0, 1], C[0, 0]
-            # acc, fpr, f1, mcc = [lp.accuracy_score(gold, pred), fp/(fp+tn),
-            #                      lp.f1_score(gold, pred, average='weighted', pos_label=None),
-            #                      lp.matthews_corrcoef(gold, pred)]
-            # bayes_feat.append([acc, f1, mcc, fpr, end, frac])
-            bayes_feat.append(placeholder)
+
+            Etrain = graph.Esign
+            Etest = {e: s for e, s in graph.E.items() if e not in Etrain}
+            nrk.fit(Etrain, graph.order)
+            Xtrain, ytrain = nrk.transform(Etrain)
+            Xtest, ytest = nrk.transform(Etest)
+            sstart = lp.clock()
+            rnlr.fit(Xtrain, ytrain)
+            feats_train = rnlr.predict_proba(Xtrain)[:, 1]
+            k = -find_threshold(-feats_train, ytrain, True)
+            feats_test = rnlr.predict_proba(Xtest)[:, 1]
+            pred = feats_test > k
+            end = lp.clock() - sstart + nrk.time_taken
+            gold = ytest
+            C = lp.confusion_matrix(gold, pred)
+            fp, tn = C[0, 1], C[0, 0]
+            acc, fpr, f1, mcc = [lp.accuracy_score(gold, pred), fp/(fp+tn),
+                                 lp.f1_score(gold, pred, average='weighted', pos_label=None),
+                                 lp.matthews_corrcoef(gold, pred)]
+            rank_nodes.append([acc, f1, mcc, fpr, end, frac])
+            # rank_nodes.append(placeholder)
+
+            Xbayes, time_taken = compute_bayes_features(Xa, ya, train_set, test_set, graph)
+            sstart = lp.clock()
+            bflr.fit(Xbayes[train_set, :], ya[train_set])
+            feats_train = bflr.predict_proba(Xbayes[train_set, :])[:, 1]
+            k = -find_threshold(-feats_train, ya[train_set], True)
+            feats_test = bflr.predict_proba(Xbayes[test_set, :])[:, 1]
+            pred = feats_test > k
+            end = lp.clock() - sstart + time_taken
+            gold = ya[test_set]
+            C = lp.confusion_matrix(gold, pred)
+            fp, tn = C[0, 1], C[0, 0]
+            acc, fpr, f1, mcc = [lp.accuracy_score(gold, pred), fp/(fp+tn),
+                                 lp.f1_score(gold, pred, average='weighted', pos_label=None),
+                                 lp.matthews_corrcoef(gold, pred)]
+            bayes_feat.append([acc, f1, mcc, fpr, end, frac])
+            # bayes_feat.append(placeholder)
 
             pred_function = graph.train(llr, Xa[train_feat], ya[train_set], False)
             # graph.time_used += graph.triad_time

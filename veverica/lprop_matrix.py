@@ -4,7 +4,7 @@ from timeit import default_timer as clock
 import numpy as np
 import scipy.io as sio
 import scipy.sparse as sp
-from sklearn.cross_validation import StratifiedKFold
+from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import accuracy_score, confusion_matrix, f1_score, matthews_corrcoef
 
 import pack_graph as pg
@@ -237,7 +237,7 @@ if __name__ == "__main__":
 
             sstart = clock()
             cv_res = []
-            for train_idx, test_idx in StratifiedKFold(revealed, n_folds=5):
+            for train_idx, test_idx in StratifiedKFold(n_folds=5).split(np.zeros(revealed.size), revealed):
                 train_y, test_y = ya[train_idx], ya[test_idx]
                 cv_res.append(_inner_cv(P, sorted_edges, train_idx, train_y, test_idx, test_y, accuracy_score, (m, n)))
             cv_res=np.array(cv_res)

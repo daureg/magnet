@@ -1,6 +1,3 @@
-time python -O -W ignore icml_exp.py -n3 aut
-time python -O -W ignore icml_exp.py -n3 adv
-time python -O -W ignore icml_exp.py -n3 wik
-time python -O -W ignore icml_exp.py -n3 sla
-time python -O -W ignore icml_exp.py -n3 epi
-time python -O -W ignore icml_exp.py -n3 kiw
+time python -O -W ignore icml_exp.py -n5 can
+time python -O -W ignore icml_exp.py -n5 hip
+time python -O -W ignore icml_exp.py -n5 reg
